@@ -131,19 +131,19 @@ export default function HomePage() {
 
         {/* Quick Links */}
         <div className="grid md:grid-cols-4 gap-6 w-full max-w-4xl">
-          <Link href="/tournaments" className="pro11-card p-6 hover:bg-slate-700/50 transition-colors text-center">
+          <Link href="/tournaments" className="pro11-card p-6 hover:bg-slate-700/50 transition-colors text-center" style={{textDecoration: 'none'}}>
             <h4 className="text-xl font-semibold mb-2">Se alle turneringer</h4>
             <p className="text-slate-400">Oversikt over kommende og aktive turneringer</p>
           </Link>
-          <a href="/rules.pdf" target="_blank" className="pro11-card p-6 hover:bg-slate-700/50 transition-colors text-center">
+          <a href="/rules.pdf" target="_blank" className="pro11-card p-6 hover:bg-slate-700/50 transition-colors text-center" style={{textDecoration: 'none'}}>
             <h4 className="text-xl font-semibold mb-2">Turneringsregler</h4>
             <p className="text-slate-400">Laste ned offisielle regler og format</p>
           </a>
-          <Link href="/faq" className="pro11-card p-6 hover:bg-slate-700/50 transition-colors text-center">
+          <Link href="/faq" className="pro11-card p-6 hover:bg-slate-700/50 transition-colors text-center" style={{textDecoration: 'none'}}>
             <h4 className="text-xl font-semibold mb-2">FAQ</h4>
             <p className="text-slate-400">Ofte stilte spørsmål og svar</p>
           </Link>
-          <Link href="/captain/login" className="pro11-card p-6 hover:bg-slate-700/50 transition-colors text-center">
+          <Link href="/captain/login" className="pro11-card p-6 hover:bg-slate-700/50 transition-colors text-center" style={{textDecoration: 'none'}}>
             <h4 className="text-xl font-semibold mb-2">Lagleder</h4>
             <p className="text-slate-400">Logg inn for å legge inn resultater</p>
           </Link>

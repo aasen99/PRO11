@@ -25,6 +25,30 @@ html, body {
   box-shadow: 0 0 20px rgba(0, 0, 0, 0.3);
 }
 
+/* Remove underlines from text in cards */
+.pro11-card p,
+.pro11-card span,
+.pro11-card div,
+.pro11-card a,
+.pro11-card * {
+  text-decoration: none !important;
+}
+
+/* Override browser default link styles */
+.pro11-card a {
+  text-decoration: none !important;
+}
+
+/* Override webkit link styles */
+.pro11-card a:-webkit-any-link {
+  text-decoration: none !important;
+}
+
+/* Force remove all underlines */
+.pro11-card * {
+  text-decoration: none !important;
+}
+
 .pro11-button {
   background-color: #2979FF;
   color: white;
