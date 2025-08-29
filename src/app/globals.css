@@ -197,7 +197,6 @@ html, body {
 /* Navigation hover effects */
 nav a:hover {
   color: #5393FF;
-  text-decoration: underline;
 }
 
 /* Responsive */
