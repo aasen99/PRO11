@@ -23,6 +23,33 @@ export default function PaymentPage() {
   const [paymentComplete, setPaymentComplete] = useState(false)
   const [paymentId, setPaymentId] = useState<string | null>(null)
   const [tournamentEntryFee, setTournamentEntryFee] = useState<number>(299)
+  const [paypalClientId, setPaypalClientId] = useState<string | null>(null)
+  const [paypalLoading, setPaypalLoading] = useState(true)
+
+  useEffect(() => {
+    // Check PayPal Client ID from API (works even if NEXT_PUBLIC_ var wasn't available at build time)
+    const checkPaypalConfig = async () => {
+      try {
+        const response = await fetch('/api/paypal/config')
+        const data = await response.json()
+        console.log('PayPal config from API:', data)
+        setPaypalClientId(data.clientId)
+        setPaypalLoading(false)
+      } catch (error) {
+        console.error('Error checking PayPal config:', error)
+        // Fallback to checking process.env directly
+        const clientId = process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID
+        console.log('Fallback PayPal check:', {
+          hasClientId: !!clientId,
+          clientIdLength: clientId?.length || 0
+        })
+        setPaypalClientId(clientId || null)
+        setPaypalLoading(false)
+      }
+    }
+    
+    checkPaypalConfig()
+  }, [])
 
   useEffect(() => {
     // Hent registreringsdata fra localStorage eller URL params
@@ -328,20 +355,14 @@ export default function PaymentPage() {
             </p>
             
             <div className="text-center">
-              {(() => {
-                // NEXT_PUBLIC_ variables are available at build time in Next.js
-                const paypalClientId = process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID
-                console.log('PayPal Client ID check:', {
-                  hasClientId: !!paypalClientId,
-                  clientIdLength: paypalClientId?.length || 0,
-                  clientIdPrefix: paypalClientId?.substring(0, 20) || 'NOT SET',
-                  fullClientId: paypalClientId || 'NOT SET'
-                })
-                return paypalClientId
-              })() ? (
+              {paypalLoading ? (
+                <div className="p-8">
+                  <p className="text-slate-300">Laster PayPal-konfigurasjon...</p>
+                </div>
+              ) : paypalClientId ? (
                 <PayPalScriptProvider 
                   options={{ 
-                    clientId: process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID as string,
+                    clientId: paypalClientId,
                     currency: 'NOK',
                     intent: 'capture'
                   }}
