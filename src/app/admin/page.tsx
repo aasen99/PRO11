@@ -382,6 +382,8 @@ PRO11 Team`)
 
   const saveTournament = async (tournamentData: Partial<Tournament>) => {
     try {
+      console.log('Saving tournament with data:', tournamentData)
+      
       // Convert frontend format to database format
       // Handle date format: if it's already a date string, use it; otherwise combine date and time
       let startDate: Date
@@ -398,22 +400,31 @@ PRO11 Team`)
         startDate = new Date(tournamentData.date + 'T19:00:00')
         endDate = new Date(tournamentData.date + 'T23:00:00')
       } else {
-        startDate = new Date()
-        endDate = new Date()
+        alert('Dato er påkrevd!')
+        return
       }
+      
+      if (!tournamentData.title) {
+        alert('Tittel er påkrevd!')
+        return
+      }
+      
+      const prizePool = parseInt(tournamentData.prize?.replace(/[^0-9]/g, '') || '0')
       
       const dbData: any = {
         title: tournamentData.title,
-        description: tournamentData.description,
+        description: tournamentData.description || null,
         start_date: startDate.toISOString(),
         end_date: endDate.toISOString(),
         max_teams: tournamentData.maxTeams || 16,
-        prize_pool: parseInt(tournamentData.prize?.replace(/[^0-9]/g, '') || '0'),
+        prize_pool: prizePool,
         entry_fee: tournamentData.entryFee || 299,
         status: tournamentData.status === 'open' ? 'upcoming' : 
                 tournamentData.status === 'ongoing' ? 'active' :
                 tournamentData.status === 'completed' ? 'completed' : 'cancelled'
       }
+      
+      console.log('Sending to API:', dbData)
 
       if (isNewTournament) {
         const response = await fetch('/api/tournaments', {
@@ -421,6 +432,8 @@ PRO11 Team`)
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(dbData)
         })
+        
+        const responseData = await response.json()
         
         if (response.ok) {
           // Reload tournaments
@@ -454,10 +467,16 @@ PRO11 Team`)
               if (transformed.length > 0 && !selectedTournament) {
                 setSelectedTournament(transformed[0].id)
               }
+              setShowTournamentModal(false)
+              setEditingTournament(null)
+              setIsNewTournament(false)
             }
           }
         } else {
-          alert('Kunne ikke opprette turnering')
+          const errorMessage = responseData.error || 'Kunne ikke opprette turnering'
+          alert(`Feil: ${errorMessage}`)
+          console.error('Failed to create tournament:', responseData)
+          return // Don't close modal on error
         }
       } else if (editingTournament) {
         const response = await fetch('/api/tournaments', {
@@ -465,6 +484,8 @@ PRO11 Team`)
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ id: editingTournament.id, ...dbData })
         })
+        
+        const responseData = await response.json()
         
         if (response.ok) {
           // Reload tournaments
@@ -495,16 +516,23 @@ PRO11 Team`)
                 }
               })
               setTournaments(transformed)
+              setShowTournamentModal(false)
+              setEditingTournament(null)
+              setIsNewTournament(false)
             }
           }
         } else {
-          alert('Kunne ikke oppdatere turnering')
+          const errorMessage = responseData.error || 'Kunne ikke oppdatere turnering'
+          alert(`Feil: ${errorMessage}`)
+          console.error('Failed to update tournament:', responseData)
+          return // Don't close modal on error
         }
       }
-      setShowTournamentModal(false)
+      // Modal is closed in success cases above
     } catch (error) {
       console.error('Error saving tournament:', error)
-      alert('Noe gikk galt ved lagring av turnering')
+      alert('Noe gikk galt ved lagring av turnering: ' + (error instanceof Error ? error.message : 'Ukjent feil'))
+      // Don't close modal on error
     }
   }
 
@@ -1360,23 +1388,32 @@ PRO11 Team`)
             </div>
 
             <form 
-              onSubmit={(e) => {
+              onSubmit={async (e) => {
                 e.preventDefault()
                 const formData = new FormData(e.currentTarget)
                 const date = formData.get('date') as string
                 const time = formData.get('time') as string
                 const prizeText = formData.get('prize') as string
-                const prizePool = parseInt(prizeText?.replace(/[^0-9]/g, '') || '0')
                 
-                saveTournament({
+                console.log('Form data:', {
+                  title: formData.get('title'),
+                  date,
+                  time,
+                  prizeText,
+                  maxTeams: formData.get('maxTeams'),
+                  entryFee: formData.get('entryFee'),
+                  status: formData.get('status')
+                })
+                
+                await saveTournament({
                   title: formData.get('title') as string,
-                  description: formData.get('description') as string,
+                  description: formData.get('description') as string || '',
                   date: date,
                   time: time,
                   maxTeams: parseInt(formData.get('maxTeams') as string || '16'),
-                  prize: prizeText,
+                  prize: prizeText || '0',
                   entryFee: parseInt(formData.get('entryFee') as string || '299'),
-                  status: formData.get('status') as 'open' | 'ongoing' | 'closed' | 'completed' || 'open'
+                  status: (formData.get('status') as 'open' | 'ongoing' | 'closed' | 'completed') || 'open'
                 })
               }}
               className="space-y-3"
