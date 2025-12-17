@@ -484,11 +484,12 @@ PRO11 Team`)
           setEditingTournament(null)
           setIsNewTournament(false)
           
-          // Reload tournaments to get fresh data
-          const loadResponse = await fetch('/api/tournaments')
+          // Reload tournaments to get fresh data (with cache busting)
+          const loadResponse = await fetch('/api/tournaments?' + new Date().getTime())
           if (loadResponse.ok) {
             const data = await loadResponse.json()
             console.log('Reloaded tournaments count:', data.tournaments?.length || 0)
+            console.log('Reloaded tournaments:', data.tournaments)
             if (data.tournaments) {
               const transformed = data.tournaments.map((t: any) => {
                 const startDate = new Date(t.start_date)

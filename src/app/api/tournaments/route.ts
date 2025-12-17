@@ -6,7 +6,9 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     const id = searchParams.get('id')
 
-    const supabase = getSupabase()
+    // Use admin client to ensure we can read all tournaments
+    // (RLS policies should allow public read, but using admin ensures it works)
+    const supabase = getSupabaseAdmin() || getSupabase()
 
     if (id) {
       // Get single tournament
@@ -28,6 +30,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ tournament })
     } else {
       // Get all tournaments
+      console.log('Fetching all tournaments...')
       const { data: tournaments, error } = await supabase
         .from('tournaments')
         .select('*')
@@ -35,9 +38,12 @@ export async function GET(request: NextRequest) {
 
       if (error) {
         console.error('Database error:', error)
+        console.error('Error details:', JSON.stringify(error, null, 2))
         return NextResponse.json({ error: 'Failed to fetch tournaments: ' + error.message }, { status: 400 })
       }
 
+      console.log('Fetched tournaments count:', tournaments?.length || 0)
+      console.log('Tournaments:', tournaments?.map(t => ({ id: t.id, title: t.title })))
       return NextResponse.json({ tournaments: tournaments || [] })
     }
 
