@@ -538,7 +538,7 @@ export default function CaptainDashboardPage() {
           </div>
 
           {/* Current Tournaments */}
-          {tournaments.filter(t => t.status === 'live' || t.status === 'upcoming').map(tournament => (
+          {tournaments.filter(t => t.status === 'live' || t.status === 'upcoming' || t.status === 'completed').map(tournament => (
             <div key={tournament.id} className="pro11-card p-6 mb-6">
               <div className="flex items-center justify-between mb-4">
                 <div>

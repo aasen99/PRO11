@@ -764,13 +764,35 @@ PRO11 Team`)
       matches = [...matches, ...knockoutMatches]
     }
 
-    // Oppdater turneringen med kamper
-    const updatedTournament = {
-      ...tournament,
-      matches,
-      groups,
-      status: 'ongoing' as const
+    // Oppdater turneringen med kamper og lagre i state
+    const updatedTournaments = tournaments.map(t => 
+      t.id === tournamentId 
+        ? { ...t, matches, groups, status: 'ongoing' as const }
+        : t
+    )
+    setTournaments(updatedTournaments)
+
+    // Oppdater turneringsstatus i databasen til 'active'
+    const updateTournamentStatus = async () => {
+      try {
+        const response = await fetch('/api/tournaments', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            id: tournamentId,
+            status: 'active' // Database uses 'active', frontend uses 'ongoing'
+          })
+        })
+        
+        if (!response.ok) {
+          console.error('Failed to update tournament status')
+        }
+      } catch (error) {
+        console.error('Error updating tournament status:', error)
+      }
     }
+    
+    updateTournamentStatus()
 
     console.log('Generated matches:', matches)
     console.log('Generated groups:', groups)
