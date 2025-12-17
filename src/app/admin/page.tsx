@@ -1387,6 +1387,14 @@ PRO11 Team`)
                             <p className="font-medium text-sm">{tournament.registeredTeams}/{tournament.maxTeams}</p>
                           </div>
                           <div className="flex space-x-1">
+                            <Link
+                              href={`/admin/matches/${tournament.id}`}
+                              className="pro11-button-secondary flex items-center space-x-1 text-xs"
+                              title="Se kamper"
+                            >
+                              <Trophy className="w-3 h-3" />
+                              <span>Se kamper</span>
+                            </Link>
                             <button 
                               onClick={() => autoGenerateMatches(tournament.id)}
                               className="pro11-button flex items-center space-x-1 text-xs"
