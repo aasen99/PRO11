@@ -58,8 +58,19 @@ export const getSupabaseAdmin = () => {
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
     const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
     
+    console.log('getSupabaseAdmin called:', {
+      hasUrl: !!supabaseUrl,
+      hasServiceKey: !!supabaseServiceKey,
+      urlLength: supabaseUrl?.length || 0,
+      keyLength: supabaseServiceKey?.length || 0
+    })
+    
     if (!supabaseUrl || !supabaseServiceKey) {
-      console.warn('Missing Supabase service role key - falling back to anon key')
+      console.error('Missing Supabase service role key or URL!', {
+        url: supabaseUrl,
+        hasServiceKey: !!supabaseServiceKey
+      })
+      console.warn('Falling back to anon key - this may fail for admin operations')
       return getSupabase()
     }
     
@@ -69,6 +80,8 @@ export const getSupabaseAdmin = () => {
         autoRefreshToken: false
       }
     })
+    
+    console.log('Supabase admin client created successfully')
   }
   
   return supabaseAdmin

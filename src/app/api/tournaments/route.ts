@@ -53,6 +53,11 @@ export async function POST(request: NextRequest) {
     const { title, description, start_date, end_date, max_teams, prize_pool, entry_fee, status } = body
 
     console.log('POST /api/tournaments - Received data:', body)
+    console.log('Environment check:', {
+      hasUrl: !!process.env.NEXT_PUBLIC_SUPABASE_URL,
+      hasServiceKey: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
+      hasAnonKey: !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+    })
 
     if (!title || !start_date || !end_date) {
       console.error('Missing required fields:', { title, start_date, end_date })
@@ -62,6 +67,11 @@ export async function POST(request: NextRequest) {
     // Use admin client for insert/update/delete operations to bypass RLS
     const supabase = getSupabaseAdmin()
     console.log('Supabase admin client created, attempting insert...')
+    
+    if (!supabase) {
+      console.error('Failed to create Supabase admin client')
+      return NextResponse.json({ error: 'Database connection failed' }, { status: 500 })
+    }
 
     const { data: tournament, error } = await supabase
       .from('tournaments')

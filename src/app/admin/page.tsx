@@ -427,13 +427,17 @@ PRO11 Team`)
       console.log('Sending to API:', dbData)
 
       if (isNewTournament) {
+        console.log('Sending POST request to /api/tournaments with data:', dbData)
+        
         const response = await fetch('/api/tournaments', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(dbData)
         })
         
+        console.log('Response status:', response.status)
         const responseData = await response.json()
+        console.log('Response data:', responseData)
         
         if (response.ok) {
           // Reload tournaments
