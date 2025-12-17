@@ -29,58 +29,7 @@ interface Tournament {
 }
 
 export default function LiveTournamentPage() {
-  const [activeTournament, setActiveTournament] = useState<Tournament | null>({
-    id: 'fc26-launch-cup',
-    title: 'PRO11 FC 26 Launch Cup',
-    status: 'live',
-    currentRound: 'Kvartfinaler',
-    totalRounds: 4,
-    matches: [
-      {
-        id: '1',
-        team1: 'Oslo United',
-        team2: 'Bergen Elite',
-        score1: 2,
-        score2: 1,
-        status: 'completed',
-        time: '19:00',
-        round: 'Kvartfinaler'
-      },
-      {
-        id: '2',
-        team1: 'Trondheim Titans',
-        team2: 'Stavanger Stars',
-        score1: 0,
-        score2: 0,
-        status: 'live',
-        time: '19:30',
-        round: 'Kvartfinaler'
-      },
-      {
-        id: '3',
-        team1: 'Drammen Dragons',
-        team2: 'Kristiansand Kings',
-        score1: 0,
-        score2: 0,
-        status: 'scheduled',
-        time: '20:00',
-        round: 'Kvartfinaler'
-      },
-      {
-        id: '4',
-        team1: 'Ålesund Aces',
-        team2: 'Tromsø Thunder',
-        score1: 0,
-        score2: 0,
-        status: 'scheduled',
-        time: '20:30',
-        round: 'Kvartfinaler'
-      }
-    ],
-    participants: 8,
-    startTime: '19:00',
-    estimatedEnd: '22:30'
-  })
+  const [activeTournament, setActiveTournament] = useState<Tournament | null>(null)
 
   const getStatusColor = (status: string) => {
     switch (status) {

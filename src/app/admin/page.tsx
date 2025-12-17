@@ -383,8 +383,24 @@ PRO11 Team`)
   const saveTournament = async (tournamentData: Partial<Tournament>) => {
     try {
       // Convert frontend format to database format
-      const startDate = tournamentData.date ? new Date(tournamentData.date + ' ' + (tournamentData.time || '19:00')) : new Date()
-      const endDate = tournamentData.date ? new Date(tournamentData.date + ' ' + (tournamentData.time || '23:00')) : new Date()
+      // Handle date format: if it's already a date string, use it; otherwise combine date and time
+      let startDate: Date
+      let endDate: Date
+      
+      if (tournamentData.date && tournamentData.time) {
+        // Combine date (YYYY-MM-DD) and time (HH:mm) into ISO string
+        const dateTimeString = `${tournamentData.date}T${tournamentData.time}:00`
+        startDate = new Date(dateTimeString)
+        // End date is same day, but later time (default 23:00)
+        const endDateTimeString = `${tournamentData.date}T23:00:00`
+        endDate = new Date(endDateTimeString)
+      } else if (tournamentData.date) {
+        startDate = new Date(tournamentData.date + 'T19:00:00')
+        endDate = new Date(tournamentData.date + 'T23:00:00')
+      } else {
+        startDate = new Date()
+        endDate = new Date()
+      }
       
       const dbData: any = {
         title: tournamentData.title,
@@ -836,16 +852,12 @@ PRO11 Team`)
               <p className="text-slate-400 text-sm">Pro Clubs Turneringer</p>
             </div>
           </div>
-                           <div className="flex items-center space-x-4">
-                   <span className="text-green-400 text-sm">Admin tilgang</span>
-                   <Link href="/admin/live" className="pro11-button flex items-center space-x-2">
-                     <Trophy className="w-4 h-4" />
-                     <span>Live Turnering</span>
-                   </Link>
-                   <Link href="/" className="pro11-button-secondary flex items-center space-x-2">
-                     <span>Tilbake</span>
-                   </Link>
-                 </div>
+          <div className="flex items-center space-x-4">
+            <span className="text-green-400 text-sm">Admin tilgang</span>
+            <Link href="/" className="pro11-button-secondary flex items-center space-x-2">
+              <span>Tilbake</span>
+            </Link>
+          </div>
         </div>
       </header>
 
