@@ -22,16 +22,57 @@ export default function PaymentPage() {
   const [isProcessing, setIsProcessing] = useState(false)
   const [paymentComplete, setPaymentComplete] = useState(false)
   const [paymentId, setPaymentId] = useState<string | null>(null)
+  const [tournamentEntryFee, setTournamentEntryFee] = useState<number>(299)
 
   useEffect(() => {
     // Hent registreringsdata fra localStorage eller URL params
     const registrationData = localStorage.getItem('teamRegistration')
     if (registrationData) {
       const data = JSON.parse(registrationData)
-      setPaymentData({
-        ...data,
-        amount: 299 // Fast pris per lag
-      })
+      
+      // Hent turneringsdata for å få riktig entry fee
+      const loadTournament = async () => {
+        if (data.tournamentId) {
+          try {
+            const response = await fetch(`/api/tournaments?id=${data.tournamentId}`)
+            if (response.ok) {
+              const tournamentData = await response.json()
+              if (tournamentData.tournament) {
+                const entryFee = tournamentData.tournament.entry_fee || 299
+                setTournamentEntryFee(entryFee)
+                setPaymentData({
+                  ...data,
+                  amount: entryFee
+                })
+              } else {
+                setPaymentData({
+                  ...data,
+                  amount: 299 // Fallback
+                })
+              }
+            } else {
+              setPaymentData({
+                ...data,
+                amount: 299 // Fallback
+              })
+            }
+          } catch (error) {
+            console.error('Error loading tournament:', error)
+            setPaymentData({
+              ...data,
+              amount: 299 // Fallback
+            })
+          }
+        } else {
+          setPaymentData({
+            ...data,
+            amount: 299 // Fallback
+          })
+        }
+      }
+      
+      loadTournament()
+      
       // Sett paymentId hvis det finnes
       if (data.teamId) {
         setPaymentId(data.teamId)
@@ -288,17 +329,19 @@ export default function PaymentPage() {
             
             <div className="text-center">
               {(() => {
+                // NEXT_PUBLIC_ variables are available at build time in Next.js
                 const paypalClientId = process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID
                 console.log('PayPal Client ID check:', {
                   hasClientId: !!paypalClientId,
                   clientIdLength: paypalClientId?.length || 0,
-                  clientIdPrefix: paypalClientId?.substring(0, 20) || 'NOT SET'
+                  clientIdPrefix: paypalClientId?.substring(0, 20) || 'NOT SET',
+                  fullClientId: paypalClientId || 'NOT SET'
                 })
                 return paypalClientId
               })() ? (
                 <PayPalScriptProvider 
                   options={{ 
-                    clientId: process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID!,
+                    clientId: process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID as string,
                     currency: 'NOK',
                     intent: 'capture'
                   }}
