@@ -79,16 +79,29 @@ export default function AdminPage() {
     currentPrize: 10000
   })
 
-  // Admin password (i produksjon bør dette være i en sikker database)
-  const ADMIN_PASSWORD = 'pro11admin2025'
-
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (password === ADMIN_PASSWORD) {
-      setIsAuthenticated(true)
-      setError('')
-    } else {
-      setError('Feil passord. Prøv igjen.')
+    setError('')
+    
+    try {
+      const response = await fetch('/api/admin/auth', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password })
+      })
+      
+      const data = await response.json()
+      
+      if (data.success) {
+        setIsAuthenticated(true)
+        setPassword('')
+      } else {
+        setError(data.error || 'Feil passord. Prøv igjen.')
+        setPassword('')
+      }
+    } catch (error) {
+      console.error('Login error:', error)
+      setError('Noe gikk galt. Prøv igjen.')
       setPassword('')
     }
   }
