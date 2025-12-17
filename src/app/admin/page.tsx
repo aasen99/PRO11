@@ -205,27 +205,33 @@ export default function AdminPage() {
     }
   }
 
-  const getPaymentStatusColor = (status: string) => {
+  const getPaymentStatusColor = (status?: string) => {
     switch (status) {
       case 'pending':
+      case 'completed':
         return 'text-yellow-400'
       case 'paid':
         return 'text-green-400'
       case 'refunded':
+      case 'failed':
         return 'text-red-400'
       default:
         return 'text-slate-400'
     }
   }
 
-  const getPaymentStatusText = (status: string) => {
+  const getPaymentStatusText = (status?: string) => {
     switch (status) {
       case 'pending':
         return 'Venter betaling'
+      case 'completed':
+        return 'Betalt'
       case 'paid':
         return 'Betalt'
       case 'refunded':
         return 'Refundert'
+      case 'failed':
+        return 'Feilet'
       default:
         return 'Ukjent'
     }
@@ -308,13 +314,13 @@ export default function AdminPage() {
     const csvContent = [
       ['Lag', 'Kaptein', 'E-post', 'Spillere', 'Status', 'Betalingsstatus', 'Registrert'],
       ...filteredTeams.map(team => [
-        team.teamName,
-        team.captainName,
-        team.captainEmail,
-        team.players.length,
+        team.teamName || team.team_name,
+        team.captainName || team.captain_name,
+        team.captainEmail || team.captain_email,
+        (team.players?.length || 0),
         getStatusText(team.status),
-        getPaymentStatusText(team.paymentStatus),
-        team.registeredAt
+        getPaymentStatusText(team.paymentStatus || team.payment_status),
+        team.registeredAt || team.created_at
       ])
     ].map(row => row.join(',')).join('\n')
 
@@ -606,6 +612,7 @@ PRO11 Team`)
     const approvedTeams = teams
       .filter(team => team.status === 'approved' && (team.tournamentId === tournamentId || team.tournament_id === tournamentId))
       .map(team => team.teamName || team.team_name)
+      .filter((name): name is string => name !== undefined && name !== null)
 
     if (approvedTeams.length < 4) {
       alert('Du trenger minst 4 godkjente lag for å generere kamper!')
@@ -1238,7 +1245,7 @@ PRO11 Team`)
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="pro11-card p-4 max-w-md w-full mx-4 max-h-[80vh] overflow-y-auto">
             <div className="flex justify-between items-center mb-3">
-              <h2 className="text-lg font-bold">{selectedTeam.teamName}</h2>
+              <h2 className="text-lg font-bold">{selectedTeam.teamName || selectedTeam.team_name}</h2>
               <button
                 onClick={() => setShowTeamModal(false)}
                 className="text-slate-400 hover:text-white"
@@ -1253,11 +1260,11 @@ PRO11 Team`)
                 <div className="grid grid-cols-2 gap-2 text-xs">
                   <div>
                     <p className="text-slate-400">Kaptein</p>
-                    <p className="font-medium">{selectedTeam.captainName}</p>
+                    <p className="font-medium">{selectedTeam.captainName || selectedTeam.captain_name}</p>
                   </div>
                   <div>
                     <p className="text-slate-400">E-post</p>
-                    <p className="font-medium">{selectedTeam.captainEmail}</p>
+                    <p className="font-medium">{selectedTeam.captainEmail || selectedTeam.captain_email}</p>
                   </div>
                   <div>
                     <p className="text-slate-400">Status</p>
@@ -1267,17 +1274,17 @@ PRO11 Team`)
                   </div>
                   <div>
                     <p className="text-slate-400">Betaling</p>
-                    <span className={`text-xs ${getPaymentStatusColor(selectedTeam.paymentStatus)}`}>
-                      {getPaymentStatusText(selectedTeam.paymentStatus)}
+                    <span className={`text-xs ${getPaymentStatusColor(selectedTeam.paymentStatus || selectedTeam.payment_status)}`}>
+                      {getPaymentStatusText(selectedTeam.paymentStatus || selectedTeam.payment_status)}
                     </span>
                   </div>
                 </div>
               </div>
 
               <div>
-                <h3 className="font-semibold mb-2 text-xs">Spillere ({selectedTeam.players.length})</h3>
+                <h3 className="font-semibold mb-2 text-xs">Spillere ({(selectedTeam.players?.length || 0)})</h3>
                 <div className="grid gap-1">
-                  {selectedTeam.players.map((player, index) => (
+                  {(selectedTeam.players || []).map((player, index) => (
                     <div key={index} className="flex justify-between items-center p-1.5 bg-slate-800/50 rounded text-xs">
                       <div>
                         <p className="font-medium">{player.name}</p>

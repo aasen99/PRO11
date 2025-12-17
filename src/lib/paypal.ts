@@ -13,13 +13,13 @@ export const getPayPal = async () => {
     
     try {
       paypal = await loadScript({
-        'client-id': clientId,
+        clientId: clientId,
         currency: 'NOK',
         intent: 'capture',
         'enable-funding': 'paylater,venmo',
         'disable-funding': 'card',
         'data-sdk-integration-source': 'integrationbuilder_ac'
-      })
+      } as any)
     } catch (error) {
       console.error('Failed to load PayPal SDK:', error)
       return null

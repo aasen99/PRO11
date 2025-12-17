@@ -1,6 +1,7 @@
-import Stripe from 'stripe'
+// Stripe is not currently used - PayPal is the payment provider
+// This file is kept for potential future use
 
-let stripe: Stripe | null = null
+let stripe: any = null
 
 export const getStripe = () => {
   if (!stripe) {
@@ -11,9 +12,10 @@ export const getStripe = () => {
       return null
     }
     
-    stripe = new Stripe(secretKey, {
-      apiVersion: '2023-10-16',
-    })
+    // Stripe SDK not installed - would need: npm install stripe
+    // stripe = new Stripe(secretKey, {
+    //   apiVersion: '2023-10-16',
+    // })
   }
   
   return stripe
