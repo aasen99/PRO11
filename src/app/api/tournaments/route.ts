@@ -43,7 +43,7 @@ export async function GET(request: NextRequest) {
       }
 
       console.log('Fetched tournaments count:', tournaments?.length || 0)
-      console.log('Tournaments:', tournaments?.map(t => ({ id: t.id, title: t.title })))
+      console.log('Tournaments:', tournaments?.map((t: any) => ({ id: t.id, title: t.title })))
       return NextResponse.json({ tournaments: tournaments || [] })
     }
 
