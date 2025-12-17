@@ -67,141 +67,74 @@ export default function CaptainDashboardPage() {
       const parsedTeam = JSON.parse(teamData)
       setTeam(parsedTeam)
       
-      // Mock tournament data for laget
-      const mockTournaments: Tournament[] = [
-        {
-          id: 'fc26-launch-cup',
-          title: 'PRO11 FC 26 Launch Cup',
-          status: 'live',
-          startDate: '15. september 2025',
-          endDate: '15. september 2025',
-          position: 2,
-          totalTeams: 8,
-          matches: [
-            {
-              id: '1',
-              team1: 'Oslo United',
-              team2: 'Bergen Elite',
-              score1: 2,
-              score2: 1,
-              status: 'completed',
-              time: '19:00',
-              round: 'Kvartfinaler',
-              tournamentId: 'fc26-launch-cup',
-              canSubmitResult: false,
-              submittedBy: null,
-              submittedScore1: null,
-              submittedScore2: null,
-              canConfirmResult: false
-            },
-            {
-              id: '2',
-              team1: 'Oslo United',
-              team2: 'Trondheim Titans',
-              score1: 0,
-              score2: 0,
-              status: 'pending_result',
-              time: '20:30',
-              round: 'Semifinaler',
-              tournamentId: 'fc26-launch-cup',
-              canSubmitResult: true,
-              submittedBy: null,
-              submittedScore1: null,
-              submittedScore2: null,
-              canConfirmResult: false
-            },
-            {
-              id: '3',
-              team1: 'Oslo United',
-              team2: 'Stavanger Stars',
-              score1: 0,
-              score2: 0,
-              status: 'pending_confirmation',
-              time: '21:00',
-              round: 'Finale',
-              tournamentId: 'fc26-launch-cup',
-              canSubmitResult: false,
-              submittedBy: 'Stavanger Stars',
-              submittedScore1: 1,
-              submittedScore2: 2,
-              canConfirmResult: true
+      // Hent faktiske turneringer fra databasen
+      const loadTournaments = async () => {
+        try {
+          // Hent turneringer som laget er registrert på
+          const tournamentIds = parsedTeam.tournaments || []
+          
+          if (tournamentIds.length === 0) {
+            setTournaments([])
+            setTeamStats({
+              wins: 0,
+              losses: 0,
+              draws: 0,
+              goalsFor: 0,
+              goalsAgainst: 0,
+              tournamentsPlayed: 0,
+              bestFinish: 'Ingen',
+              currentRanking: 0
+            })
+            return
+          }
+          
+          // Hent hver turnering
+          const tournamentPromises = tournamentIds.map(async (tournamentId: string) => {
+            try {
+              const response = await fetch(`/api/tournaments?id=${tournamentId}`)
+              if (response.ok) {
+                const data = await response.json()
+                return data.tournament
+              }
+              return null
+            } catch (error) {
+              console.error(`Error loading tournament ${tournamentId}:`, error)
+              return null
             }
-          ]
-        },
-        {
-          id: 'winter-cup-2024',
-          title: 'PRO11 Winter Cup 2024',
-          status: 'completed',
-          startDate: '1. desember 2024',
-          endDate: '15. desember 2024',
-          position: 1,
-          totalTeams: 16,
-          matches: [
-            {
-              id: 'w1',
-              team1: 'Oslo United',
-              team2: 'Drammen Dragons',
-              score1: 3,
-              score2: 1,
-              status: 'completed',
-              time: '19:00',
-              round: 'Gruppespill',
-              tournamentId: 'winter-cup-2024',
-              canSubmitResult: false,
-              submittedBy: null,
-              submittedScore1: null,
-              submittedScore2: null,
-              canConfirmResult: false
-            },
-            {
-              id: 'w2',
-              team1: 'Oslo United',
-              team2: 'Kristiansand Kings',
-              score1: 2,
-              score2: 0,
-              status: 'completed',
-              time: '20:30',
-              round: 'Gruppespill',
-              tournamentId: 'winter-cup-2024',
-              canSubmitResult: false,
-              submittedBy: null,
-              submittedScore1: null,
-              submittedScore2: null,
-              canConfirmResult: false
-            },
-            {
-              id: 'w3',
-              team1: 'Oslo United',
-              team2: 'Tromsø Titans',
-              score1: 4,
-              score2: 2,
-              status: 'completed',
-              time: '21:00',
-              round: 'Finale',
-              tournamentId: 'winter-cup-2024',
-              canSubmitResult: false,
-              submittedBy: null,
-              submittedScore1: null,
-              submittedScore2: null,
-              canConfirmResult: false
+          })
+          
+          const tournamentData = await Promise.all(tournamentPromises)
+          const validTournaments = tournamentData.filter(t => t !== null)
+          
+          // Transform database tournaments to frontend format
+          const transformedTournaments: Tournament[] = validTournaments.map((t: any) => {
+            const startDate = new Date(t.start_date)
+            const endDate = new Date(t.end_date)
+            
+            return {
+              id: t.id,
+              title: t.title,
+              status: t.status === 'active' ? 'live' : t.status === 'completed' ? 'completed' : 'upcoming',
+              startDate: startDate.toLocaleDateString('nb-NO', { day: 'numeric', month: 'long', year: 'numeric' }),
+              endDate: endDate.toLocaleDateString('nb-NO', { day: 'numeric', month: 'long', year: 'numeric' }),
+              position: 0, // TODO: Calculate position from standings
+              totalTeams: t.max_teams,
+              matches: [] // TODO: Load matches from database when matches table is created
             }
-          ]
+          })
+          
+          setTournaments(transformedTournaments)
+          
+          // Beregn lagstatistikk (foreløpig tom siden vi ikke har matches)
+          const stats = calculateTeamStats(transformedTournaments, parsedTeam.teamName)
+          setTeamStats(stats)
+        } catch (error) {
+          console.error('Error loading tournaments:', error)
+          setTournaments([])
         }
-      ]
+      }
       
-      // Filtrer kamper for dette laget
-      const filteredTournaments = mockTournaments.map(tournament => ({
-        ...tournament,
-        matches: tournament.matches.filter(match => 
-          match.team1 === parsedTeam.teamName || match.team2 === parsedTeam.teamName
-        )
-      })).filter(tournament => tournament.matches.length > 0)
-      
-      setTournaments(filteredTournaments)
-      
-      // Beregn lagstatistikk
-      const stats = calculateTeamStats(filteredTournaments, parsedTeam.teamName)
-      setTeamStats(stats)
+      loadTournaments()
     } else {
       // Ikke logget inn, redirect til login
       window.location.href = '/captain/login'
