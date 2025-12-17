@@ -73,32 +73,47 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Database connection failed' }, { status: 500 })
     }
 
+    const insertData = {
+      title,
+      description: description || null,
+      start_date,
+      end_date,
+      max_teams: max_teams || 16,
+      prize_pool: prize_pool || 0,
+      entry_fee: entry_fee || 299,
+      status: status || 'upcoming',
+      current_teams: 0
+    }
+    
+    console.log('Inserting tournament with data:', insertData)
+    
     const { data: tournament, error } = await supabase
       .from('tournaments')
-      .insert({
-        title,
-        description: description || null,
-        start_date,
-        end_date,
-        max_teams: max_teams || 16,
-        prize_pool: prize_pool || 0,
-        entry_fee: entry_fee || 299,
-        status: status || 'upcoming',
-        current_teams: 0
-      })
+      .insert(insertData)
       .select()
       .single()
 
     if (error) {
       console.error('Database error:', error)
       console.error('Error details:', JSON.stringify(error, null, 2))
+      console.error('Error code:', error.code)
+      console.error('Error hint:', error.hint)
       return NextResponse.json({ 
         error: 'Failed to create tournament: ' + error.message,
-        details: error
+        details: error,
+        code: error.code
       }, { status: 400 })
     }
 
+    if (!tournament) {
+      console.error('No tournament returned from insert, but no error either')
+      return NextResponse.json({ 
+        error: 'Tournament was not created - no data returned'
+      }, { status: 500 })
+    }
+
     console.log('Tournament created successfully:', tournament)
+    console.log('Tournament ID:', tournament.id)
     return NextResponse.json({ tournament })
 
   } catch (error: any) {

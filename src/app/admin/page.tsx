@@ -438,12 +438,24 @@ PRO11 Team`)
         console.log('Response status:', response.status)
         const responseData = await response.json()
         console.log('Response data:', responseData)
+        console.log('Response has tournament?', !!responseData.tournament)
+        console.log('Tournament ID:', responseData.tournament?.id)
         
         if (response.ok) {
+          if (!responseData.tournament) {
+            console.error('Response OK but no tournament in response:', responseData)
+            alert('Turnering ble ikke opprettet. Sjekk konsollen for detaljer.')
+            return
+          }
+          
+          console.log('Tournament created successfully, reloading list...')
+          console.log('Created tournament ID:', responseData.tournament.id)
+          
           // Reload tournaments
           const loadResponse = await fetch('/api/tournaments')
           if (loadResponse.ok) {
             const data = await loadResponse.json()
+            console.log('Reloaded tournaments count:', data.tournaments?.length || 0)
             if (data.tournaments) {
               const transformed = data.tournaments.map((t: any) => {
                 const startDate = new Date(t.start_date)
