@@ -290,28 +290,36 @@ export default function AdminPage() {
     }
   }
 
-  const updateTeamStatus = (teamId: string, newStatus: string) => {
-    setTeams(prevTeams => {
-      const updatedTeams = prevTeams.map(team => 
-        team.id === teamId 
-          ? { ...team, status: newStatus as 'pending' | 'approved' | 'rejected' | 'paid' }
-          : team
-      )
-      
-      // Oppdater localStorage med de nye team-dataene
-      const storedTeams = localStorage.getItem('adminTeams')
-      if (storedTeams) {
-        const teamsFromStorage = JSON.parse(storedTeams)
-        const updatedStorageTeams = teamsFromStorage.map((team: any) => 
-          team.id === teamId 
-            ? { ...team, status: newStatus as 'pending' | 'approved' | 'rejected' | 'paid' }
-            : team
-        )
-        localStorage.setItem('adminTeams', JSON.stringify(updatedStorageTeams))
+  const updateTeamStatus = async (teamId: string, newStatus: string) => {
+    try {
+      // Oppdater i databasen
+      const response = await fetch('/api/teams', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: teamId,
+          status: newStatus
+        })
+      })
+
+      if (response.ok) {
+        // Oppdater lokal state
+        setTeams(prevTeams => {
+          const updatedTeams = prevTeams.map(team => 
+            team.id === teamId 
+              ? { ...team, status: newStatus as 'pending' | 'approved' | 'rejected' | 'paid' }
+              : team
+          )
+          return updatedTeams
+        })
+      } else {
+        const error = await response.json()
+        alert(`Kunne ikke oppdatere lag-status: ${error.error || 'Ukjent feil'}`)
       }
-      
-      return updatedTeams
-    })
+    } catch (error) {
+      console.error('Error updating team status:', error)
+      alert('Noe gikk galt ved oppdatering av lag-status')
+    }
   }
 
   const deleteTeam = (teamId: string) => {
@@ -842,13 +850,89 @@ PRO11 Team`)
           console.error('Failed to update tournament status')
         }
 
-        // Oppdater lokal state med lagrede kamper
-        const updatedTournaments = tournaments.map(t => 
-          t.id === tournamentId 
-            ? { ...t, matches, groups, status: 'ongoing' as const }
-            : t
-        )
-        setTournaments(updatedTournaments)
+        // Last turneringer på nytt for å få oppdaterte kamper
+        const reloadResponse = await fetch('/api/tournaments')
+        if (reloadResponse.ok) {
+          const reloadData = await reloadResponse.json()
+          if (reloadData.tournaments) {
+            // Load matches for each tournament
+            const tournamentsWithMatches = await Promise.all(
+              reloadData.tournaments.map(async (t: any) => {
+                try {
+                  const matchesResponse = await fetch(`/api/matches?tournament_id=${t.id}`)
+                  if (matchesResponse.ok) {
+                    const matchesData = await matchesResponse.json()
+                    const loadedMatches = (matchesData.matches || []).map((m: any) => ({
+                      id: m.id,
+                      team1: m.team1_name,
+                      team2: m.team2_name,
+                      round: m.round,
+                      group: m.group_name,
+                      status: m.status as 'scheduled' | 'live' | 'completed',
+                      score1: m.score1,
+                      score2: m.score2,
+                      time: m.scheduled_time ? new Date(m.scheduled_time).toLocaleTimeString('nb-NO', { hour: '2-digit', minute: '2-digit' }) : undefined
+                    }))
+                    
+                    const startDate = new Date(t.start_date)
+                    const date = startDate.toLocaleDateString('nb-NO', { day: 'numeric', month: 'long', year: 'numeric' })
+                    const time = startDate.toLocaleTimeString('nb-NO', { hour: '2-digit', minute: '2-digit' })
+                    
+                    let status: 'open' | 'ongoing' | 'closed' | 'completed' = 'open'
+                    if (t.status === 'active') status = 'ongoing'
+                    else if (t.status === 'completed') status = 'completed'
+                    else if (t.status === 'cancelled') status = 'closed'
+                    
+                    return {
+                      id: t.id,
+                      title: t.title,
+                      date,
+                      time,
+                      registeredTeams: t.current_teams || 0,
+                      maxTeams: t.max_teams,
+                      status,
+                      prize: `${t.prize_pool.toLocaleString('nb-NO')} NOK`,
+                      entryFee: t.entry_fee,
+                      description: t.description || '',
+                      format: 'mixed' as const,
+                      matches: loadedMatches,
+                      groups: t.id === tournamentId ? groups : undefined
+                    }
+                  }
+                } catch (error) {
+                  console.error(`Error loading matches for tournament ${t.id}:`, error)
+                }
+                
+                const startDate = new Date(t.start_date)
+                const date = startDate.toLocaleDateString('nb-NO', { day: 'numeric', month: 'long', year: 'numeric' })
+                const time = startDate.toLocaleTimeString('nb-NO', { hour: '2-digit', minute: '2-digit' })
+                
+                let status: 'open' | 'ongoing' | 'closed' | 'completed' = 'open'
+                if (t.status === 'active') status = 'ongoing'
+                else if (t.status === 'completed') status = 'completed'
+                else if (t.status === 'cancelled') status = 'closed'
+                
+                return {
+                  id: t.id,
+                  title: t.title,
+                  date,
+                  time,
+                  registeredTeams: t.current_teams || 0,
+                  maxTeams: t.max_teams,
+                  status,
+                  prize: `${t.prize_pool.toLocaleString('nb-NO')} NOK`,
+                  entryFee: t.entry_fee,
+                  description: t.description || '',
+                  format: 'mixed' as const,
+                  matches: [],
+                  groups: t.id === tournamentId ? groups : undefined
+                }
+              })
+            )
+            
+            setTournaments(tournamentsWithMatches)
+          }
+        }
 
         alert(`Kampene er generert og lagret!\n\nGruppespill: ${matches.filter(m => m.round === 'Gruppespill').length} kamper\nSluttspill: ${matches.filter(m => m.round === 'Sluttspill').length} kamper\n\nTurneringen er satt til "Pågående"`)
       } catch (error) {
@@ -1287,6 +1371,15 @@ PRO11 Team`)
                           <p className="text-xs text-slate-400">{tournament.date} - {tournament.time}</p>
                           <p className="text-xs text-slate-400">Premie: {tournament.prize} | Påmeldingsgebyr: {tournament.entryFee} NOK</p>
                           <p className="text-xs text-slate-400 mt-1">{tournament.description}</p>
+                          {tournament.matches && tournament.matches.length > 0 && (
+                            <div className="mt-2 pt-2 border-t border-slate-700">
+                              <p className="text-xs text-slate-400 mb-1">Kamper: {tournament.matches.length}</p>
+                              <div className="text-xs text-slate-500">
+                                {tournament.matches.filter((m: Match) => m.status === 'completed').length} fullført, {' '}
+                                {tournament.matches.filter((m: Match) => m.status === 'scheduled').length} planlagt
+                              </div>
+                            </div>
+                          )}
                         </div>
                         <div className="flex items-center space-x-3">
                           <div className="text-right">

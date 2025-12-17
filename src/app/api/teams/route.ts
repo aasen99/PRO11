@@ -214,4 +214,57 @@ export async function GET(request: NextRequest) {
     console.error('API error:', error)
     return NextResponse.json({ error: 'Internal server error: ' + (error.message || 'Unknown error') }, { status: 500 })
   }
+}
+
+export async function PUT(request: NextRequest) {
+  try {
+    const body = await request.json()
+    const { id, status } = body
+
+    if (!id) {
+      return NextResponse.json({ error: 'Team ID is required' }, { status: 400 })
+    }
+
+    // Use admin client to bypass RLS
+    const supabase = getSupabaseAdmin()
+    if (!supabase) {
+      return NextResponse.json({ error: 'Database connection failed' }, { status: 500 })
+    }
+
+    const updateData: any = {}
+    if (status) updateData.status = status
+
+    const { data: team, error } = await supabase
+      .from('teams')
+      .update(updateData)
+      .eq('id', id)
+      .select()
+      .single()
+
+    if (error) {
+      console.error('Database error:', error)
+      return NextResponse.json({ error: 'Failed to update team: ' + error.message }, { status: 400 })
+    }
+
+    // Return team data in both formats for compatibility
+    const teamData = {
+      id: team.id,
+      tournamentId: team.tournament_id,
+      tournament_id: team.tournament_id,
+      teamName: team.team_name,
+      team_name: team.team_name,
+      captainName: team.captain_name,
+      captain_name: team.captain_name,
+      captainEmail: team.captain_email,
+      captain_email: team.captain_email,
+      status: team.status,
+      paymentStatus: team.payment_status,
+      payment_status: team.payment_status
+    }
+
+    return NextResponse.json({ success: true, team: teamData })
+  } catch (error: any) {
+    console.error('API error:', error)
+    return NextResponse.json({ error: 'Internal server error: ' + (error.message || 'Unknown error') }, { status: 500 })
+  }
 } 
