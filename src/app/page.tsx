@@ -1,18 +1,43 @@
-import React from 'react'
+'use client'
+
+import React, { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { Shield, Trophy, Users, Calendar, ExternalLink } from 'lucide-react'
-
+import { fetchTournaments } from '../lib/tournaments'
 
 export default function HomePage() {
-  // Mock data for next tournament
-  const nextTournament = {
-    title: "PRO11 FC 26 Launch Cup",
-    date: "15. september 2025",
-    time: "19:00",
-    prize: "10,000 NOK",
-    registeredTeams: 8,
-    maxTeams: 16,
-    status: "Åpen for påmelding"
+  const [nextTournament, setNextTournament] = useState<any>(null)
+  const [isLoading, setIsLoading] = useState(true)
+
+  useEffect(() => {
+    // Fetch tournaments from database
+    const loadTournaments = async () => {
+      try {
+        const tournaments = await fetchTournaments()
+        // Find first open tournament
+        const openTournament = tournaments.find(t => t.status === 'open')
+        setNextTournament(openTournament || tournaments[0] || null)
+      } catch (error) {
+        console.error('Error loading tournaments:', error)
+        setNextTournament(null)
+      } finally {
+        setIsLoading(false)
+      }
+    }
+    
+    loadTournaments()
+  }, [])
+  
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="w-8 h-8 border-2 border-blue-400 border-t-transparent rounded-full animate-spin"></div>
+      </div>
+    )
+  }
+  
+  if (!nextTournament) {
+    return <div>Ingen turneringer tilgjengelig</div>
   }
 
   return (
@@ -53,7 +78,7 @@ export default function HomePage() {
             Neste Turnering
           </h2>
           <p className="text-xl text-slate-300 mb-8 max-w-3xl mx-auto">
-            FC 26 Launch Cup - Vær med på den største Pro Clubs-turneringen i Norge
+            {nextTournament.title} - Vær med på den største Pro Clubs-turneringen i Norge
           </p>
         </div>
 

@@ -1,9 +1,10 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { useParams } from 'next/navigation'
 import { ArrowLeft, Trophy, Users, Calendar, Clock, CheckCircle, XCircle, ExternalLink } from 'lucide-react'
+import { fetchTournamentById } from '../../../lib/tournaments'
 
 interface Team {
   id: string
@@ -36,10 +37,12 @@ interface Tournament {
   date: string
   time: string
   prize: string
+  entryFee?: number
   registeredTeams: number
   maxTeams: number
   status: 'open' | 'ongoing' | 'closed' | 'completed'
-  format: 'group' | 'knockout' | 'league'
+  statusText?: string
+  format: 'group' | 'knockout' | 'league' | 'mixed' | 'group_stage'
   description: string
 }
 
@@ -48,61 +51,95 @@ export default function TournamentDetailPage() {
   const tournamentId = params.id as string
   const [activeTab, setActiveTab] = useState<'standings' | 'matches' | 'bracket' | 'info'>('standings')
 
-  // Mock tournament data
-  const tournament: Tournament = {
-    id: 'fc26-launch-cup',
-    title: 'PRO11 FC 26 Launch Cup',
-    date: '15. september 2025',
-    time: '19:00',
-    prize: '10,000 NOK',
-    registeredTeams: 8,
-    maxTeams: 16,
-    status: 'ongoing',
-    format: 'group',
-    description: 'Den første offisielle PRO11-turneringen for FC 26. Vær med på historien!'
+  const [tournament, setTournament] = useState<any>(null)
+  const [registeredTeams, setRegisteredTeams] = useState<any[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+
+  useEffect(() => {
+    const loadTournament = async () => {
+      const t = await fetchTournamentById(tournamentId)
+      setTournament(t)
+      setIsLoading(false)
+    }
+    loadTournament()
+  }, [tournamentId])
+
+  useEffect(() => {
+    const loadTeams = async () => {
+      try {
+        const response = await fetch(`/api/teams?tournamentId=${tournamentId}`)
+        if (response.ok) {
+          const data = await response.json()
+          const teams = (data.teams || []).filter((team: any) => 
+            team.status === 'approved' || team.payment_status === 'completed'
+          )
+          setRegisteredTeams(teams)
+        }
+      } catch (error) {
+        console.warn('Error loading teams:', error)
+      }
+    }
+    if (tournamentId) {
+      loadTeams()
+    }
+  }, [tournamentId])
+
+  // Generate standings from registered teams (minimum 2 teams required)
+  const standings: Team[] = registeredTeams.length >= 2 
+    ? registeredTeams.map((team: any, index: number) => ({
+        id: team.id,
+        name: team.teamName || team.team_name,
+        played: 0,
+        won: 0,
+        drawn: 0,
+        lost: 0,
+        goalsFor: 0,
+        goalsAgainst: 0,
+        points: 0
+      }))
+    : []
+
+  if (isLoading || !tournament) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="w-8 h-8 border-2 border-blue-400 border-t-transparent rounded-full animate-spin"></div>
+      </div>
+    )
   }
 
-  // Mock standings data
-  const standings: Team[] = [
-    { id: '1', name: 'Oslo United', played: 3, won: 3, drawn: 0, lost: 0, goalsFor: 12, goalsAgainst: 2, points: 9 },
-    { id: '2', name: 'Bergen Elite', played: 3, won: 2, drawn: 1, lost: 0, goalsFor: 8, goalsAgainst: 3, points: 7 },
-    { id: '3', name: 'Trondheim Titans', played: 3, won: 2, drawn: 0, lost: 1, goalsFor: 7, goalsAgainst: 4, points: 6 },
-    { id: '4', name: 'Stavanger Stars', played: 3, won: 1, drawn: 1, lost: 1, goalsFor: 5, goalsAgainst: 5, points: 4 },
-    { id: '5', name: 'Kristiansand Kings', played: 3, won: 1, drawn: 0, lost: 2, goalsFor: 4, goalsAgainst: 7, points: 3 },
-    { id: '6', name: 'Tromsø Thunder', played: 3, won: 0, drawn: 2, lost: 1, goalsFor: 3, goalsAgainst: 6, points: 2 },
-    { id: '7', name: 'Bodø Blitz', played: 3, won: 0, drawn: 1, lost: 2, goalsFor: 2, goalsAgainst: 8, points: 1 },
-    { id: '8', name: 'Ålesund Attack', played: 3, won: 0, drawn: 1, lost: 2, goalsFor: 1, goalsAgainst: 9, points: 1 }
-  ]
+  // Generate matches from registered teams
+  const generateMatches = () => {
+    if (registeredTeams.length < 2) {
+      // No matches if not enough teams
+      return []
+    }
 
-  // Mock matches data
-  const matches: Match[] = [
-    // Group Stage
-    { id: '1', homeTeam: 'Oslo United', awayTeam: 'Bergen Elite', homeScore: 3, awayScore: 1, date: '15.09.2025', time: '19:00', status: 'completed', group: 'A' },
-    { id: '2', homeTeam: 'Trondheim Titans', awayTeam: 'Stavanger Stars', homeScore: 2, awayScore: 1, date: '15.09.2025', time: '20:30', status: 'completed', group: 'A' },
-    { id: '3', homeTeam: 'Kristiansand Kings', awayTeam: 'Tromsø Thunder', homeScore: 1, awayScore: 1, date: '16.09.2025', time: '19:00', status: 'completed', group: 'B' },
-    { id: '4', homeTeam: 'Bodø Blitz', awayTeam: 'Ålesund Attack', homeScore: 0, awayScore: 0, date: '16.09.2025', time: '20:30', status: 'completed', group: 'B' },
-    { id: '5', homeTeam: 'Oslo United', awayTeam: 'Trondheim Titans', homeScore: 4, awayScore: 0, date: '17.09.2025', time: '19:00', status: 'completed', group: 'A' },
-    { id: '6', homeTeam: 'Bergen Elite', awayTeam: 'Stavanger Stars', homeScore: 2, awayScore: 2, date: '17.09.2025', time: '20:30', status: 'completed', group: 'A' },
-    { id: '7', homeTeam: 'Kristiansand Kings', awayTeam: 'Bodø Blitz', homeScore: 2, awayScore: 1, date: '18.09.2025', time: '19:00', status: 'completed', group: 'B' },
-    { id: '8', homeTeam: 'Tromsø Thunder', awayTeam: 'Ålesund Attack', homeScore: 1, awayScore: 1, date: '18.09.2025', time: '20:30', status: 'completed', group: 'B' },
-    { id: '9', homeTeam: 'Oslo United', awayTeam: 'Stavanger Stars', homeScore: 5, awayScore: 0, date: '19.09.2025', time: '19:00', status: 'completed', group: 'A' },
-    { id: '10', homeTeam: 'Bergen Elite', awayTeam: 'Trondheim Titans', homeScore: 3, awayScore: 1, date: '19.09.2025', time: '20:30', status: 'completed', group: 'A' },
-    { id: '11', homeTeam: 'Kristiansand Kings', awayTeam: 'Ålesund Attack', homeScore: 1, awayScore: 0, date: '20.09.2025', time: '19:00', status: 'completed', group: 'B' },
-    { id: '12', homeTeam: 'Tromsø Thunder', awayTeam: 'Bodø Blitz', homeScore: 1, awayScore: 1, date: '20.09.2025', time: '20:30', status: 'completed', group: 'B' },
-    
-    // Quarter Finals
-    { id: '13', homeTeam: 'Oslo United', awayTeam: 'Kristiansand Kings', homeScore: 3, awayScore: 0, date: '22.09.2025', time: '19:00', status: 'completed', round: 'Quarter Final' },
-    { id: '14', homeTeam: 'Bergen Elite', awayTeam: 'Tromsø Thunder', homeScore: 2, awayScore: 1, date: '22.09.2025', time: '20:30', status: 'completed', round: 'Quarter Final' },
-    { id: '15', homeTeam: 'Trondheim Titans', awayTeam: 'Bodø Blitz', homeScore: 4, awayScore: 0, date: '23.09.2025', time: '19:00', status: 'completed', round: 'Quarter Final' },
-    { id: '16', homeTeam: 'Stavanger Stars', awayTeam: 'Ålesund Attack', homeScore: 2, awayScore: 0, date: '23.09.2025', time: '20:30', status: 'completed', round: 'Quarter Final' },
-    
-    // Semi Finals
-    { id: '17', homeTeam: 'Oslo United', awayTeam: 'Stavanger Stars', homeScore: 2, awayScore: 1, date: '25.09.2025', time: '19:00', status: 'completed', round: 'Semi Final' },
-    { id: '18', homeTeam: 'Bergen Elite', awayTeam: 'Trondheim Titans', homeScore: 1, awayScore: 2, date: '25.09.2025', time: '20:30', status: 'completed', round: 'Semi Final' },
-    
-    // Final
-    { id: '19', homeTeam: 'Oslo United', awayTeam: 'Trondheim Titans', homeScore: null, awayScore: null, date: '27.09.2025', time: '19:00', status: 'scheduled', round: 'Final' }
-  ]
+    // Generate matches from actual registered teams
+    const teamNames = registeredTeams.map((team: any) => team.teamName || team.team_name)
+    const matches: Match[] = []
+    let matchId = 1
+
+    // Generate group stage matches (round-robin)
+    for (let i = 0; i < teamNames.length; i++) {
+      for (let j = i + 1; j < teamNames.length; j++) {
+        matches.push({
+          id: `match-${matchId++}`,
+          homeTeam: teamNames[i],
+          awayTeam: teamNames[j],
+          homeScore: null,
+          awayScore: null,
+          date: '15.09.2025',
+          time: '19:00',
+          status: 'scheduled',
+          group: 'A'
+        })
+      }
+    }
+
+    return matches
+  }
+
+  const matches = generateMatches()
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -224,43 +261,58 @@ export default function TournamentDetailPage() {
             </div>
 
             {activeTab === 'standings' && (
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead>
-                    <tr className="border-b border-slate-700">
-                      <th className="text-left p-3">Pos</th>
-                      <th className="text-left p-3">Lag</th>
-                      <th className="text-center p-3">K</th>
-                      <th className="text-center p-3">V</th>
-                      <th className="text-center p-3">U</th>
-                      <th className="text-center p-3">T</th>
-                      <th className="text-center p-3">M+</th>
-                      <th className="text-center p-3">M-</th>
-                      <th className="text-center p-3">P</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {standings.map((team, index) => (
-                      <tr key={team.id} className="border-b border-slate-700 hover:bg-slate-700/30">
-                        <td className="p-3 font-semibold">{index + 1}</td>
-                        <td className="p-3 font-medium">{team.name}</td>
-                        <td className="p-3 text-center">{team.played}</td>
-                        <td className="p-3 text-center">{team.won}</td>
-                        <td className="p-3 text-center">{team.drawn}</td>
-                        <td className="p-3 text-center">{team.lost}</td>
-                        <td className="p-3 text-center">{team.goalsFor}</td>
-                        <td className="p-3 text-center">{team.goalsAgainst}</td>
-                        <td className="p-3 text-center font-bold">{team.points}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+              <div>
+                {standings.length >= 2 ? (
+                  <div className="overflow-x-auto">
+                    <table className="w-full">
+                      <thead>
+                        <tr className="border-b border-slate-700">
+                          <th className="text-left p-3">Pos</th>
+                          <th className="text-left p-3">Lag</th>
+                          <th className="text-center p-3">K</th>
+                          <th className="text-center p-3">V</th>
+                          <th className="text-center p-3">U</th>
+                          <th className="text-center p-3">T</th>
+                          <th className="text-center p-3">M+</th>
+                          <th className="text-center p-3">M-</th>
+                          <th className="text-center p-3">P</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {standings.map((team, index) => (
+                          <tr key={team.id} className="border-b border-slate-700 hover:bg-slate-700/30">
+                            <td className="p-3 font-semibold">{index + 1}</td>
+                            <td className="p-3 font-medium">{team.name}</td>
+                            <td className="p-3 text-center">{team.played}</td>
+                            <td className="p-3 text-center">{team.won}</td>
+                            <td className="p-3 text-center">{team.drawn}</td>
+                            <td className="p-3 text-center">{team.lost}</td>
+                            <td className="p-3 text-center">{team.goalsFor}</td>
+                            <td className="p-3 text-center">{team.goalsAgainst}</td>
+                            <td className="p-3 text-center font-bold">{team.points}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                ) : (
+                  <div className="text-center py-12">
+                    <div className="text-slate-400 mb-4">
+                      <Trophy className="w-16 h-16 mx-auto mb-4 opacity-50" />
+                      <h3 className="text-xl font-semibold mb-2">Ikke nok lag registrert</h3>
+                      <p>Det må være minst 2 godkjente lag for å vise tabell.</p>
+                      <p className="text-sm mt-2">Antall registrerte lag: {registeredTeams.length}</p>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 
             {activeTab === 'matches' && (
-              <div className="space-y-4">
-                {matches.map(match => (
+              <div>
+                {matches.length > 0 ? (
+                  <div className="space-y-4">
+                    {matches.map(match => (
                   <div key={match.id} className="pro11-card p-4">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center space-x-4 flex-1">
@@ -294,92 +346,107 @@ export default function TournamentDetailPage() {
                       </div>
                     </div>
                   </div>
-                ))}
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-12">
+                    <div className="text-slate-400 mb-4">
+                      <Trophy className="w-16 h-16 mx-auto mb-4 opacity-50" />
+                      <h3 className="text-xl font-semibold mb-2">Ingen kamper planlagt</h3>
+                      <p>Det må være minst 2 godkjente lag for å generere kamper.</p>
+                      <p className="text-sm mt-2">Antall registrerte lag: {registeredTeams.length}</p>
+                    </div>
+                  </div>
+                )}
               </div>
-                         )}
+            )}
 
              {activeTab === 'bracket' && (
-               <div className="flex justify-center">
-                 <div className="w-full max-w-5xl">
-                   {/* Bracket Container */}
-                   <div className="bg-slate-800/50 rounded-lg p-6">
-                     
-                     {/* Quarter Finals Row */}
-                     <div className="flex justify-between mb-12">
-                       <h3 className="text-lg font-semibold text-center w-52">Kvartfinaler</h3>
-                       <h3 className="text-lg font-semibold text-center w-56">Semifinaler</h3>
-                       <h3 className="text-lg font-semibold text-center w-52">Kvartfinaler</h3>
-                     </div>
-                     <div className="flex justify-between mb-12">
-                       {/* Left Quarter Finals */}
-                       <div className="flex flex-col space-y-6 w-52">
-                         <div className="pro11-card p-4 text-center">
-                           <div className="text-sm font-medium">Oslo United</div>
-                           <div className="text-xl font-bold text-blue-400">3 - 0</div>
-                           <div className="text-sm font-medium">Kristiansand Kings</div>
+               <div>
+                 {registeredTeams.length >= 2 ? (
+                   <div className="flex justify-center">
+                     <div className="w-full max-w-5xl">
+                       {/* Bracket Container */}
+                       <div className="bg-slate-800/50 rounded-lg p-6">
+                         
+                         {/* Quarter Finals Row */}
+                         <div className="flex justify-between mb-12">
+                           <h3 className="text-lg font-semibold text-center w-52">Kvartfinaler</h3>
+                           <h3 className="text-lg font-semibold text-center w-56">Semifinaler</h3>
+                           <h3 className="text-lg font-semibold text-center w-52">Kvartfinaler</h3>
                          </div>
-                         <div className="pro11-card p-4 text-center">
-                           <div className="text-sm font-medium">Bergen Elite</div>
-                           <div className="text-xl font-bold text-blue-400">2 - 1</div>
-                           <div className="text-sm font-medium">Tromsø Thunder</div>
+                         <div className="flex justify-between mb-12">
+                           {/* Left Quarter Finals */}
+                           <div className="flex flex-col space-y-6 w-52">
+                             {registeredTeams.slice(0, 2).map((team: any, index: number) => (
+                               <div key={team.id} className="pro11-card p-4 text-center">
+                                 <div className="text-sm font-medium">{team.teamName || team.team_name}</div>
+                                 <div className="text-xl font-bold text-blue-400">vs</div>
+                                 <div className="text-sm font-medium">Motstander</div>
+                               </div>
+                             ))}
+                           </div>
+                           
+                           {/* Semi Finals in Center */}
+                           <div className="flex flex-col justify-center space-y-6 w-56">
+                             {registeredTeams.slice(0, 2).map((team: any, index: number) => (
+                               <div key={`semi-${team.id}`} className="pro11-card p-5 text-center">
+                                 <div className="text-base font-medium">{team.teamName || team.team_name}</div>
+                                 <div className="text-xl font-bold text-green-400">vs</div>
+                                 <div className="text-base font-medium">Motstander</div>
+                               </div>
+                             ))}
+                           </div>
+                           
+                           {/* Right Quarter Finals */}
+                           <div className="flex flex-col space-y-6 w-52">
+                             {registeredTeams.slice(2, 4).map((team: any, index: number) => (
+                               <div key={`q2-${team.id}`} className="pro11-card p-4 text-center">
+                                 <div className="text-sm font-medium">{team.teamName || team.team_name}</div>
+                                 <div className="text-xl font-bold text-blue-400">vs</div>
+                                 <div className="text-sm font-medium">Motstander</div>
+                               </div>
+                             ))}
+                           </div>
                          </div>
-                       </div>
-                       
-                       {/* Semi Finals in Center */}
-                       <div className="flex flex-col justify-center space-y-6 w-56">
-                         <div className="pro11-card p-5 text-center">
-                           <div className="text-base font-medium">Oslo United</div>
-                           <div className="text-xl font-bold text-green-400">2 - 1</div>
-                           <div className="text-base font-medium">Stavanger Stars</div>
+                         
+                         {/* Final Row */}
+                         <div className="flex justify-center mb-4">
+                           <h3 className="text-lg font-semibold text-center">Finale</h3>
                          </div>
-                         <div className="pro11-card p-5 text-center">
-                           <div className="text-base font-medium">Trondheim Titans</div>
-                           <div className="text-xl font-bold text-green-400">2 - 1</div>
-                           <div className="text-base font-medium">Bergen Elite</div>
+                         <div className="flex justify-center mb-12">
+                           <div className="pro11-card p-6 text-center w-72">
+                             <div className="text-lg font-medium">Finalist 1</div>
+                             <div className="text-3xl font-bold text-yellow-400 my-3">vs</div>
+                             <div className="text-lg font-medium">Finalist 2</div>
+                             <div className="text-sm text-slate-400 mt-3">27.09.2025 19:00</div>
+                           </div>
                          </div>
-                       </div>
-                       
-                       {/* Right Quarter Finals */}
-                       <div className="flex flex-col space-y-6 w-52">
-                         <div className="pro11-card p-4 text-center">
-                           <div className="text-sm font-medium">Trondheim Titans</div>
-                           <div className="text-xl font-bold text-blue-400">4 - 0</div>
-                           <div className="text-sm font-medium">Bodø Blitz</div>
+                         
+                         {/* Winner */}
+                         <div className="flex justify-center mb-4">
+                           <h3 className="text-lg font-semibold text-center">Vinner</h3>
                          </div>
-                         <div className="pro11-card p-4 text-center">
-                           <div className="text-sm font-medium">Stavanger Stars</div>
-                           <div className="text-xl font-bold text-blue-400">2 - 0</div>
-                           <div className="text-sm font-medium">Ålesund Attack</div>
+                         <div className="flex justify-center">
+                           <div className="pro11-card p-6 text-center w-56">
+                             <div className="text-4xl mb-3">🏆</div>
+                             <div className="text-lg font-medium">TBD</div>
+                             <div className="text-sm text-slate-400 mt-2">{tournament.prize}</div>
+                           </div>
                          </div>
-                       </div>
-                     </div>
-                     
-                     {/* Final Row */}
-                     <div className="flex justify-center mb-4">
-                       <h3 className="text-lg font-semibold text-center">Finale</h3>
-                     </div>
-                     <div className="flex justify-center mb-12">
-                       <div className="pro11-card p-6 text-center w-72">
-                         <div className="text-lg font-medium">Oslo United</div>
-                         <div className="text-3xl font-bold text-yellow-400 my-3">vs</div>
-                         <div className="text-lg font-medium">Trondheim Titans</div>
-                         <div className="text-sm text-slate-400 mt-3">27.09.2025 19:00</div>
-                       </div>
-                     </div>
-                     
-                     {/* Winner */}
-                     <div className="flex justify-center mb-4">
-                       <h3 className="text-lg font-semibold text-center">Vinner</h3>
-                     </div>
-                     <div className="flex justify-center">
-                       <div className="pro11-card p-6 text-center w-56">
-                         <div className="text-4xl mb-3">🏆</div>
-                         <div className="text-lg font-medium">TBD</div>
-                         <div className="text-sm text-slate-400 mt-2">5,000 NOK</div>
                        </div>
                      </div>
                    </div>
-                 </div>
+                 ) : (
+                   <div className="text-center py-12">
+                     <div className="text-slate-400 mb-4">
+                       <Trophy className="w-16 h-16 mx-auto mb-4 opacity-50" />
+                       <h3 className="text-xl font-semibold mb-2">Ingen sluttspill tilgjengelig</h3>
+                       <p>Det må være minst 2 godkjente lag for å vise sluttspill.</p>
+                       <p className="text-sm mt-2">Antall registrerte lag: {registeredTeams.length}</p>
+                     </div>
+                   </div>
+                 )}
                </div>
              )}
 

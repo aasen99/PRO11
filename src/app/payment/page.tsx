@@ -3,6 +3,8 @@
 import React, { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { Shield, CreditCard, CheckCircle, ArrowLeft, Mail } from 'lucide-react'
+import { PayPalScriptProvider, PayPalButtons } from '@paypal/react-paypal-js'
+import { getTournamentById } from '../../lib/tournaments'
 
 interface PaymentData {
   teamName: string
@@ -18,6 +20,7 @@ export default function PaymentPage() {
   const [paymentData, setPaymentData] = useState<PaymentData | null>(null)
   const [isProcessing, setIsProcessing] = useState(false)
   const [paymentComplete, setPaymentComplete] = useState(false)
+  const [paymentId, setPaymentId] = useState<string | null>(null)
 
   useEffect(() => {
     // Hent registreringsdata fra localStorage eller URL params
@@ -28,43 +31,90 @@ export default function PaymentPage() {
         ...data,
         amount: 299 // Fast pris per lag
       })
+      // Sett paymentId hvis det finnes
+      if (data.teamId) {
+        setPaymentId(data.teamId)
+      }
     }
   }, [])
 
-  const generatePassword = () => {
-    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'
-    let password = ''
-    for (let i = 0; i < 8; i++) {
-      password += chars.charAt(Math.floor(Math.random() * chars.length))
-    }
-    return password
-  }
 
-  const handlePayment = async () => {
+  const handlePaymentSuccess = async (details: any) => {
     setIsProcessing(true)
     
-    // Generer passord
-    const password = generatePassword()
-    
-    // Simuler betalingsprosess
-    setTimeout(() => {
-      setIsProcessing(false)
-      setPaymentComplete(true)
-      
-      // Oppdater paymentData med passord
-      if (paymentData) {
-        setPaymentData({ ...paymentData, generatedPassword: password })
+    try {
+      // Opprett betalingspost i database først
+      let paymentRecordId = null
+      if (paymentData && paymentData.teamId) {
+        const createResponse = await fetch('/api/payments', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            teamId: paymentData.teamId,
+            amount: paymentData.amount,
+            currency: 'NOK'
+          })
+        })
         
-        // Lagre passordet for login
-        const storedPasswords = localStorage.getItem('generatedPasswords') || '{}'
-        const passwords = JSON.parse(storedPasswords)
-        passwords[paymentData.captainEmail] = password
-        localStorage.setItem('generatedPasswords', JSON.stringify(passwords))
+        if (createResponse.ok) {
+          const paymentData_result = await createResponse.json()
+          paymentRecordId = paymentData_result.paymentId
+        }
       }
       
-      // Fjern registreringsdata fra localStorage
-      localStorage.removeItem('teamRegistration')
-    }, 3000)
+      // Oppdater betaling i database
+      if (paymentRecordId) {
+        const response = await fetch('/api/payments', {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            paymentId: paymentRecordId,
+            status: 'completed',
+            paypalOrderId: details.id || details.orderID
+          })
+        })
+        
+        if (!response.ok) {
+          console.warn('Payment update failed, but continuing...')
+        }
+      }
+      
+      console.log('Payment successful:', details)
+      setPaymentComplete(true)
+      
+      // Oppdater team-status i localStorage for adminpanelet
+      if (paymentData) {
+        const storedTeams = localStorage.getItem('adminTeams')
+        if (storedTeams) {
+          const teams = JSON.parse(storedTeams)
+          const updatedTeams = teams.map((team: any) => 
+            team.id === paymentData.teamId 
+              ? { ...team, paymentStatus: 'completed', payment_status: 'completed', status: 'approved' }
+              : team
+          )
+          localStorage.setItem('adminTeams', JSON.stringify(updatedTeams))
+          console.log('Updated team payment status in localStorage')
+        }
+      }
+      
+      // Ikke fjern registreringsdata - brukeren kan trenge passordet
+      
+    } catch (error) {
+      console.error('Payment error:', error)
+      alert('Betalingen feilet. Prøv igjen.')
+    } finally {
+      setIsProcessing(false)
+    }
+  }
+
+  const handlePaymentError = (error: any) => {
+    console.error('PayPal error:', error)
+    alert('Betalingen feilet. Prøv igjen.')
+    setIsProcessing(false)
   }
 
   if (!paymentData) {
@@ -127,19 +177,19 @@ export default function PaymentPage() {
               Takk for din registrering! {paymentData.teamName} er nå påmeldt til turneringen.
             </p>
             <div className="bg-slate-800/50 p-4 rounded-lg mb-6">
-              <h3 className="font-semibold mb-2">Bekreftelse sendt til:</h3>
-              <p className="text-blue-400">{paymentData.captainEmail}</p>
-              <div className="mt-3 p-3 bg-green-900/30 border border-green-600/30 rounded">
-                <h4 className="font-semibold text-green-400 mb-1">Passord generert:</h4>
-                <p className="text-lg font-mono text-green-300">{paymentData.generatedPassword}</p>
-                <p className="text-sm text-green-400 mt-1">
-                  Dette passordet er sendt på e-post og kan brukes til å logge inn som lagkaptein
-                </p>
-              </div>
+              <p className="text-slate-300 mb-4">
+                Din betaling er bekreftet og laget ditt er nå godkjent for turneringen.
+              </p>
+              <p className="text-slate-400 text-sm">
+                Du kan logge inn som lagkaptein med passordet du noterte ned under registreringen.
+              </p>
             </div>
             <div className="space-y-3">
               <Link href="/" className="pro11-button w-full">
                 Tilbake til forsiden
+              </Link>
+              <Link href="/captain/login" className="pro11-button-secondary w-full">
+                Logg inn som lagkaptein
               </Link>
               <Link href="/tournaments" className="pro11-button-secondary w-full">
                 Se alle turneringer
@@ -228,45 +278,71 @@ export default function PaymentPage() {
             </div>
           </div>
 
-          {/* Payment Methods */}
+          {/* PayPal Payment */}
           <div className="pro11-card p-6 mt-8">
-            <h2 className="text-xl font-bold mb-4">Betalingsmetoder</h2>
-            <div className="grid md:grid-cols-3 gap-4 mb-6">
-              <div className="p-4 border border-slate-700 rounded-lg text-center hover:border-blue-400 cursor-pointer transition-colors">
-                <div className="text-2xl mb-2">💳</div>
-                <h3 className="font-semibold">Kort</h3>
-                <p className="text-sm text-slate-400">Visa, Mastercard</p>
-              </div>
-              <div className="p-4 border border-slate-700 rounded-lg text-center hover:border-blue-400 cursor-pointer transition-colors">
-                <div className="text-2xl mb-2">🏦</div>
-                <h3 className="font-semibold">Vipps</h3>
-                <p className="text-sm text-slate-400">Norsk betalingsløsning</p>
-              </div>
-              <div className="p-4 border border-slate-700 rounded-lg text-center hover:border-blue-400 cursor-pointer transition-colors">
-                <div className="text-2xl mb-2">📧</div>
-                <h3 className="font-semibold">Faktura</h3>
-                <p className="text-sm text-slate-400">Betaling på faktura</p>
-              </div>
-            </div>
-
+            <h2 className="text-xl font-bold mb-4">Betaling med PayPal</h2>
+            <p className="text-slate-300 mb-6 text-center">
+              Trygg og sikker betaling med PayPal
+            </p>
+            
             <div className="text-center">
-              <button
-                onClick={handlePayment}
-                disabled={isProcessing}
-                className="pro11-button text-lg px-8 py-4 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {isProcessing ? (
-                  <div className="flex items-center space-x-2">
-                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
-                    <span>Behandler betaling...</span>
-                  </div>
-                ) : (
-                  `Betal ${paymentData.amount} NOK`
-                )}
-              </button>
-                             <p className="text-slate-400 text-sm mt-4">
-                 Du vil få en bekreftelse på e-post etter fullført betaling, inkludert passord for lagkaptein-tilgang
-               </p>
+              {process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID ? (
+                <PayPalScriptProvider 
+                  options={{ 
+                    'client-id': process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID,
+                    currency: 'NOK',
+                    intent: 'capture'
+                  }}
+                >
+                  <PayPalButtons
+                    createOrder={(data, actions) => {
+                      return actions.order.create({
+                        purchase_units: [{
+                          amount: {
+                            value: paymentData.amount.toString(),
+                            currency_code: 'NOK'
+                          },
+                          description: `PRO11 Turnering - ${paymentData.teamName}`
+                        }]
+                      })
+                    }}
+                    onApprove={(data, actions) => {
+                      return actions.order!.capture().then((details) => {
+                        handlePaymentSuccess(details)
+                      })
+                    }}
+                    onError={handlePaymentError}
+                    style={{
+                      layout: 'vertical',
+                      color: 'blue',
+                      shape: 'rect',
+                      label: 'paypal'
+                    }}
+                  />
+                </PayPalScriptProvider>
+              ) : (
+                <div className="p-8 bg-slate-800/50 rounded-lg">
+                  <p className="text-slate-400 mb-4">
+                    PayPal er ikke konfigurert ennå. Kontakt administrator.
+                  </p>
+                  <button
+                    onClick={() => {
+                      // Fallback til simuler betaling for testing
+                      handlePaymentSuccess({ orderID: 'test-' + Date.now() })
+                    }}
+                    className="pro11-button text-lg px-8 py-4"
+                  >
+                    Test betaling (simulert)
+                  </button>
+                  <p className="text-slate-500 text-sm mt-2">
+                    Dette simulerer en fullført betaling for testing
+                  </p>
+                </div>
+              )}
+              
+              <p className="text-slate-400 text-sm mt-4">
+                Etter fullført betaling vil laget ditt bli godkjent for turneringen
+              </p>
             </div>
           </div>
         </div>

@@ -1,60 +1,30 @@
-import React from 'react'
+'use client'
+
+import React, { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { Shield, Trophy, Users, Calendar, Clock, CheckCircle, XCircle, ExternalLink } from 'lucide-react'
 import Header from '../../components/Header'
-
-interface Tournament {
-  id: string
-  title: string
-  date: string
-  time: string
-  prize: string
-  registeredTeams: number
-  maxTeams: number
-  status: 'open' | 'ongoing' | 'closed' | 'completed'
-  statusText: string
-  description: string
-}
+import { fetchTournaments, Tournament } from '../../lib/tournaments'
 
 export default function TournamentsPage() {
-  const tournaments: Tournament[] = [
-    {
-      id: 'fc26-launch-cup',
-      title: 'PRO11 FC 26 Launch Cup',
-      date: '15. september 2025',
-      time: '19:00',
-      prize: '10,000 NOK',
-      registeredTeams: 8,
-      maxTeams: 16,
-      status: 'open',
-      statusText: 'Åpen for påmelding',
-      description: 'Den første offisielle PRO11-turneringen for FC 26. Vær med på historien!'
-    },
-    {
-      id: 'winter-championship',
-      title: 'PRO11 Winter Championship',
-      date: '20. november 2025',
-      time: '19:00',
-      prize: '15,000 NOK',
-      registeredTeams: 0,
-      maxTeams: 16,
-      status: 'open',
-      statusText: 'Åpen for påmelding',
-      description: 'Vinterens største Pro Clubs-turnering med økte premier!'
-    },
-    {
-      id: 'champions-league',
-      title: 'PRO11 Champions League',
-      date: '15. januar 2026',
-      time: '19:00',
-      prize: '25,000 NOK',
-      registeredTeams: 0,
-      maxTeams: 32,
-      status: 'open',
-      statusText: 'Åpen for påmelding',
-      description: 'Den ultimate Pro Clubs-konkurransen med gruppespill og sluttspill.'
+  const [tournamentsWithCounts, setTournamentsWithCounts] = useState<Tournament[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+
+  useEffect(() => {
+    // Fetch tournaments from API
+    const loadTournaments = async () => {
+      try {
+        const fetchedTournaments = await fetchTournaments()
+        setTournamentsWithCounts(fetchedTournaments)
+      } catch (error) {
+        console.warn('Error loading tournaments:', error)
+      } finally {
+        setIsLoading(false)
+      }
     }
-  ]
+
+    loadTournaments()
+  }, [])
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -86,6 +56,21 @@ export default function TournamentsPage() {
     }
   }
 
+  if (isLoading) {
+    return (
+      <div className="min-h-screen">
+        <Header />
+        <main className="container mx-auto px-4 py-8">
+          <div className="max-w-6xl mx-auto">
+            <div className="flex items-center justify-center min-h-[400px]">
+              <div className="w-8 h-8 border-2 border-blue-400 border-t-transparent rounded-full animate-spin"></div>
+            </div>
+          </div>
+        </main>
+      </div>
+    )
+  }
+
   return (
     <div className="min-h-screen">
       {/* Header */}
@@ -101,7 +86,12 @@ export default function TournamentsPage() {
           </div>
 
           <div className="grid gap-6">
-            {tournaments.map((tournament) => (
+            {tournamentsWithCounts.length === 0 ? (
+              <div className="pro11-card p-8 text-center">
+                <p className="text-slate-300">Ingen turneringer tilgjengelig for øyeblikket.</p>
+              </div>
+            ) : (
+              tournamentsWithCounts.map((tournament) => (
               <div key={tournament.id} className="pro11-card p-6">
                 <div className="grid md:grid-cols-3 gap-6 items-center">
                   {/* Tournament Info */}
@@ -176,7 +166,8 @@ export default function TournamentsPage() {
                   </div>
                 )}
               </div>
-            ))}
+            ))
+            )}
           </div>
 
           {/* Upcoming tournaments info */}

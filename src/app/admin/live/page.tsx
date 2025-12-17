@@ -3,6 +3,7 @@
 import React, { useState } from 'react'
 import Link from 'next/link'
 import { Shield, Trophy, Users, Calendar, Play, Pause, Square, RefreshCw, Award, Clock, Target, BarChart3, Settings } from 'lucide-react'
+import { getTournamentById } from '../../../lib/tournaments'
 
 interface Match {
   id: string

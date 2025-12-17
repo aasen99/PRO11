@@ -18,65 +18,61 @@ export default function CaptainLoginPage() {
   const [error, setError] = useState('')
   const [isLoading, setIsLoading] = useState(false)
 
-  // Mock team data (i produksjon ville dette være i en database)
-  const teams: Team[] = [
-    {
-      id: '1',
-      teamName: 'Oslo United',
-      captainEmail: 'anders@email.com',
-      captainName: 'Anders Hansen',
-      tournaments: ['fc26-launch-cup']
-    },
-    {
-      id: '2',
-      teamName: 'Bergen Elite',
-      captainEmail: 'kristian@email.com',
-      captainName: 'Kristian Nilsen',
-      tournaments: ['fc26-launch-cup']
-    },
-    {
-      id: '3',
-      teamName: 'Trondheim Titans',
-      captainEmail: 'marius@email.com',
-      captainName: 'Marius Solberg',
-      tournaments: ['fc26-launch-cup']
-    }
-  ]
-
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsLoading(true)
     setError('')
 
-    // Simulerer API-kall
-    setTimeout(() => {
-      const team = teams.find(t => t.captainEmail === email)
+    try {
+      // Hent teams fra database
+      const response = await fetch('/api/teams')
+      if (!response.ok) {
+        throw new Error('Kunne ikke hente lag')
+      }
       
-      // Sjekk demo passord eller generert passord
-      const isDemoPassword = password === 'captain123'
-      const isGeneratedPassword = checkGeneratedPassword(email, password)
+      const data = await response.json()
+      const teams = data.teams || []
       
-      if (team && (isDemoPassword || isGeneratedPassword)) {
-        // I produksjon ville vi brukt proper authentication
-        localStorage.setItem('captainTeam', JSON.stringify(team))
+      // Finn lag med matchende e-post
+      const team = teams.find((t: any) => 
+        (t.captainEmail || t.captain_email) === email
+      )
+      
+      if (!team) {
+        setError('Feil e-post eller passord. Prøv igjen.')
+        setPassword('')
+        setIsLoading(false)
+        return
+      }
+      
+      // Sjekk passord (generert passord fra database)
+      const teamPassword = team.generatedPassword || team.generated_password
+      const isCorrectPassword = password === teamPassword
+      
+      if (isCorrectPassword) {
+        // Lagre team data for dashboard
+        const teamData = {
+          id: team.id,
+          teamName: team.teamName || team.team_name,
+          captainEmail: team.captainEmail || team.captain_email,
+          captainName: team.captainName || team.captain_name,
+          tournaments: team.tournamentId || team.tournament_id ? [team.tournamentId || team.tournament_id] : []
+        }
+        localStorage.setItem('captainTeam', JSON.stringify(teamData))
         window.location.href = '/captain/dashboard'
       } else {
         setError('Feil e-post eller passord. Prøv igjen.')
         setPassword('')
       }
+    } catch (error) {
+      console.error('Login error:', error)
+      setError('Noe gikk galt. Prøv igjen.')
+      setPassword('')
+    } finally {
       setIsLoading(false)
-    }, 1000)
+    }
   }
 
-  const checkGeneratedPassword = (email: string, password: string): boolean => {
-    // Sjekk om det finnes et generert passord for denne e-posten
-    const storedPasswords = localStorage.getItem('generatedPasswords')
-    if (storedPasswords) {
-      const passwords = JSON.parse(storedPasswords)
-      return passwords[email] === password
-    }
-    return false
-  }
 
   return (
     <div className="min-h-screen">

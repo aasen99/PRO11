@@ -1,9 +1,10 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { Shield, Users, User, Mail, Gamepad2, Plus, Trash2 } from 'lucide-react'
 import Header from '../../components/Header'
+import { fetchTournamentById } from '../../lib/tournaments'
 
 interface TeamRegistration {
   teamName: string
@@ -21,8 +22,43 @@ export default function RegisterPage() {
     captainEmail: '',
     expectedPlayers: 11,
     clubLogo: null,
-    tournamentId: 'fc26-launch-cup'
+    tournamentId: ''
   })
+  const [tournament, setTournament] = useState<any>(null)
+
+  // Fetch tournament from database
+  useEffect(() => {
+    const loadTournament = async () => {
+      // Get first tournament if no ID specified
+      if (!formData.tournamentId) {
+        const response = await fetch('/api/tournaments')
+        if (response.ok) {
+          const data = await response.json()
+          if (data.tournaments && data.tournaments.length > 0) {
+            const t = data.tournaments[0]
+            setFormData(prev => ({ ...prev, tournamentId: t.id }))
+            // Transform to frontend format
+            const startDate = new Date(t.start_date)
+            const date = startDate.toLocaleDateString('nb-NO', { day: 'numeric', month: 'long', year: 'numeric' })
+            const time = startDate.toLocaleTimeString('nb-NO', { hour: '2-digit', minute: '2-digit' })
+            setTournament({
+              id: t.id,
+              title: t.title,
+              date,
+              time,
+              prize: `${t.prize_pool.toLocaleString('nb-NO')} NOK`,
+              entryFee: t.entry_fee,
+              description: t.description || ''
+            })
+          }
+        }
+      } else {
+        const t = await fetchTournamentById(formData.tournamentId)
+        setTournament(t)
+      }
+    }
+    loadTournament()
+  }, [formData.tournamentId])
 
   const handleLogoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0] || null
@@ -43,11 +79,49 @@ export default function RegisterPage() {
       return
     }
 
-    // Lagre registreringsdata til localStorage
-    localStorage.setItem('teamRegistration', JSON.stringify(formData))
-    
-    // Redirect til betalingssiden
-    window.location.href = '/payment'
+    try {
+      // Send til database via API
+      const response = await fetch('/api/teams', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          teamName: formData.teamName,
+          captainName: formData.captainName,
+          captainEmail: formData.captainEmail,
+          captainPhone: '', // Ikke implementert i skjemaet ennå
+          expectedPlayers: formData.expectedPlayers,
+          tournamentId: formData.tournamentId
+        })
+      })
+
+      if (response.ok) {
+        const result = await response.json()
+        
+        // Lagre registreringsdata til localStorage med team ID
+        const registrationData = {
+          ...formData,
+          teamId: result.team.id,
+          password: result.password
+        }
+        localStorage.setItem('teamRegistration', JSON.stringify(registrationData))
+        
+        // Lagre team-data for adminpanelet
+        const existingTeams = JSON.parse(localStorage.getItem('adminTeams') || '[]')
+        existingTeams.push(result.team)
+        localStorage.setItem('adminTeams', JSON.stringify(existingTeams))
+        
+        // Redirect til passord-visning siden
+        window.location.href = '/registration-success'
+      } else {
+        const error = await response.json()
+        alert(`Registrering feilet: ${error.error || 'Ukjent feil'}`)
+      }
+    } catch (error) {
+      console.error('Registration error:', error)
+      alert('Registrering feilet. Prøv igjen.')
+    }
   }
 
   return (
@@ -60,7 +134,7 @@ export default function RegisterPage() {
           <div className="text-center mb-8">
             <h2 className="text-4xl font-bold mb-4">Meld på lag</h2>
             <p className="text-slate-300 text-lg">
-              Registrer laget ditt for PRO11 FC 26 Launch Cup
+              Registrer laget ditt for {tournament?.title || 'PRO11 FC 26 Launch Cup'}
             </p>
           </div>
 
@@ -68,8 +142,8 @@ export default function RegisterPage() {
             {/* Tournament Info */}
             <div className="mb-8 p-4 bg-blue-600/20 rounded-lg border border-blue-500/30">
               <h3 className="text-xl font-semibold mb-2">Turnering</h3>
-              <p className="text-slate-300">PRO11 FC 26 Launch Cup - 15. september 2025</p>
-              <p className="text-slate-400 text-sm">Premie: 10,000 NOK</p>
+              <p className="text-slate-300">{tournament?.title} - {tournament?.date}</p>
+              <p className="text-slate-400 text-sm">Premie: {tournament?.prize} | Påmeldingsgebyr: {tournament?.entryFee} NOK</p>
             </div>
 
             {/* Team Information */}
@@ -178,7 +252,7 @@ export default function RegisterPage() {
                 Registrer lag
               </button>
               <p className="text-slate-400 text-sm mt-4">
-                Etter registrering vil du få tilsendt betalingsinformasjon på e-post
+                Etter registrering vil du få se passordet ditt og kunne fortsette til betaling
               </p>
             </div>
           </form>

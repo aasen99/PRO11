@@ -7,19 +7,59 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const { teamName, captainName, captainEmail, captainPhone, expectedPlayers, tournamentId } = body
 
+    console.log('Team registration request:', body)
+
+    const supabase = getSupabase()
+
+    // First, find the tournament by title or get the first tournament if tournamentId is not a UUID
+    let tournamentUuid: string | null = null
+    
+    if (tournamentId) {
+      // Check if tournamentId is already a UUID
+      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+      if (uuidRegex.test(tournamentId)) {
+        tournamentUuid = tournamentId
+      } else {
+        // Try to find tournament by title (for backward compatibility)
+        const { data: tournaments } = await supabase
+          .from('tournaments')
+          .select('id')
+          .limit(1)
+        
+        if (tournaments && tournaments.length > 0) {
+          tournamentUuid = tournaments[0].id
+        }
+      }
+    } else {
+      // Get the first tournament if no ID provided
+      const { data: tournaments } = await supabase
+        .from('tournaments')
+        .select('id')
+        .limit(1)
+      
+      if (tournaments && tournaments.length > 0) {
+        tournamentUuid = tournaments[0].id
+      }
+    }
+
+    if (!tournamentUuid) {
+      return NextResponse.json({ 
+        error: 'No tournament found. Please set up tournaments in the database first.' 
+      }, { status: 400 })
+    }
+
     // Generate password for captain
     const password = generatePassword()
 
     // Insert team into database
-    const supabase = getSupabase()
     const { data: team, error: teamError } = await supabase
       .from('teams')
       .insert({
-        tournament_id: tournamentId,
+        tournament_id: tournamentUuid,
         team_name: teamName,
         captain_name: captainName,
         captain_email: captainEmail,
-        captain_phone: captainPhone,
+        captain_phone: captainPhone || null,
         expected_players: expectedPlayers,
         status: 'pending',
         payment_status: 'pending',
@@ -29,17 +69,81 @@ export async function POST(request: NextRequest) {
       .single()
 
     if (teamError) {
-      return NextResponse.json({ error: teamError.message }, { status: 400 })
+      console.error('Database error:', teamError)
+      return NextResponse.json({ 
+        error: 'Failed to register team: ' + teamError.message 
+      }, { status: 400 })
     }
 
+    // Create player record for captain
+    if (team) {
+      await supabase
+        .from('players')
+        .insert({
+          team_id: team.id,
+          name: captainName,
+          psn_id: captainEmail.split('@')[0],
+          position: 'ST'
+        })
+    }
+
+    // Update tournament current_teams count
+    try {
+      const rpcResult = await supabase.rpc('increment_tournament_teams', { tournament_uuid: tournamentUuid })
+      if (rpcResult.error) {
+        throw rpcResult.error
+      }
+    } catch (rpcError) {
+      // If RPC doesn't exist or fails, manually update
+      console.warn('RPC failed, using manual update:', rpcError)
+      const { data: tournament } = await supabase
+        .from('tournaments')
+        .select('current_teams')
+        .eq('id', tournamentUuid)
+        .single()
+      
+      if (tournament) {
+        await supabase
+          .from('tournaments')
+          .update({ current_teams: (tournament.current_teams || 0) + 1 })
+          .eq('id', tournamentUuid)
+      }
+    }
+
+    // Return team data in both formats for compatibility
+    const teamData = {
+      id: team.id,
+      tournamentId: tournamentUuid,
+      tournament_id: tournamentUuid,
+      teamName: team.team_name,
+      team_name: team.team_name,
+      captainName: team.captain_name,
+      captain_name: team.captain_name,
+      captainEmail: team.captain_email,
+      captain_email: team.captain_email,
+      captainPhone: team.captain_phone || '',
+      captain_phone: team.captain_phone || '',
+      expectedPlayers: team.expected_players,
+      expected_players: team.expected_players,
+      status: team.status,
+      paymentStatus: team.payment_status,
+      payment_status: team.payment_status,
+      generatedPassword: team.generated_password,
+      generated_password: team.generated_password,
+      created_at: team.created_at
+    }
+    
+    console.log('Team registered successfully:', teamData)
+    
     return NextResponse.json({ 
       success: true, 
-      team,
+      team: teamData,
       password 
     })
 
-  } catch (error) {
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+  } catch (error: any) {
+    console.error('API error:', error)
+    return NextResponse.json({ error: 'Internal server error: ' + (error.message || 'Unknown error') }, { status: 500 })
   }
 }
 
@@ -49,21 +153,63 @@ export async function GET(request: NextRequest) {
     const tournamentId = searchParams.get('tournamentId')
 
     const supabase = getSupabase()
-    let query = supabase.from('teams').select('*')
-    
+
+    let query = supabase
+      .from('teams')
+      .select('*, tournaments(*)')
+
     if (tournamentId) {
-      query = query.eq('tournament_id', tournamentId)
+      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+      if (uuidRegex.test(tournamentId)) {
+        query = query.eq('tournament_id', tournamentId)
+      } else {
+        // Try to find by tournament title (for backward compatibility)
+        const { data: tournaments } = await supabase
+          .from('tournaments')
+          .select('id')
+          .limit(1)
+        
+        if (tournaments && tournaments.length > 0) {
+          query = query.eq('tournament_id', tournaments[0].id)
+        }
+      }
     }
 
-    const { data: teams, error } = await query
+    const { data: teams, error } = await query.order('created_at', { ascending: false })
 
     if (error) {
-      return NextResponse.json({ error: error.message }, { status: 400 })
+      console.error('Database error:', error)
+      return NextResponse.json({ error: 'Failed to fetch teams: ' + error.message }, { status: 400 })
     }
 
-    return NextResponse.json({ teams })
+    // Transform to include both formats for compatibility
+    const transformedTeams = (teams || []).map((team: any) => ({
+      id: team.id,
+      tournamentId: team.tournament_id,
+      tournament_id: team.tournament_id,
+      teamName: team.team_name,
+      team_name: team.team_name,
+      captainName: team.captain_name,
+      captain_name: team.captain_name,
+      captainEmail: team.captain_email,
+      captain_email: team.captain_email,
+      captainPhone: team.captain_phone || '',
+      captain_phone: team.captain_phone || '',
+      expectedPlayers: team.expected_players,
+      expected_players: team.expected_players,
+      status: team.status,
+      paymentStatus: team.payment_status,
+      payment_status: team.payment_status,
+      generatedPassword: team.generated_password,
+      generated_password: team.generated_password,
+      created_at: team.created_at,
+      tournament: team.tournaments
+    }))
 
-  } catch (error) {
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    return NextResponse.json({ teams: transformedTeams })
+
+  } catch (error: any) {
+    console.error('API error:', error)
+    return NextResponse.json({ error: 'Internal server error: ' + (error.message || 'Unknown error') }, { status: 500 })
   }
 } 

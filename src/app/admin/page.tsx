@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { Shield, Users, Trophy, Calendar, Download, CheckCircle, XCircle, Eye, Plus, Settings, Lock, Edit, Trash2, Mail, Key, BarChart3 } from 'lucide-react'
 
@@ -54,16 +54,24 @@ export default function AdminPage() {
   const [isAuthenticated, setIsAuthenticated] = useState(false)
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
-  const [activeTab, setActiveTab] = useState<'teams' | 'tournaments' | 'statistics' | 'settings'>('teams')
-  const [selectedTournament, setSelectedTournament] = useState('fc26-launch-cup')
+  const [activeTab, setActiveTab] = useState<'teams' | 'tournaments' | 'prizes' | 'statistics' | 'settings'>('teams')
+  const [selectedTournament, setSelectedTournament] = useState('')
   
   // Modal states
   const [showTeamModal, setShowTeamModal] = useState(false)
   const [showTournamentModal, setShowTournamentModal] = useState(false)
   const [showSettingsModal, setShowSettingsModal] = useState(false)
+  const [showPrizeModal, setShowPrizeModal] = useState(false)
   const [selectedTeam, setSelectedTeam] = useState<Team | null>(null)
   const [editingTournament, setEditingTournament] = useState<Tournament | null>(null)
   const [isNewTournament, setIsNewTournament] = useState(false)
+  
+  // Prize management state
+  const [prizeSettings, setPrizeSettings] = useState({
+    basePrize: 10000,
+    perTeamBonus: 500,
+    currentPrize: 10000
+  })
 
   // Admin password (i produksjon bør dette være i en sikker database)
   const ADMIN_PASSWORD = 'pro11admin2025'
@@ -79,96 +87,88 @@ export default function AdminPage() {
     }
   }
 
-  // Mock data
-  const tournaments: Tournament[] = [
-    {
-      id: 'fc26-launch-cup',
-      title: 'PRO11 FC 26 Launch Cup',
-      date: '15. september 2025',
-      time: '19:00',
-      registeredTeams: 8,
-      maxTeams: 16,
-      status: 'open',
-      prize: '15,000 NOK',
-      entryFee: 300,
-      description: 'Den første store turneringen i FC 26. 16 lag, gruppespill + sluttspill.',
-      format: 'mixed'
-    },
-    {
-      id: 'winter-championship',
-      title: 'PRO11 Winter Championship',
-      date: '20. november 2025',
-      time: '18:00',
-      registeredTeams: 0,
-      maxTeams: 16,
-      status: 'open',
-      prize: '20,000 NOK',
-      entryFee: 400,
-      description: 'Vinterens største turnering med økte premier.',
-      format: 'group_stage'
+  const [tournaments, setTournaments] = useState<Tournament[]>([])
+  const [teams, setTeams] = useState<Team[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+
+  // Hent tournaments fra database
+  useEffect(() => {
+    const loadTournaments = async () => {
+      try {
+        const response = await fetch('/api/tournaments')
+        if (response.ok) {
+          const data = await response.json()
+          if (data.tournaments) {
+            // Transform database tournaments to frontend format
+            const transformed = data.tournaments.map((t: any) => {
+              const startDate = new Date(t.start_date)
+              const date = startDate.toLocaleDateString('nb-NO', { day: 'numeric', month: 'long', year: 'numeric' })
+              const time = startDate.toLocaleTimeString('nb-NO', { hour: '2-digit', minute: '2-digit' })
+              
+              let status: 'open' | 'ongoing' | 'closed' | 'completed' = 'open'
+              if (t.status === 'active') status = 'ongoing'
+              else if (t.status === 'completed') status = 'completed'
+              else if (t.status === 'cancelled') status = 'closed'
+              
+              return {
+                id: t.id,
+                title: t.title,
+                date,
+                time,
+                registeredTeams: t.current_teams || 0,
+                maxTeams: t.max_teams,
+                status,
+                prize: `${t.prize_pool.toLocaleString('nb-NO')} NOK`,
+                entryFee: t.entry_fee,
+                description: t.description || '',
+                format: 'mixed' as const
+              }
+            })
+            setTournaments(transformed)
+            // Set first tournament as selected if none selected
+            if (transformed.length > 0 && !selectedTournament) {
+              setSelectedTournament(transformed[0].id)
+            }
+          }
+        }
+      } catch (error) {
+        console.warn('Error loading tournaments:', error)
+      }
     }
-  ]
-
-  const initialTeams: Team[] = [
-    {
-      id: '1',
-      teamName: 'Oslo United',
-      captainName: 'Anders Hansen',
-      captainEmail: 'anders@email.com',
-      players: [
-        { name: 'Anders Hansen', psnId: 'anders_hansen', position: 'ST' },
-        { name: 'Erik Johansen', psnId: 'erik_johansen', position: 'CM' },
-        { name: 'Lars Pedersen', psnId: 'lars_pedersen', position: 'CB' },
-        { name: 'Morten Olsen', psnId: 'morten_olsen', position: 'GK' },
-        { name: 'Thomas Berg', psnId: 'thomas_berg', position: 'RW' }
-      ],
-      status: 'pending',
-      registeredAt: '2025-01-15',
-      tournamentId: 'fc26-launch-cup',
-      paymentStatus: 'pending'
-    },
-    {
-      id: '2',
-      teamName: 'Bergen Elite',
-      captainName: 'Kristian Nilsen',
-      captainEmail: 'kristian@email.com',
-      players: [
-        { name: 'Kristian Nilsen', psnId: 'kristian_nilsen', position: 'CAM' },
-        { name: 'Ole Svendsen', psnId: 'ole_svendsen', position: 'CDM' },
-        { name: 'Per Andersen', psnId: 'per_andersen', position: 'LB' },
-        { name: 'Rune Jensen', psnId: 'rune_jensen', position: 'RB' },
-        { name: 'Svein Larsen', psnId: 'svein_larsen', position: 'LW' },
-        { name: 'Tore Moen', psnId: 'tore_moen', position: 'CF' }
-      ],
-      status: 'approved',
-      registeredAt: '2025-01-14',
-      tournamentId: 'fc26-launch-cup',
-      paymentStatus: 'paid'
-    },
-    {
-      id: '3',
-      teamName: 'Trondheim Titans',
-      captainName: 'Marius Solberg',
-      captainEmail: 'marius@email.com',
-      players: [
-        { name: 'Marius Solberg', psnId: 'marius_solberg', position: 'ST' },
-        { name: 'Henrik Dahl', psnId: 'henrik_dahl', position: 'CM' },
-        { name: 'Vegard Nilsen', psnId: 'vegard_nilsen', position: 'CB' },
-        { name: 'Stian Berg', psnId: 'stian_berg', position: 'GK' },
-        { name: 'Einar Hansen', psnId: 'einar_hansen', position: 'RW' },
-        { name: 'Knut Olsen', psnId: 'knut_olsen', position: 'LW' },
-        { name: 'Arne Pedersen', psnId: 'arne_pedersen', position: 'CDM' }
-      ],
-      status: 'approved',
-      registeredAt: '2025-01-13',
-      tournamentId: 'fc26-launch-cup',
-      paymentStatus: 'paid'
+    
+    if (isAuthenticated) {
+      loadTournaments()
     }
-  ]
+  }, [isAuthenticated, selectedTournament])
 
-  const [teams, setTeams] = useState<Team[]>(initialTeams)
+  // Hent teams fra database via API
+  useEffect(() => {
+    const loadTeams = async () => {
+      try {
+        const response = await fetch('/api/teams')
+        if (response.ok) {
+          const data = await response.json()
+          if (data.teams) {
+            setTeams(data.teams)
+          }
+        }
+      } catch (error) {
+        console.warn('Error loading teams from API:', error)
+        setTeams([])
+      } finally {
+        setIsLoading(false)
+      }
+    }
 
-  const filteredTeams = teams.filter(team => team.tournamentId === selectedTournament)
+    if (isAuthenticated) {
+      loadTeams()
+    }
+  }, [isAuthenticated])
+
+  const filteredTeams = teams.filter(team => 
+    team.tournamentId === selectedTournament || 
+    team.tournament_id === selectedTournament
+  )
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -227,20 +227,77 @@ export default function AdminPage() {
   }
 
   const updateTeamStatus = (teamId: string, newStatus: string) => {
-    setTeams(prevTeams => 
-      prevTeams.map(team => 
+    setTeams(prevTeams => {
+      const updatedTeams = prevTeams.map(team => 
         team.id === teamId 
           ? { ...team, status: newStatus as 'pending' | 'approved' | 'rejected' | 'paid' }
           : team
       )
-    )
+      
+      // Oppdater localStorage med de nye team-dataene
+      const storedTeams = localStorage.getItem('adminTeams')
+      if (storedTeams) {
+        const teamsFromStorage = JSON.parse(storedTeams)
+        const updatedStorageTeams = teamsFromStorage.map((team: any) => 
+          team.id === teamId 
+            ? { ...team, status: newStatus as 'pending' | 'approved' | 'rejected' | 'paid' }
+            : team
+        )
+        localStorage.setItem('adminTeams', JSON.stringify(updatedStorageTeams))
+      }
+      
+      return updatedTeams
+    })
   }
 
   const deleteTeam = (teamId: string) => {
     if (confirm('Er du sikker på at du vil slette dette laget?')) {
-      setTeams(prevTeams => prevTeams.filter(team => team.id !== teamId))
+      setTeams(prevTeams => {
+        const updatedTeams = prevTeams.filter(team => team.id !== teamId)
+        
+        // Oppdater localStorage
+        const storedTeams = localStorage.getItem('adminTeams')
+        if (storedTeams) {
+          const teamsFromStorage = JSON.parse(storedTeams)
+          const updatedStorageTeams = teamsFromStorage.filter((team: any) => team.id !== teamId)
+          localStorage.setItem('adminTeams', JSON.stringify(updatedStorageTeams))
+        }
+        
+        return updatedTeams
+      })
     }
   }
+
+  // Prize management functions
+  const updatePrizeSettings = (newSettings: any) => {
+    setPrizeSettings(newSettings)
+    // Calculate current prize based on registered teams
+    const approvedTeams = teams.filter(team => team.status === 'approved').length
+    const currentPrize = newSettings.basePrize + (approvedTeams * newSettings.perTeamBonus)
+    setPrizeSettings(prev => ({ ...prev, currentPrize }))
+    
+    // Save to localStorage
+    localStorage.setItem('prizeSettings', JSON.stringify(newSettings))
+  }
+
+  const loadPrizeSettings = () => {
+    try {
+      const stored = localStorage.getItem('prizeSettings')
+      if (stored) {
+        const settings = JSON.parse(stored)
+        const approvedTeams = teams.filter(team => team.status === 'approved').length
+        const currentPrize = settings.basePrize + (approvedTeams * settings.perTeamBonus)
+        setPrizeSettings({ ...settings, currentPrize })
+      }
+    } catch (error) {
+      console.warn('Error loading prize settings:', error)
+    }
+  }
+
+  // Load prize settings when teams change
+  useEffect(() => {
+    loadPrizeSettings()
+  }, [teams])
 
   const exportTeams = () => {
     const csvContent = [
@@ -394,9 +451,9 @@ PRO11 Team`)
       return
     }
 
-    const approvedTeams = initialTeams
-      .filter(team => team.status === 'approved' && team.tournamentId === tournamentId)
-      .map(team => team.teamName)
+    const approvedTeams = teams
+      .filter(team => team.status === 'approved' && (team.tournamentId === tournamentId || team.tournament_id === tournamentId))
+      .map(team => team.teamName || team.team_name)
 
     if (approvedTeams.length < 4) {
       alert('Du trenger minst 4 godkjente lag for å generere kamper!')
@@ -694,6 +751,16 @@ PRO11 Team`)
                 Turneringer
               </button>
               <button
+                onClick={() => setActiveTab('prizes')}
+                className={`px-3 py-1.5 rounded-lg font-medium transition-colors text-sm ${
+                  activeTab === 'prizes' 
+                    ? 'bg-blue-600 text-white' 
+                    : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                Premier
+              </button>
+              <button
                 onClick={() => setActiveTab('statistics')}
                 className={`px-3 py-1.5 rounded-lg font-medium transition-colors text-sm ${
                   activeTab === 'statistics' 
@@ -735,8 +802,16 @@ PRO11 Team`)
                   </select>
                 </div>
 
-                {/* Teams Table */}
-                <div className="overflow-x-auto">
+                {/* Loading State */}
+                {isLoading ? (
+                  <div className="text-center py-8">
+                    <div className="w-8 h-8 border-2 border-blue-400 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+                    <p className="text-slate-300">Laster lag...</p>
+                  </div>
+                ) : (
+                  <>
+                    {/* Teams Table */}
+                    <div className="overflow-x-auto">
                   <table className="w-full">
                     <thead>
                       <tr className="border-b border-slate-700">
@@ -816,16 +891,18 @@ PRO11 Team`)
                   </table>
                 </div>
 
-                {/* Export Button */}
-                <div className="mt-4">
-                  <button
-                    onClick={exportTeams}
-                    className="pro11-button-secondary flex items-center space-x-2 text-sm"
-                  >
-                    <Download className="w-3 h-3" />
-                    <span>Eksporter til CSV</span>
-                  </button>
-                </div>
+                    {/* Export Button */}
+                    <div className="mt-4">
+                      <button
+                        onClick={exportTeams}
+                        className="pro11-button-secondary flex items-center space-x-2 text-sm"
+                      >
+                        <Download className="w-3 h-3" />
+                        <span>Eksporter til CSV</span>
+                      </button>
+                    </div>
+                  </>
+                )}
               </div>
             )}
 

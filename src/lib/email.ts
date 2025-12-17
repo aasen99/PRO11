@@ -1,12 +1,28 @@
 import nodemailer from 'nodemailer'
 
-const transporter = nodemailer.createTransport({
-  service: 'gmail',
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS,
-  },
-})
+let transporter: nodemailer.Transporter | null = null
+
+const getTransporter = () => {
+  if (!transporter) {
+    const emailUser = process.env.EMAIL_USER
+    const emailPass = process.env.EMAIL_PASS
+    
+    if (!emailUser || !emailPass) {
+      console.warn('Missing email credentials - email functionality disabled')
+      return null
+    }
+    
+    transporter = nodemailer.createTransport({
+      service: 'gmail',
+      auth: {
+        user: emailUser,
+        pass: emailPass,
+      },
+    })
+  }
+  
+  return transporter
+}
 
 export const sendPaymentConfirmation = async (
   email: string,
@@ -37,5 +53,11 @@ export const sendPaymentConfirmation = async (
     `,
   }
 
-  return transporter.sendMail(mailOptions)
+  const emailTransporter = getTransporter()
+  if (!emailTransporter) {
+    console.warn('Email service unavailable - skipping email send')
+    return Promise.resolve()
+  }
+  
+  return emailTransporter.sendMail(mailOptions)
 } 

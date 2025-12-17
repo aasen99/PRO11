@@ -1,7 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { stripe } from '@/lib/stripe'
 import { getSupabase } from '@/lib/supabase'
-import { sendPaymentConfirmation } from '@/lib/email'
 
 export async function POST(request: NextRequest) {
   try {
@@ -20,17 +18,6 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Team not found' }, { status: 404 })
     }
 
-    // Create Stripe payment intent
-    const paymentIntent = await stripe.paymentIntents.create({
-      amount: amount * 100, // Convert to cents
-      currency: currency,
-      metadata: {
-        teamId: teamId,
-        teamName: team.team_name as string,
-        captainEmail: team.captain_email as string
-      }
-    })
-
     // Create payment record in database
     const { data: payment, error: paymentError } = await supabase
       .from('payments')
@@ -39,8 +26,7 @@ export async function POST(request: NextRequest) {
         amount: amount,
         currency: currency,
         status: 'pending',
-        payment_method: 'stripe',
-        stripe_payment_intent_id: paymentIntent.id
+        payment_method: 'paypal'
       })
       .select()
       .single()
@@ -50,8 +36,9 @@ export async function POST(request: NextRequest) {
     }
 
     return NextResponse.json({
-      clientSecret: paymentIntent.client_secret,
-      paymentId: payment.id
+      paymentId: payment.id,
+      amount: amount,
+      currency: currency
     })
 
   } catch (error) {
@@ -63,13 +50,22 @@ export async function POST(request: NextRequest) {
 export async function PUT(request: NextRequest) {
   try {
     const body = await request.json()
-    const { paymentId, status, stripePaymentIntentId } = body
+    const { paymentId, status, paypalOrderId, stripePaymentIntentId } = body
 
     // Update payment status
     const supabase = getSupabase()
+    const updateData: any = { status }
+    
+    // Add PayPal order ID if provided
+    if (paypalOrderId) {
+      updateData.stripe_payment_intent_id = paypalOrderId // Reusing this field for PayPal order ID
+    } else if (stripePaymentIntentId) {
+      updateData.stripe_payment_intent_id = stripePaymentIntentId
+    }
+
     const { data: payment, error: paymentError } = await supabase
       .from('payments')
-      .update({ status })
+      .update(updateData)
       .eq('id', paymentId)
       .select()
       .single()
@@ -78,7 +74,7 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: paymentError.message }, { status: 400 })
     }
 
-    // If payment completed, update team status and send email
+    // If payment completed, update team status
     if (status === 'completed') {
       // Update team payment status
       await supabase
@@ -88,23 +84,6 @@ export async function PUT(request: NextRequest) {
           status: 'approved'
         })
         .eq('id', payment.team_id as string)
-
-      // Get team info for email
-      const { data: team } = await supabase
-        .from('teams')
-        .select('*, tournaments(*)')
-        .eq('id', payment.team_id as string)
-        .single()
-
-      if (team) {
-        // Send confirmation email
-        await sendPaymentConfirmation(
-          team.captain_email as string,
-          team.team_name as string,
-          team.generated_password as string,
-          (team.tournaments as any)?.title as string
-        )
-      }
     }
 
     return NextResponse.json({ success: true, payment })

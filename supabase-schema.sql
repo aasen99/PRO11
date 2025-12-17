@@ -87,6 +87,58 @@ CREATE TRIGGER update_tournaments_updated_at BEFORE UPDATE ON tournaments FOR EA
 CREATE TRIGGER update_teams_updated_at BEFORE UPDATE ON teams FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 CREATE TRIGGER update_payments_updated_at BEFORE UPDATE ON payments FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
+-- Create function to increment tournament teams count
+CREATE OR REPLACE FUNCTION increment_tournament_teams(tournament_uuid UUID)
+RETURNS void AS $$
+BEGIN
+  UPDATE tournaments 
+  SET current_teams = current_teams + 1 
+  WHERE id = tournament_uuid;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Enable Row Level Security (RLS) on all tables
+ALTER TABLE tournaments ENABLE ROW LEVEL SECURITY;
+ALTER TABLE teams ENABLE ROW LEVEL SECURITY;
+ALTER TABLE players ENABLE ROW LEVEL SECURITY;
+ALTER TABLE payments ENABLE ROW LEVEL SECURITY;
+ALTER TABLE admin_users ENABLE ROW LEVEL SECURITY;
+
+-- RLS Policies for tournaments (public read access)
+CREATE POLICY "Public read access to tournaments" ON tournaments
+  FOR SELECT USING (true);
+
+-- RLS Policies for teams
+CREATE POLICY "Public can insert teams" ON teams
+  FOR INSERT WITH CHECK (true);
+
+CREATE POLICY "Public can read teams" ON teams
+  FOR SELECT USING (true);
+
+CREATE POLICY "Teams can update own data" ON teams
+  FOR UPDATE USING (true);
+
+-- RLS Policies for players
+CREATE POLICY "Public can insert players" ON players
+  FOR INSERT WITH CHECK (true);
+
+CREATE POLICY "Public can read players" ON players
+  FOR SELECT USING (true);
+
+-- RLS Policies for payments
+CREATE POLICY "Public can insert payments" ON payments
+  FOR INSERT WITH CHECK (true);
+
+CREATE POLICY "Public can read payments" ON payments
+  FOR SELECT USING (true);
+
+CREATE POLICY "Public can update payments" ON payments
+  FOR UPDATE USING (true);
+
+-- RLS Policies for admin_users (restrictive - only service role should access)
+CREATE POLICY "No public access to admin users" ON admin_users
+  FOR ALL USING (false);
+
 -- Insert sample tournament
 INSERT INTO tournaments (title, description, start_date, end_date, max_teams, prize_pool, entry_fee) VALUES (
   'PRO11 FC 26 Launch Cup',
