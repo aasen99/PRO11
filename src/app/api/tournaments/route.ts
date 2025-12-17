@@ -56,7 +56,10 @@ export async function POST(request: NextRequest) {
     console.log('Environment check:', {
       hasUrl: !!process.env.NEXT_PUBLIC_SUPABASE_URL,
       hasServiceKey: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
-      hasAnonKey: !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+      hasAnonKey: !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+      nodeEnv: process.env.NODE_ENV,
+      vercelEnv: process.env.VERCEL_ENV,
+      allSupabaseKeys: Object.keys(process.env).filter(k => k.includes('SUPABASE'))
     })
 
     if (!title || !start_date || !end_date) {
