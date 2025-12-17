@@ -118,8 +118,8 @@ export default function AdminPage() {
         if (response.ok) {
           const data = await response.json()
           if (data.tournaments) {
-            // Transform database tournaments to frontend format
-            const transformed = data.tournaments.map((t: any) => {
+            // Transform database tournaments to frontend format and load matches
+            const transformedPromises = data.tournaments.map(async (t: any) => {
               const startDate = new Date(t.start_date)
               const date = startDate.toLocaleDateString('nb-NO', { day: 'numeric', month: 'long', year: 'numeric' })
               const time = startDate.toLocaleTimeString('nb-NO', { hour: '2-digit', minute: '2-digit' })
@@ -128,6 +128,28 @@ export default function AdminPage() {
               if (t.status === 'active') status = 'ongoing'
               else if (t.status === 'completed') status = 'completed'
               else if (t.status === 'cancelled') status = 'closed'
+              
+              // Load matches for this tournament
+              let matches: Match[] = []
+              try {
+                const matchesResponse = await fetch(`/api/matches?tournament_id=${t.id}`)
+                if (matchesResponse.ok) {
+                  const matchesData = await matchesResponse.json()
+                  matches = (matchesData.matches || []).map((m: any) => ({
+                    id: m.id,
+                    team1: m.team1_name,
+                    team2: m.team2_name,
+                    round: m.round,
+                    group: m.group_name,
+                    status: m.status as 'scheduled' | 'live' | 'completed',
+                    score1: m.score1,
+                    score2: m.score2,
+                    time: m.scheduled_time ? new Date(m.scheduled_time).toLocaleTimeString('nb-NO', { hour: '2-digit', minute: '2-digit' }) : undefined
+                  }))
+                }
+              } catch (error) {
+                console.error(`Error loading matches for tournament ${t.id}:`, error)
+              }
               
               return {
                 id: t.id,
@@ -140,9 +162,12 @@ export default function AdminPage() {
                 prize: `${t.prize_pool.toLocaleString('nb-NO')} NOK`,
                 entryFee: t.entry_fee,
                 description: t.description || '',
-                format: 'mixed' as const
+                format: 'mixed' as const,
+                matches
               }
             })
+            
+            const transformed = await Promise.all(transformedPromises)
             setTournaments(transformed)
             // Set first tournament as selected if none selected
             if (transformed.length > 0 && !selectedTournament) {
@@ -764,18 +789,47 @@ PRO11 Team`)
       matches = [...matches, ...knockoutMatches]
     }
 
-    // Oppdater turneringen med kamper og lagre i state
-    const updatedTournaments = tournaments.map(t => 
-      t.id === tournamentId 
-        ? { ...t, matches, groups, status: 'ongoing' as const }
-        : t
-    )
-    setTournaments(updatedTournaments)
-
-    // Oppdater turneringsstatus i databasen til 'active'
-    const updateTournamentStatus = async () => {
+    // Lagre kamper i databasen
+    const saveMatchesToDatabase = async () => {
       try {
-        const response = await fetch('/api/tournaments', {
+        // Slett eksisterende kamper for denne turneringen først
+        const deleteResponse = await fetch(`/api/matches?tournament_id=${tournamentId}`, {
+          method: 'DELETE'
+        })
+        // Ignore delete errors (might not exist)
+
+        // Lagre alle kamper
+        const matchPromises = matches.map(async (match) => {
+          const response = await fetch('/api/matches', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              tournament_id: tournamentId,
+              team1_name: match.team1,
+              team2_name: match.team2,
+              round: match.round,
+              group_name: match.group,
+              status: match.status || 'scheduled',
+              scheduled_time: match.time ? new Date(match.time).toISOString() : null
+            })
+          })
+          
+          if (!response.ok) {
+            const error = await response.json()
+            console.error('Failed to save match:', error)
+            return null
+          }
+          
+          return await response.json()
+        })
+
+        const savedMatches = await Promise.all(matchPromises)
+        const successfulMatches = savedMatches.filter(m => m !== null)
+        
+        console.log(`Saved ${successfulMatches.length} of ${matches.length} matches to database`)
+
+        // Oppdater turneringsstatus i databasen til 'active'
+        const statusResponse = await fetch('/api/tournaments', {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -784,20 +838,26 @@ PRO11 Team`)
           })
         })
         
-        if (!response.ok) {
+        if (!statusResponse.ok) {
           console.error('Failed to update tournament status')
         }
+
+        // Oppdater lokal state med lagrede kamper
+        const updatedTournaments = tournaments.map(t => 
+          t.id === tournamentId 
+            ? { ...t, matches, groups, status: 'ongoing' as const }
+            : t
+        )
+        setTournaments(updatedTournaments)
+
+        alert(`Kampene er generert og lagret!\n\nGruppespill: ${matches.filter(m => m.round === 'Gruppespill').length} kamper\nSluttspill: ${matches.filter(m => m.round === 'Sluttspill').length} kamper\n\nTurneringen er satt til "Pågående"`)
       } catch (error) {
-        console.error('Error updating tournament status:', error)
+        console.error('Error saving matches:', error)
+        alert('Kampene ble generert, men det oppstod en feil ved lagring til database. Sjekk konsollen for detaljer.')
       }
     }
     
-    updateTournamentStatus()
-
-    console.log('Generated matches:', matches)
-    console.log('Generated groups:', groups)
-    
-    alert(`Kampene er generert!\n\nGruppespill: ${matches.filter(m => m.round === 'Gruppespill').length} kamper\nSluttspill: ${matches.filter(m => m.round === 'Sluttspill').length} kamper\n\nTurneringen er satt til "Pågående"`)
+    saveMatchesToDatabase()
   }
 
   const generateKnockoutFromGroups = (tournamentId: string) => {

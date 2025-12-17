@@ -88,15 +88,45 @@ export default function CaptainDashboardPage() {
             return
           }
           
-          // Hent hver turnering
+          // Hent hver turnering med kamper
           const tournamentPromises = tournamentIds.map(async (tournamentId: string) => {
             try {
-              const response = await fetch(`/api/tournaments?id=${tournamentId}`)
-              if (response.ok) {
-                const data = await response.json()
-                return data.tournament
+              const [tournamentResponse, matchesResponse] = await Promise.all([
+                fetch(`/api/tournaments?id=${tournamentId}`),
+                fetch(`/api/matches?tournament_id=${tournamentId}`)
+              ])
+              
+              let tournament = null
+              let matches: Match[] = []
+              
+              if (tournamentResponse.ok) {
+                const data = await tournamentResponse.json()
+                tournament = data.tournament
               }
-              return null
+              
+              if (matchesResponse.ok) {
+                const matchesData = await matchesResponse.json()
+                matches = (matchesData.matches || []).map((m: any) => ({
+                  id: m.id,
+                  team1: m.team1_name,
+                  team2: m.team2_name,
+                  score1: m.score1 || 0,
+                  score2: m.score2 || 0,
+                  status: m.status as 'scheduled' | 'live' | 'completed' | 'pending_result' | 'pending_confirmation',
+                  time: m.scheduled_time ? new Date(m.scheduled_time).toLocaleTimeString('nb-NO', { hour: '2-digit', minute: '2-digit' }) : '',
+                  round: m.round,
+                  tournamentId: m.tournament_id,
+                  canSubmitResult: m.status === 'scheduled' || m.status === 'live',
+                  submittedBy: m.submitted_by || null,
+                  submittedScore1: m.submitted_score1 || null,
+                  submittedScore2: m.submitted_score2 || null,
+                  canConfirmResult: m.status === 'pending_confirmation'
+                })).filter((match: Match) => 
+                  match.team1 === parsedTeam.teamName || match.team2 === parsedTeam.teamName
+                )
+              }
+              
+              return tournament ? { tournament, matches } : null
             } catch (error) {
               console.error(`Error loading tournament ${tournamentId}:`, error)
               return null
@@ -108,18 +138,19 @@ export default function CaptainDashboardPage() {
           
           // Transform database tournaments to frontend format
           const transformedTournaments: Tournament[] = validTournaments.map((t: any) => {
-            const startDate = new Date(t.start_date)
-            const endDate = new Date(t.end_date)
+            const tournament = t.tournament
+            const startDate = new Date(tournament.start_date)
+            const endDate = new Date(tournament.end_date)
             
             return {
-              id: t.id,
-              title: t.title,
-              status: t.status === 'active' ? 'live' : t.status === 'completed' ? 'completed' : 'upcoming',
+              id: tournament.id,
+              title: tournament.title,
+              status: tournament.status === 'active' ? 'live' : tournament.status === 'completed' ? 'completed' : 'upcoming',
               startDate: startDate.toLocaleDateString('nb-NO', { day: 'numeric', month: 'long', year: 'numeric' }),
               endDate: endDate.toLocaleDateString('nb-NO', { day: 'numeric', month: 'long', year: 'numeric' }),
               position: 0, // TODO: Calculate position from standings
-              totalTeams: t.max_teams,
-              matches: [] // TODO: Load matches from database when matches table is created
+              totalTeams: tournament.max_teams,
+              matches: t.matches || []
             }
           })
           
