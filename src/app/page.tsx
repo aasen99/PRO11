@@ -28,22 +28,10 @@ export default function HomePage() {
     loadTournaments()
   }, [])
   
-  if (isLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="w-8 h-8 border-2 border-blue-400 border-t-transparent rounded-full animate-spin"></div>
-      </div>
-    )
-  }
-  
-  if (!nextTournament) {
-    return <div>Ingen turneringer tilgjengelig</div>
-  }
-
   return (
     <div className="min-h-screen">
       {/* Header */}
-            <header className="pro11-card mx-4 mt-4 h-24">
+      <header className="pro11-card mx-4 mt-4 h-24">
         <div className="flex items-center justify-between">
           <div className="flex items-center">
             <Link href="/" className="w-24 h-full flex items-center justify-center hover:opacity-80 transition-opacity">
@@ -77,47 +65,85 @@ export default function HomePage() {
           <h2 className="text-5xl md:text-7xl font-bold mb-6 text-white">
             Neste Turnering
           </h2>
-          <p className="text-xl text-slate-300 mb-8 max-w-3xl mx-auto">
-            {nextTournament.title} - Vær med på den største Pro Clubs-turneringen i Norge
-          </p>
+          {nextTournament ? (
+            <p className="text-xl text-slate-300 mb-8 max-w-3xl mx-auto">
+              {nextTournament.title} - Vær med på den største Pro Clubs-turneringen i Norge
+            </p>
+          ) : (
+            <p className="text-xl text-slate-300 mb-8 max-w-3xl mx-auto">
+              Vær med på den største Pro Clubs-turneringen i Norge
+            </p>
+          )}
         </div>
 
-        {/* Next Tournament Card */}
-        <div className="pro11-card p-8 mb-12 w-full max-w-4xl text-center">
-          <div className="flex flex-col md:flex-row items-center justify-center gap-8">
-            <div className="text-center">
-              <div className="flex items-center justify-center space-x-2 mb-4">
-                <Trophy className="w-6 h-6 text-yellow-400" />
-                <span className="text-yellow-400 font-semibold">Kommende</span>
-              </div>
-              <h3 className="text-3xl font-bold mb-4 text-center">{nextTournament.title}</h3>
-              <div className="space-y-3 text-slate-300 text-center">
-                <div className="flex items-center justify-center space-x-3">
-                  <Calendar className="w-5 h-5 text-blue-400" />
-                  <span>{nextTournament.date} - {nextTournament.time}</span>
-                </div>
-                <div className="flex items-center justify-center space-x-3">
-                  <Trophy className="w-5 h-5 text-yellow-400" />
-                  <span>Premie: {nextTournament.prize}</span>
-                </div>
-                <div className="flex items-center justify-center space-x-3">
-                  <Users className="w-5 h-5 text-green-400" />
-                  <span>{nextTournament.registeredTeams}/{nextTournament.maxTeams} lag påmeldt</span>
-                </div>
-              </div>
-              <div className="mt-6 text-center">
-                <span className="inline-block bg-green-600 text-white px-6 py-2 rounded-full text-sm font-semibold">
-                  {nextTournament.status}
-                </span>
-              </div>
-            </div>
-            <div className="text-center">
-              <Link href="/register" className="pro11-button text-lg px-8 py-4 inline-block">
-                Meld på lag
-              </Link>
+        {/* Next Tournament Card or No Tournaments Message */}
+        {isLoading ? (
+          <div className="pro11-card p-8 mb-12 w-full max-w-4xl text-center">
+            <div className="flex items-center justify-center">
+              <div className="w-8 h-8 border-2 border-blue-400 border-t-transparent rounded-full animate-spin"></div>
             </div>
           </div>
-        </div>
+        ) : nextTournament ? (
+          <div className="pro11-card p-8 mb-12 w-full max-w-4xl text-center">
+            <div className="flex flex-col md:flex-row items-center justify-center gap-8">
+              <div className="text-center">
+                <div className="flex items-center justify-center space-x-2 mb-4">
+                  <Trophy className="w-6 h-6 text-yellow-400" />
+                  <span className="text-yellow-400 font-semibold">Kommende</span>
+                </div>
+                <h3 className="text-3xl font-bold mb-4 text-center">{nextTournament.title}</h3>
+                <div className="space-y-3 text-slate-300 text-center">
+                  <div className="flex items-center justify-center space-x-3">
+                    <Calendar className="w-5 h-5 text-blue-400" />
+                    <span>{nextTournament.date} - {nextTournament.time}</span>
+                  </div>
+                  <div className="flex items-center justify-center space-x-3">
+                    <Trophy className="w-5 h-5 text-yellow-400" />
+                    <span>Premie: {nextTournament.prize}</span>
+                  </div>
+                  <div className="flex items-center justify-center space-x-3">
+                    <Users className="w-5 h-5 text-green-400" />
+                    <span>{nextTournament.registeredTeams}/{nextTournament.maxTeams} lag påmeldt</span>
+                  </div>
+                </div>
+                <div className="mt-6 text-center">
+                  <span className="inline-block bg-green-600 text-white px-6 py-2 rounded-full text-sm font-semibold">
+                    {nextTournament.status}
+                  </span>
+                </div>
+              </div>
+              <div className="text-center">
+                <Link href="/register" className="pro11-button text-lg px-8 py-4 inline-block">
+                  Meld på lag
+                </Link>
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div className="pro11-card p-8 mb-12 w-full max-w-4xl text-center">
+            <div className="flex flex-col items-center justify-center gap-6">
+              <Trophy className="w-16 h-16 text-slate-400" />
+              <h3 className="text-2xl font-bold text-white mb-2">Ingen kommende turneringer</h3>
+              <p className="text-slate-300 max-w-2xl">
+                Det er for øyeblikket ingen kommende turneringer. Sjekk tilbake senere eller følg med på vår Discord for oppdateringer.
+              </p>
+              <div className="mt-4 flex gap-4">
+                <Link href="/tournaments" className="pro11-button text-lg px-6 py-3 inline-block">
+                  Se alle turneringer
+                </Link>
+                <a 
+                  href="https://discord.gg/Es8UAkax8H" 
+                  target="_blank" 
+                  rel="noopener noreferrer" 
+                  className="pro11-button-secondary text-lg px-6 py-3 inline-block flex items-center space-x-2"
+                >
+                  <span>Join Discord</span>
+                  <ExternalLink className="w-4 h-4" />
+                </a>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* About PRO11 */}
         <div className="pro11-card p-8 mb-12 w-full max-w-4xl text-center">
