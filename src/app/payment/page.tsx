@@ -287,10 +287,18 @@ export default function PaymentPage() {
             </p>
             
             <div className="text-center">
-              {process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID ? (
+              {(() => {
+                const paypalClientId = process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID
+                console.log('PayPal Client ID check:', {
+                  hasClientId: !!paypalClientId,
+                  clientIdLength: paypalClientId?.length || 0,
+                  clientIdPrefix: paypalClientId?.substring(0, 20) || 'NOT SET'
+                })
+                return paypalClientId
+              })() ? (
                 <PayPalScriptProvider 
                   options={{ 
-                    clientId: process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID,
+                    clientId: process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID!,
                     currency: 'NOK',
                     intent: 'capture'
                   }}
