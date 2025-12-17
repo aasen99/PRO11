@@ -323,21 +323,15 @@ export default function PaymentPage() {
                   />
                 </PayPalScriptProvider>
               ) : (
-                <div className="p-8 bg-slate-800/50 rounded-lg">
-                  <p className="text-slate-400 mb-4">
-                    PayPal er ikke konfigurert ennå. Kontakt administrator.
+                <div className="p-8 bg-yellow-900/20 border border-yellow-600/30 rounded-lg">
+                  <p className="text-yellow-400 mb-4 font-semibold">
+                    ⚠️ PayPal er ikke konfigurert ennå
                   </p>
-                  <button
-                    onClick={() => {
-                      // Fallback til simuler betaling for testing
-                      handlePaymentSuccess({ orderID: 'test-' + Date.now() })
-                    }}
-                    className="pro11-button text-lg px-8 py-4"
-                  >
-                    Test betaling (simulert)
-                  </button>
-                  <p className="text-slate-500 text-sm mt-2">
-                    Dette simulerer en fullført betaling for testing
+                  <p className="text-slate-300 mb-4">
+                    For å aktivere PayPal-betaling, legg til NEXT_PUBLIC_PAYPAL_CLIENT_ID i miljøvariablene.
+                  </p>
+                  <p className="text-slate-400 text-sm mb-4">
+                    Inntil PayPal er konfigurert, kan du ikke fullføre betalingen. Kontakt administrator for hjelp.
                   </p>
                 </div>
               )}

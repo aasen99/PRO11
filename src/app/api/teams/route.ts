@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getSupabase } from '@/lib/supabase'
+import { getSupabase, getSupabaseAdmin } from '@/lib/supabase'
 import { generatePassword } from '@/lib/utils'
 
 export async function POST(request: NextRequest) {
@@ -9,7 +9,8 @@ export async function POST(request: NextRequest) {
 
     console.log('Team registration request:', body)
 
-    const supabase = getSupabase()
+    // Use admin client for insert operations to bypass RLS
+    const supabase = getSupabaseAdmin() || getSupabase()
 
     // First, find the tournament by title or get the first tournament if tournamentId is not a UUID
     let tournamentUuid: string | null = null
@@ -152,7 +153,8 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     const tournamentId = searchParams.get('tournamentId')
 
-    const supabase = getSupabase()
+    // Use admin client to ensure we can read all teams
+    const supabase = getSupabaseAdmin() || getSupabase()
 
     let query = supabase
       .from('teams')
