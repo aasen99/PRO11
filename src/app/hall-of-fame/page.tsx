@@ -18,137 +18,16 @@ interface HallOfFameEntry {
 
 export default function HallOfFamePage() {
   const [activeTab, setActiveTab] = useState<'champions' | 'records' | 'achievements'>('champions')
+  const [entries, setEntries] = useState<HallOfFameEntry[]>([])
 
-  const champions: HallOfFameEntry[] = [
-    {
-      id: '1',
-      tournament: 'PRO11 FC 25 Winter Championship',
-      winner: 'Oslo United',
-      runnerUp: 'Bergen Elite',
-      date: '15. desember 2024',
-      prize: '15,000 NOK',
-      participants: 16,
-      highlight: 'Oslo United dominerte turneringen med 8 seiere på rad',
-      category: 'champion'
-    },
-    {
-      id: '2',
-      tournament: 'PRO11 FC 25 Autumn Cup',
-      winner: 'Trondheim Titans',
-      runnerUp: 'Stavanger Stars',
-      date: '20. oktober 2024',
-      prize: '10,000 NOK',
-      participants: 12,
-      highlight: 'Trondheim Titans vant finalen med 4-1 i en spektakulær kamp',
-      category: 'champion'
-    },
-    {
-      id: '3',
-      tournament: 'PRO11 FC 25 Summer League',
-      winner: 'Kristiansand Kings',
-      runnerUp: 'Tromsø Thunder',
-      date: '25. august 2024',
-      prize: '8,000 NOK',
-      participants: 14,
-      highlight: 'Kristiansand Kings sikret seieren med en 90. minutts scoring',
-      category: 'champion'
-    }
-  ]
-
-  const records: HallOfFameEntry[] = [
-    {
-      id: '4',
-      tournament: 'Største seiersmargin',
-      winner: 'Oslo United',
-      runnerUp: 'Bodø Blitz',
-      date: '15. desember 2024',
-      prize: '8-0',
-      participants: 1,
-      highlight: 'Oslo United slo Bodø Blitz 8-0 i kvartfinalen av Winter Championship',
-      category: 'record'
-    },
-    {
-      id: '5',
-      tournament: 'Flest mål i en turnering',
-      winner: 'Trondheim Titans',
-      runnerUp: 'N/A',
-      date: '20. oktober 2024',
-      prize: '32 mål',
-      participants: 1,
-      highlight: 'Trondheim Titans scoret 32 mål på 6 kamper i Autumn Cup',
-      category: 'record'
-    },
-    {
-      id: '6',
-      tournament: 'Raskeste hattrick',
-      winner: 'Anders Hansen',
-      runnerUp: 'Oslo United',
-      date: '15. desember 2024',
-      prize: '12 minutter',
-      participants: 1,
-      highlight: 'Anders Hansen scoret hattrick på 12 minutter mot Bergen Elite',
-      category: 'record'
-    },
-    {
-      id: '7',
-      tournament: 'Lengste seiersrekke',
-      winner: 'Oslo United',
-      runnerUp: 'N/A',
-      date: '2024',
-      prize: '12 kamper',
-      participants: 1,
-      highlight: 'Oslo United vant 12 kamper på rad fra august til desember 2024',
-      category: 'record'
-    }
-  ]
-
-  const achievements: HallOfFameEntry[] = [
-    {
-      id: '8',
-      tournament: 'Første turneringsvinner',
-      winner: 'Oslo United',
-      runnerUp: 'N/A',
-      date: '25. august 2024',
-      prize: 'Historie',
-      participants: 1,
-      highlight: 'Oslo United ble den første vinneren av en PRO11-turnering',
-      category: 'achievement'
-    },
-    {
-      id: '9',
-      tournament: 'Perfekt turnering',
-      winner: 'Trondheim Titans',
-      runnerUp: 'N/A',
-      date: '20. oktober 2024',
-      prize: '6/6 seiere',
-      participants: 1,
-      highlight: 'Trondheim Titans vant alle 6 kamper uten tap i Autumn Cup',
-      category: 'achievement'
-    },
-    {
-      id: '10',
-      tournament: 'Comeback of the Year',
-      winner: 'Kristiansand Kings',
-      runnerUp: 'Tromsø Thunder',
-      date: '25. august 2024',
-      prize: '3-2 comeback',
-      participants: 1,
-      highlight: 'Kristiansand Kings kom tilbake fra 0-2 til å vinne 3-2 i finalen',
-      category: 'achievement'
-    }
-  ]
+  // Hall of Fame entries will be populated from completed tournaments in the future
+  // For now, show empty state
 
   const getTabContent = () => {
-    switch (activeTab) {
-      case 'champions':
-        return champions
-      case 'records':
-        return records
-      case 'achievements':
-        return achievements
-      default:
-        return champions
-    }
+    return entries.filter(entry => entry.category === activeTab.slice(0, -1) || 
+      (activeTab === 'champions' && entry.category === 'champion') ||
+      (activeTab === 'records' && entry.category === 'record') ||
+      (activeTab === 'achievements' && entry.category === 'achievement'))
   }
 
   const getIcon = (category: string) => {
@@ -197,19 +76,19 @@ export default function HallOfFamePage() {
           {/* Stats Overview */}
           <div className="grid md:grid-cols-4 gap-6 mb-12">
             <div className="pro11-card p-6 text-center">
-              <div className="text-3xl font-bold text-yellow-400 mb-2">3</div>
+              <div className="text-3xl font-bold text-yellow-400 mb-2">0</div>
               <div className="text-slate-400">Turneringer</div>
             </div>
             <div className="pro11-card p-6 text-center">
-              <div className="text-3xl font-bold text-blue-400 mb-2">42</div>
+              <div className="text-3xl font-bold text-blue-400 mb-2">0</div>
               <div className="text-slate-400">Deltakere</div>
             </div>
             <div className="pro11-card p-6 text-center">
-              <div className="text-3xl font-bold text-green-400 mb-2">33,000</div>
+              <div className="text-3xl font-bold text-green-400 mb-2">0</div>
               <div className="text-slate-400">NOK utdelt</div>
             </div>
             <div className="pro11-card p-6 text-center">
-              <div className="text-3xl font-bold text-purple-400 mb-2">156</div>
+              <div className="text-3xl font-bold text-purple-400 mb-2">0</div>
               <div className="text-slate-400">Kamper spilt</div>
             </div>
           </div>
@@ -250,52 +129,65 @@ export default function HallOfFamePage() {
             </div>
 
             {/* Content */}
-            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {getTabContent().map(entry => (
-                <div key={entry.id} className="pro11-card p-6">
-                  <div className="flex items-center justify-between mb-4">
-                    {getIcon(entry.category)}
-                    <span className="text-sm text-slate-400">{entry.date}</span>
-                  </div>
-                  
-                  <h3 className="text-lg font-semibold mb-2">{entry.tournament}</h3>
-                  
-                  <div className="space-y-2 mb-4">
-                    <div className="flex items-center space-x-2">
-                      <Crown className="w-4 h-4 text-yellow-400" />
-                      <span className="text-sm font-medium">{entry.winner}</span>
+            {getTabContent().length > 0 ? (
+              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {getTabContent().map(entry => (
+                  <div key={entry.id} className="pro11-card p-6">
+                    <div className="flex items-center justify-between mb-4">
+                      {getIcon(entry.category)}
+                      <span className="text-sm text-slate-400">{entry.date}</span>
                     </div>
-                    {entry.runnerUp !== 'N/A' && (
+                    
+                    <h3 className="text-lg font-semibold mb-2">{entry.tournament}</h3>
+                    
+                    <div className="space-y-2 mb-4">
                       <div className="flex items-center space-x-2">
-                        <Medal className="w-4 h-4 text-slate-400" />
-                        <span className="text-sm text-slate-400">{entry.runnerUp}</span>
+                        <Crown className="w-4 h-4 text-yellow-400" />
+                        <span className="text-sm font-medium">{entry.winner}</span>
                       </div>
-                    )}
+                      {entry.runnerUp && entry.runnerUp !== 'N/A' && (
+                        <div className="flex items-center space-x-2">
+                          <Medal className="w-4 h-4 text-slate-400" />
+                          <span className="text-sm text-slate-400">{entry.runnerUp}</span>
+                        </div>
+                      )}
+                    </div>
+                    
+                    <div className="flex items-center justify-between text-sm text-slate-400 mb-3">
+                      <span>Premie: {entry.prize}</span>
+                      {entry.participants > 1 && (
+                        <span>{entry.participants} deltakere</span>
+                      )}
+                    </div>
+                    
+                    <p className="text-sm text-slate-300 leading-relaxed">
+                      {entry.highlight}
+                    </p>
                   </div>
-                  
-                  <div className="flex items-center justify-between text-sm text-slate-400 mb-3">
-                    <span>Premie: {entry.prize}</span>
-                    {entry.participants > 1 && (
-                      <span>{entry.participants} deltakere</span>
-                    )}
-                  </div>
-                  
-                  <p className="text-sm text-slate-300 leading-relaxed">
-                    {entry.highlight}
-                  </p>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-12">
+                <Trophy className="w-16 h-16 text-slate-600 mx-auto mb-4" />
+                <h3 className="text-xl font-semibold mb-2">Ingen {activeTab === 'champions' ? 'mestere' : activeTab === 'records' ? 'rekorder' : 'prestasjoner'} ennå</h3>
+                <p className="text-slate-400 mb-6">
+                  Når turneringer er fullført, vil resultatene vises her.
+                </p>
+                <Link href="/tournaments" className="pro11-button inline-flex items-center space-x-2">
+                  <span>Se turneringer</span>
+                </Link>
+              </div>
+            )}
           </div>
 
           {/* Future Champions */}
           <div className="pro11-card p-8 text-center">
             <h2 className="text-2xl font-bold mb-4">Blir du neste mester?</h2>
             <p className="text-slate-300 mb-6">
-              Meld på laget ditt til FC 26 Launch Cup og skriv historie
+              Meld på laget ditt til en turnering og skriv historie
             </p>
-            <Link href="/register" className="pro11-button inline-flex items-center space-x-2">
-              <span>Meld på lag</span>
+            <Link href="/tournaments" className="pro11-button inline-flex items-center space-x-2">
+              <span>Se turneringer</span>
             </Link>
           </div>
         </div>

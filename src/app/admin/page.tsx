@@ -12,14 +12,20 @@ interface Player {
 
 interface Team {
   id: string
-  teamName: string
-  captainName: string
-  captainEmail: string
-  players: Player[]
+  teamName?: string
+  team_name?: string
+  captainName?: string
+  captain_name?: string
+  captainEmail?: string
+  captain_email?: string
+  players?: Player[]
   status: 'pending' | 'approved' | 'rejected' | 'paid'
-  registeredAt: string
-  tournamentId: string
-  paymentStatus: 'pending' | 'paid' | 'refunded'
+  registeredAt?: string
+  created_at?: string
+  tournamentId?: string
+  tournament_id?: string
+  paymentStatus?: 'pending' | 'paid' | 'refunded'
+  payment_status?: 'pending' | 'completed' | 'failed'
 }
 
 interface Match {
@@ -166,8 +172,7 @@ export default function AdminPage() {
   }, [isAuthenticated])
 
   const filteredTeams = teams.filter(team => 
-    team.tournamentId === selectedTournament || 
-    team.tournament_id === selectedTournament
+    (team.tournamentId || team.tournament_id) === selectedTournament
   )
 
   const getStatusColor = (status: string) => {
@@ -356,21 +361,168 @@ PRO11 Team`)
     setShowTournamentModal(true)
   }
 
-  const saveTournament = (tournamentData: Partial<Tournament>) => {
-    if (isNewTournament) {
-      console.log('Legger til ny turnering:', tournamentData)
-      // Her ville vi lagt til i databasen
-    } else {
-      console.log('Oppdaterer turnering:', tournamentData)
-      // Her ville vi oppdatert i databasen
+  const saveTournament = async (tournamentData: Partial<Tournament>) => {
+    try {
+      // Convert frontend format to database format
+      const startDate = tournamentData.date ? new Date(tournamentData.date + ' ' + (tournamentData.time || '19:00')) : new Date()
+      const endDate = tournamentData.date ? new Date(tournamentData.date + ' ' + (tournamentData.time || '23:00')) : new Date()
+      
+      const dbData: any = {
+        title: tournamentData.title,
+        description: tournamentData.description,
+        start_date: startDate.toISOString(),
+        end_date: endDate.toISOString(),
+        max_teams: tournamentData.maxTeams || 16,
+        prize_pool: parseInt(tournamentData.prize?.replace(/[^0-9]/g, '') || '0'),
+        entry_fee: tournamentData.entryFee || 299,
+        status: tournamentData.status === 'open' ? 'upcoming' : 
+                tournamentData.status === 'ongoing' ? 'active' :
+                tournamentData.status === 'completed' ? 'completed' : 'cancelled'
+      }
+
+      if (isNewTournament) {
+        const response = await fetch('/api/tournaments', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(dbData)
+        })
+        
+        if (response.ok) {
+          // Reload tournaments
+          const loadResponse = await fetch('/api/tournaments')
+          if (loadResponse.ok) {
+            const data = await loadResponse.json()
+            if (data.tournaments) {
+              const transformed = data.tournaments.map((t: any) => {
+                const startDate = new Date(t.start_date)
+                const date = startDate.toLocaleDateString('nb-NO', { day: 'numeric', month: 'long', year: 'numeric' })
+                const time = startDate.toLocaleTimeString('nb-NO', { hour: '2-digit', minute: '2-digit' })
+                let status: 'open' | 'ongoing' | 'closed' | 'completed' = 'open'
+                if (t.status === 'active') status = 'ongoing'
+                else if (t.status === 'completed') status = 'completed'
+                else if (t.status === 'cancelled') status = 'closed'
+                return {
+                  id: t.id,
+                  title: t.title,
+                  date,
+                  time,
+                  registeredTeams: t.current_teams || 0,
+                  maxTeams: t.max_teams,
+                  status,
+                  prize: `${t.prize_pool.toLocaleString('nb-NO')} NOK`,
+                  entryFee: t.entry_fee,
+                  description: t.description || '',
+                  format: 'mixed' as const
+                }
+              })
+              setTournaments(transformed)
+              if (transformed.length > 0 && !selectedTournament) {
+                setSelectedTournament(transformed[0].id)
+              }
+            }
+          }
+        } else {
+          alert('Kunne ikke opprette turnering')
+        }
+      } else if (editingTournament) {
+        const response = await fetch('/api/tournaments', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: editingTournament.id, ...dbData })
+        })
+        
+        if (response.ok) {
+          // Reload tournaments
+          const loadResponse = await fetch('/api/tournaments')
+          if (loadResponse.ok) {
+            const data = await loadResponse.json()
+            if (data.tournaments) {
+              const transformed = data.tournaments.map((t: any) => {
+                const startDate = new Date(t.start_date)
+                const date = startDate.toLocaleDateString('nb-NO', { day: 'numeric', month: 'long', year: 'numeric' })
+                const time = startDate.toLocaleTimeString('nb-NO', { hour: '2-digit', minute: '2-digit' })
+                let status: 'open' | 'ongoing' | 'closed' | 'completed' = 'open'
+                if (t.status === 'active') status = 'ongoing'
+                else if (t.status === 'completed') status = 'completed'
+                else if (t.status === 'cancelled') status = 'closed'
+                return {
+                  id: t.id,
+                  title: t.title,
+                  date,
+                  time,
+                  registeredTeams: t.current_teams || 0,
+                  maxTeams: t.max_teams,
+                  status,
+                  prize: `${t.prize_pool.toLocaleString('nb-NO')} NOK`,
+                  entryFee: t.entry_fee,
+                  description: t.description || '',
+                  format: 'mixed' as const
+                }
+              })
+              setTournaments(transformed)
+            }
+          }
+        } else {
+          alert('Kunne ikke oppdatere turnering')
+        }
+      }
+      setShowTournamentModal(false)
+    } catch (error) {
+      console.error('Error saving tournament:', error)
+      alert('Noe gikk galt ved lagring av turnering')
     }
-    setShowTournamentModal(false)
   }
 
-  const deleteTournament = (tournamentId: string) => {
-    if (confirm('Er du sikker på at du vil slette denne turneringen?')) {
-      console.log(`Sletter turnering ${tournamentId}`)
-      // Her ville vi slettet fra databasen
+  const deleteTournament = async (tournamentId: string) => {
+    if (confirm('Er du sikker på at du vil slette denne turneringen? Dette vil også slette alle påmeldte lag.')) {
+      try {
+        const response = await fetch(`/api/tournaments?id=${tournamentId}`, {
+          method: 'DELETE'
+        })
+        
+        if (response.ok) {
+          // Reload tournaments
+          const loadResponse = await fetch('/api/tournaments')
+          if (loadResponse.ok) {
+            const data = await loadResponse.json()
+            if (data.tournaments) {
+              const transformed = data.tournaments.map((t: any) => {
+                const startDate = new Date(t.start_date)
+                const date = startDate.toLocaleDateString('nb-NO', { day: 'numeric', month: 'long', year: 'numeric' })
+                const time = startDate.toLocaleTimeString('nb-NO', { hour: '2-digit', minute: '2-digit' })
+                let status: 'open' | 'ongoing' | 'closed' | 'completed' = 'open'
+                if (t.status === 'active') status = 'ongoing'
+                else if (t.status === 'completed') status = 'completed'
+                else if (t.status === 'cancelled') status = 'closed'
+                return {
+                  id: t.id,
+                  title: t.title,
+                  date,
+                  time,
+                  registeredTeams: t.current_teams || 0,
+                  maxTeams: t.max_teams,
+                  status,
+                  prize: `${t.prize_pool.toLocaleString('nb-NO')} NOK`,
+                  entryFee: t.entry_fee,
+                  description: t.description || '',
+                  format: 'mixed' as const
+                }
+              })
+              setTournaments(transformed)
+              if (selectedTournament === tournamentId && transformed.length > 0) {
+                setSelectedTournament(transformed[0].id)
+              } else if (selectedTournament === tournamentId) {
+                setSelectedTournament('')
+              }
+            }
+          }
+        } else {
+          alert('Kunne ikke slette turnering')
+        }
+      } catch (error) {
+        console.error('Error deleting tournament:', error)
+        alert('Noe gikk galt ved sletting av turnering')
+      }
     }
   }
 
@@ -829,23 +981,23 @@ PRO11 Team`)
                         <tr key={team.id} className="border-b border-slate-700">
                           <td className="py-2 px-3">
                             <div>
-                              <div className="font-medium text-sm">{team.teamName}</div>
-                              <div className="text-xs text-slate-400">{team.captainEmail}</div>
+                              <div className="font-medium text-sm">{team.teamName || team.team_name}</div>
+                              <div className="text-xs text-slate-400">{team.captainEmail || team.captain_email}</div>
                             </div>
                           </td>
-                          <td className="py-2 px-3 text-sm">{team.captainName}</td>
-                          <td className="py-2 px-3 text-sm">{team.players.length} spillere</td>
+                          <td className="py-2 px-3 text-sm">{team.captainName || team.captain_name}</td>
+                          <td className="py-2 px-3 text-sm">{(team.players?.length || 0)} spillere</td>
                           <td className="py-2 px-3">
                             <span className={`inline-flex items-center px-4 py-2 rounded-full text-xs font-medium ${getStatusColor(team.status)}`}>
                               {getStatusText(team.status)}
                             </span>
                           </td>
                           <td className="py-2 px-3">
-                            <span className={`text-xs ${getPaymentStatusColor(team.paymentStatus)}`}>
-                              {getPaymentStatusText(team.paymentStatus)}
+                            <span className={`text-xs ${getPaymentStatusColor(team.paymentStatus || team.payment_status)}`}>
+                              {getPaymentStatusText(team.paymentStatus || team.payment_status)}
                             </span>
                           </td>
-                          <td className="py-2 px-3 text-xs text-slate-400">{team.registeredAt}</td>
+                          <td className="py-2 px-3 text-xs text-slate-400">{team.registeredAt || team.created_at}</td>
                           <td className="py-2 px-3">
                             <div className="flex space-x-1">
                               <button
@@ -1175,38 +1327,65 @@ PRO11 Team`)
               </button>
             </div>
 
-            <form className="space-y-3">
+            <form 
+              onSubmit={(e) => {
+                e.preventDefault()
+                const formData = new FormData(e.currentTarget)
+                const date = formData.get('date') as string
+                const time = formData.get('time') as string
+                const prizeText = formData.get('prize') as string
+                const prizePool = parseInt(prizeText?.replace(/[^0-9]/g, '') || '0')
+                
+                saveTournament({
+                  title: formData.get('title') as string,
+                  description: formData.get('description') as string,
+                  date: date,
+                  time: time,
+                  maxTeams: parseInt(formData.get('maxTeams') as string || '16'),
+                  prize: prizeText,
+                  entryFee: parseInt(formData.get('entryFee') as string || '299'),
+                  status: formData.get('status') as 'open' | 'ongoing' | 'closed' | 'completed' || 'open'
+                })
+              }}
+              className="space-y-3"
+            >
               <div>
                 <label className="block text-sm font-medium text-slate-300 mb-1">
-                  Turneringstitel
+                  Turneringstitel *
                 </label>
                 <input
                   type="text"
+                  name="title"
                   defaultValue={editingTournament?.title || ''}
                   className="pro11-input"
                   placeholder="PRO11 FC 26 Launch Cup"
+                  required
                 />
               </div>
 
               <div className="grid md:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-sm font-medium text-slate-300 mb-1">
-                    Dato
+                    Dato *
                   </label>
                   <input
                     type="date"
-                    defaultValue={editingTournament?.date || ''}
+                    name="date"
+                    defaultValue={editingTournament?.date?.split(' ')[0] || ''}
                     className="pro11-input"
+                    required
                   />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-slate-300 mb-1">
-                    Tid
+                    Tid *
                   </label>
                   <input
                     type="time"
-                    defaultValue={editingTournament?.time || ''}
+                    name="time"
+                    defaultValue={editingTournament?.time || '19:00'}
                     className="pro11-input"
+                    required
                   />
                 </div>
               </div>
@@ -1218,31 +1397,54 @@ PRO11 Team`)
                   </label>
                   <input
                     type="number"
+                    name="maxTeams"
                     defaultValue={editingTournament?.maxTeams || 16}
                     className="pro11-input"
+                    min="2"
+                    required
                   />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-slate-300 mb-1">
-                    Premie
+                    Premie (NOK)
                   </label>
                   <input
                     type="text"
-                    defaultValue={editingTournament?.prize || ''}
+                    name="prize"
+                    defaultValue={editingTournament?.prize?.replace(' NOK', '') || '0'}
                     className="pro11-input"
-                    placeholder="15,000 NOK"
+                    placeholder="15000"
                   />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-slate-300 mb-1">
-                    Påmeldingsgebyr
+                    Påmeldingsgebyr (NOK)
                   </label>
                   <input
                     type="number"
-                    defaultValue={editingTournament?.entryFee || 300}
+                    name="entryFee"
+                    defaultValue={editingTournament?.entryFee || 299}
                     className="pro11-input"
+                    min="0"
+                    required
                   />
                 </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-300 mb-1">
+                  Status
+                </label>
+                <select
+                  name="status"
+                  defaultValue={editingTournament?.status || 'open'}
+                  className="pro11-input"
+                >
+                  <option value="open">Åpen for påmelding</option>
+                  <option value="ongoing">Pågår</option>
+                  <option value="closed">Stengt</option>
+                  <option value="completed">Fullført</option>
+                </select>
               </div>
 
               <div>
@@ -1250,17 +1452,17 @@ PRO11 Team`)
                   Beskrivelse
                 </label>
                 <textarea
+                  name="description"
                   defaultValue={editingTournament?.description || ''}
                   className="pro11-input"
-                  rows={2}
+                  rows={3}
                   placeholder="Beskrivelse av turneringen..."
                 />
               </div>
 
               <div className="flex space-x-2">
                 <button
-                  type="button"
-                  onClick={() => saveTournament({})}
+                  type="submit"
                   className="pro11-button flex items-center space-x-1 text-sm"
                 >
                   <span>{isNewTournament ? 'Legg til' : 'Lagre'}</span>

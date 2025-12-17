@@ -158,13 +158,6 @@ export default function CaptainLoginPage() {
               </button>
             </form>
 
-            <div className="mt-6 pt-6 border-t border-slate-700">
-              <p className="text-slate-400 text-sm mb-4">Demo tilgang:</p>
-              <div className="text-left text-xs text-slate-300 space-y-1">
-                <p><strong>E-post:</strong> anders@email.com</p>
-                <p><strong>Passord:</strong> captain123</p>
-              </div>
-            </div>
           </div>
         </div>
       </main>

@@ -104,9 +104,18 @@ ALTER TABLE players ENABLE ROW LEVEL SECURITY;
 ALTER TABLE payments ENABLE ROW LEVEL SECURITY;
 ALTER TABLE admin_users ENABLE ROW LEVEL SECURITY;
 
--- RLS Policies for tournaments (public read access)
+-- RLS Policies for tournaments
 CREATE POLICY "Public read access to tournaments" ON tournaments
   FOR SELECT USING (true);
+
+CREATE POLICY "Public can insert tournaments" ON tournaments
+  FOR INSERT WITH CHECK (true);
+
+CREATE POLICY "Public can update tournaments" ON tournaments
+  FOR UPDATE USING (true);
+
+CREATE POLICY "Public can delete tournaments" ON tournaments
+  FOR DELETE USING (true);
 
 -- RLS Policies for teams
 CREATE POLICY "Public can insert teams" ON teams
@@ -139,13 +148,4 @@ CREATE POLICY "Public can update payments" ON payments
 CREATE POLICY "No public access to admin users" ON admin_users
   FOR ALL USING (false);
 
--- Insert sample tournament
-INSERT INTO tournaments (title, description, start_date, end_date, max_teams, prize_pool, entry_fee) VALUES (
-  'PRO11 FC 26 Launch Cup',
-  'Den første offisielle PRO11-turneringen for FC 26. Meld på laget ditt og konkurrer mot de beste Pro Clubs-lagene i Norge!',
-  '2025-09-15 19:00:00+02',
-  '2025-09-15 23:00:00+02',
-  16,
-  10000,
-  299
-); 
+-- No sample data - tournaments will be created by admin through the admin panel 
