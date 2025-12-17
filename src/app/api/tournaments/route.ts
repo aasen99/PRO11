@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getSupabase } from '@/lib/supabase'
+import { getSupabase, getSupabaseAdmin } from '@/lib/supabase'
 
 export async function GET(request: NextRequest) {
   try {
@@ -52,11 +52,16 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const { title, description, start_date, end_date, max_teams, prize_pool, entry_fee, status } = body
 
+    console.log('POST /api/tournaments - Received data:', body)
+
     if (!title || !start_date || !end_date) {
+      console.error('Missing required fields:', { title, start_date, end_date })
       return NextResponse.json({ error: 'Title, start_date, and end_date are required' }, { status: 400 })
     }
 
-    const supabase = getSupabase()
+    // Use admin client for insert/update/delete operations to bypass RLS
+    const supabase = getSupabaseAdmin()
+    console.log('Supabase admin client created, attempting insert...')
 
     const { data: tournament, error } = await supabase
       .from('tournaments')
@@ -76,9 +81,14 @@ export async function POST(request: NextRequest) {
 
     if (error) {
       console.error('Database error:', error)
-      return NextResponse.json({ error: 'Failed to create tournament: ' + error.message }, { status: 400 })
+      console.error('Error details:', JSON.stringify(error, null, 2))
+      return NextResponse.json({ 
+        error: 'Failed to create tournament: ' + error.message,
+        details: error
+      }, { status: 400 })
     }
 
+    console.log('Tournament created successfully:', tournament)
     return NextResponse.json({ tournament })
 
   } catch (error: any) {
@@ -96,7 +106,8 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: 'Tournament ID is required' }, { status: 400 })
     }
 
-    const supabase = getSupabase()
+    // Use admin client for update operations to bypass RLS
+    const supabase = getSupabaseAdmin()
 
     const updateData: any = {}
     if (title) updateData.title = title
@@ -137,7 +148,8 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: 'Tournament ID is required' }, { status: 400 })
     }
 
-    const supabase = getSupabase()
+    // Use admin client for delete operations to bypass RLS
+    const supabase = getSupabaseAdmin()
 
     const { error } = await supabase
       .from('tournaments')

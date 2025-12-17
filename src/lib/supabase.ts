@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js'
 
 let supabase: ReturnType<typeof createClient> | null = null
+let supabaseAdmin: ReturnType<typeof createClient> | null = null
 
 export const getSupabase = () => {
   if (!supabase) {
@@ -49,6 +50,28 @@ export const getSupabase = () => {
   }
   
   return supabase
+}
+
+// Get Supabase client with service role key (bypasses RLS)
+export const getSupabaseAdmin = () => {
+  if (!supabaseAdmin) {
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+    const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+    
+    if (!supabaseUrl || !supabaseServiceKey) {
+      console.warn('Missing Supabase service role key - falling back to anon key')
+      return getSupabase()
+    }
+    
+    supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
+      auth: {
+        persistSession: false,
+        autoRefreshToken: false
+      }
+    })
+  }
+  
+  return supabaseAdmin
 }
 
 // Export the getter function instead of the instance
