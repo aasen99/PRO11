@@ -62,16 +62,20 @@ export const getSupabaseAdmin = () => {
       hasUrl: !!supabaseUrl,
       hasServiceKey: !!supabaseServiceKey,
       urlLength: supabaseUrl?.length || 0,
-      keyLength: supabaseServiceKey?.length || 0
+      keyLength: supabaseServiceKey?.length || 0,
+      url: supabaseUrl,
+      serviceKeyPrefix: supabaseServiceKey?.substring(0, 20) || 'NOT SET'
     })
     
     if (!supabaseUrl || !supabaseServiceKey) {
-      console.error('Missing Supabase service role key or URL!', {
+      console.error('CRITICAL: Missing Supabase service role key or URL!', {
         url: supabaseUrl,
-        hasServiceKey: !!supabaseServiceKey
+        hasServiceKey: !!supabaseServiceKey,
+        envKeys: Object.keys(process.env).filter(k => k.includes('SUPABASE'))
       })
-      console.warn('Falling back to anon key - this may fail for admin operations')
-      return getSupabase()
+      // Don't throw - return null so API can handle it gracefully
+      console.error('SUPABASE_SERVICE_ROLE_KEY is required for admin operations. Please set it in your environment variables.')
+      return null
     }
     
     supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
@@ -81,7 +85,7 @@ export const getSupabaseAdmin = () => {
       }
     })
     
-    console.log('Supabase admin client created successfully')
+    console.log('Supabase admin client created successfully with service role key')
   }
   
   return supabaseAdmin

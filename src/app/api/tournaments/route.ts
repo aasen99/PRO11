@@ -69,8 +69,11 @@ export async function POST(request: NextRequest) {
     console.log('Supabase admin client created, attempting insert...')
     
     if (!supabase) {
-      console.error('Failed to create Supabase admin client')
-      return NextResponse.json({ error: 'Database connection failed' }, { status: 500 })
+      console.error('Failed to create Supabase admin client - SUPABASE_SERVICE_ROLE_KEY is missing!')
+      return NextResponse.json({ 
+        error: 'Database connection failed: SUPABASE_SERVICE_ROLE_KEY is not set. Please add it to your environment variables.',
+        hint: 'This key is required for admin operations. Add it to .env.local (local) or Vercel environment variables (production).'
+      }, { status: 500 })
     }
 
     const insertData = {
@@ -133,6 +136,14 @@ export async function PUT(request: NextRequest) {
 
     // Use admin client for update operations to bypass RLS
     const supabase = getSupabaseAdmin()
+    
+    if (!supabase) {
+      console.error('Failed to create Supabase admin client - SUPABASE_SERVICE_ROLE_KEY is missing!')
+      return NextResponse.json({ 
+        error: 'Database connection failed: SUPABASE_SERVICE_ROLE_KEY is not set. Please add it to your environment variables.',
+        hint: 'This key is required for admin operations. Add it to .env.local (local) or Vercel environment variables (production).'
+      }, { status: 500 })
+    }
 
     const updateData: any = {}
     if (title) updateData.title = title
@@ -175,6 +186,14 @@ export async function DELETE(request: NextRequest) {
 
     // Use admin client for delete operations to bypass RLS
     const supabase = getSupabaseAdmin()
+    
+    if (!supabase) {
+      console.error('Failed to create Supabase admin client - SUPABASE_SERVICE_ROLE_KEY is missing!')
+      return NextResponse.json({ 
+        error: 'Database connection failed: SUPABASE_SERVICE_ROLE_KEY is not set. Please add it to your environment variables.',
+        hint: 'This key is required for admin operations. Add it to .env.local (local) or Vercel environment variables (production).'
+      }, { status: 500 })
+    }
 
     const { error } = await supabase
       .from('tournaments')
