@@ -451,7 +451,40 @@ PRO11 Team`)
           console.log('Tournament created successfully, reloading list...')
           console.log('Created tournament ID:', responseData.tournament.id)
           
-          // Reload tournaments
+          // Add the new tournament immediately to the list
+          const newTournament = responseData.tournament
+          const startDate = new Date(newTournament.start_date)
+          const date = startDate.toLocaleDateString('nb-NO', { day: 'numeric', month: 'long', year: 'numeric' })
+          const time = startDate.toLocaleTimeString('nb-NO', { hour: '2-digit', minute: '2-digit' })
+          let status: 'open' | 'ongoing' | 'closed' | 'completed' = 'open'
+          if (newTournament.status === 'active') status = 'ongoing'
+          else if (newTournament.status === 'completed') status = 'completed'
+          else if (newTournament.status === 'cancelled') status = 'closed'
+          
+          const transformedNewTournament = {
+            id: newTournament.id,
+            title: newTournament.title,
+            date,
+            time,
+            registeredTeams: newTournament.current_teams || 0,
+            maxTeams: newTournament.max_teams,
+            status,
+            prize: `${newTournament.prize_pool.toLocaleString('nb-NO')} NOK`,
+            entryFee: newTournament.entry_fee,
+            description: newTournament.description || '',
+            format: 'mixed' as const
+          }
+          
+          // Update tournaments list immediately
+          setTournaments(prev => [transformedNewTournament, ...prev])
+          if (!selectedTournament) {
+            setSelectedTournament(transformedNewTournament.id)
+          }
+          setShowTournamentModal(false)
+          setEditingTournament(null)
+          setIsNewTournament(false)
+          
+          // Reload tournaments to get fresh data
           const loadResponse = await fetch('/api/tournaments')
           if (loadResponse.ok) {
             const data = await loadResponse.json()
