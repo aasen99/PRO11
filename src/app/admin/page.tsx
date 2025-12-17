@@ -164,15 +164,27 @@ export default function AdminPage() {
   useEffect(() => {
     const loadTeams = async () => {
       try {
+        console.log('Loading teams from API...')
         const response = await fetch('/api/teams')
+        console.log('Teams API response status:', response.status)
         if (response.ok) {
           const data = await response.json()
+          console.log('Teams API response data:', data)
+          console.log('Teams count:', data.teams?.length || 0)
           if (data.teams) {
+            console.log('Setting teams:', data.teams.map((t: any) => ({ id: t.id, name: t.teamName || t.team_name, tournament: t.tournamentId || t.tournament_id })))
             setTeams(data.teams)
+          } else {
+            console.warn('No teams in response')
+            setTeams([])
           }
+        } else {
+          const errorData = await response.json()
+          console.error('Teams API error:', errorData)
+          setTeams([])
         }
       } catch (error) {
-        console.warn('Error loading teams from API:', error)
+        console.error('Error loading teams from API:', error)
         setTeams([])
       } finally {
         setIsLoading(false)
@@ -184,9 +196,12 @@ export default function AdminPage() {
     }
   }, [isAuthenticated])
 
-  const filteredTeams = teams.filter(team => 
-    (team.tournamentId || team.tournament_id) === selectedTournament
-  )
+  // Show all teams if no tournament is selected, otherwise filter by tournament
+  const filteredTeams = selectedTournament 
+    ? teams.filter(team => 
+        (team.tournamentId || team.tournament_id) === selectedTournament
+      )
+    : teams
 
   const getStatusColor = (status: string) => {
     switch (status) {
