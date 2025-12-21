@@ -125,9 +125,31 @@ export default function CaptainDashboardPage() {
                   // Determine if this team can confirm (opponent has submitted, waiting for confirmation)
                   // Can confirm if opponent has submitted but this team hasn't
                   const opponentHasSubmitted = (isTeam1 && hasTeam2Submitted) || (isTeam2 && hasTeam1Submitted)
-                  const canConfirm = m.status === 'pending_confirmation' && 
-                                     opponentHasSubmitted && 
-                                     !thisTeamHasSubmitted
+                  
+                  // Can confirm if:
+                  // 1. Opponent has submitted their result
+                  // 2. This team hasn't submitted yet
+                  // 3. Match is not completed
+                  // Status can be pending_confirmation OR we can still confirm if opponent submitted
+                  const canConfirm = opponentHasSubmitted && 
+                                     !thisTeamHasSubmitted &&
+                                     m.status !== 'completed'
+                  
+                  // Debug logging
+                  if (isMyMatch) {
+                    console.log(`Match ${m.id} for team ${parsedTeam.teamName}:`, {
+                      isTeam1,
+                      isTeam2,
+                      hasTeam1Submitted,
+                      hasTeam2Submitted,
+                      thisTeamHasSubmitted,
+                      opponentHasSubmitted,
+                      status: m.status,
+                      canConfirm,
+                      team1_submitted_score1: m.team1_submitted_score1,
+                      team2_submitted_score1: m.team2_submitted_score1
+                    })
+                  }
                   
                   return {
                     id: m.id,
@@ -537,7 +559,7 @@ export default function CaptainDashboardPage() {
                                     Legg inn
                                   </button>
                                 )}
-                                {match.canConfirmResult && match.submittedBy && match.submittedBy !== team.teamName && (
+                                {match.canConfirmResult && (
                                   <>
                                     <button
                                       onClick={() => confirmResult(match)}
@@ -545,12 +567,14 @@ export default function CaptainDashboardPage() {
                                     >
                                       Bekreft
                                     </button>
-                                    <button
-                                      onClick={() => rejectResult(match)}
-                                      className="bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded text-xs font-medium transition-colors"
-                                    >
-                                      Avvis
-                                    </button>
+                                    {match.submittedBy && match.submittedBy !== team.teamName && (
+                                      <button
+                                        onClick={() => rejectResult(match)}
+                                        className="bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded text-xs font-medium transition-colors"
+                                      >
+                                        Avvis
+                                      </button>
+                                    )}
                                   </>
                                 )}
                               </div>
