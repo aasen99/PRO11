@@ -81,12 +81,24 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const { tournament_id, team1_name, team2_name, round, group_name, status, scheduled_time } = body
 
+    console.log('POST /api/matches called with data:', {
+      tournament_id,
+      team1_name,
+      team2_name,
+      round,
+      group_name,
+      status,
+      scheduled_time
+    })
+
     if (!tournament_id || !team1_name || !team2_name || !round) {
+      console.error('Missing required fields:', { tournament_id, team1_name, team2_name, round })
       return NextResponse.json({ error: 'tournament_id, team1_name, team2_name, and round are required' }, { status: 400 })
     }
 
     const supabase = getSupabaseAdmin()
     if (!supabase) {
+      console.error('Failed to get Supabase admin client')
       return NextResponse.json({ error: 'Database connection failed' }, { status: 500 })
     }
 
@@ -101,6 +113,8 @@ export async function POST(request: NextRequest) {
     if (group_name) insertData.group_name = group_name
     if (scheduled_time) insertData.scheduled_time = scheduled_time
 
+    console.log('Inserting match with data:', insertData)
+
     const { data: match, error } = await supabase
       .from('matches')
       .insert(insertData)
@@ -108,13 +122,24 @@ export async function POST(request: NextRequest) {
       .single()
 
     if (error) {
-      console.error('Database error:', error)
-      return NextResponse.json({ error: 'Failed to create match: ' + error.message }, { status: 400 })
+      console.error('Database error creating match:', {
+        error: error.message,
+        code: error.code,
+        details: error.details,
+        hint: error.hint,
+        insertData
+      })
+      return NextResponse.json({ 
+        error: 'Failed to create match: ' + error.message,
+        code: error.code,
+        details: error.details
+      }, { status: 400 })
     }
 
+    console.log('Match created successfully:', match)
     return NextResponse.json({ match })
   } catch (error: any) {
-    console.error('API error:', error)
+    console.error('API error in POST /api/matches:', error)
     return NextResponse.json({ error: 'Internal server error: ' + (error.message || 'Unknown error') }, { status: 500 })
   }
 }

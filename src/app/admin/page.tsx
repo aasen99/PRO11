@@ -1032,35 +1032,50 @@ PRO11 Team`)
         })
         // Ignore delete errors (might not exist)
 
+        console.log(`Attempting to save ${matches.length} matches to database for tournament ${tournamentId}`)
+        
         // Lagre alle kamper
-        const matchPromises = matches.map(async (match) => {
+        const matchPromises = matches.map(async (match, index) => {
+          const matchData = {
+            tournament_id: tournamentId,
+            team1_name: match.team1,
+            team2_name: match.team2,
+            round: match.round,
+            group_name: match.group,
+            status: match.status || 'scheduled',
+            scheduled_time: match.time ? new Date(match.time).toISOString() : null
+          }
+          
+          console.log(`Saving match ${index + 1}/${matches.length}:`, matchData)
+          
           const response = await fetch('/api/matches', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              tournament_id: tournamentId,
-              team1_name: match.team1,
-              team2_name: match.team2,
-              round: match.round,
-              group_name: match.group,
-              status: match.status || 'scheduled',
-              scheduled_time: match.time ? new Date(match.time).toISOString() : null
-            })
+            body: JSON.stringify(matchData)
           })
           
           if (!response.ok) {
             const error = await response.json()
-            console.error('Failed to save match:', error)
+            console.error(`Failed to save match ${index + 1}:`, {
+              match: matchData,
+              error: error
+            })
             return null
           }
           
-          return await response.json()
+          const result = await response.json()
+          console.log(`Successfully saved match ${index + 1}:`, result)
+          return result
         })
 
         const savedMatches = await Promise.all(matchPromises)
         const successfulMatches = savedMatches.filter(m => m !== null)
         
         console.log(`Saved ${successfulMatches.length} of ${matches.length} matches to database`)
+        
+        if (successfulMatches.length < matches.length) {
+          console.warn(`Warning: Only ${successfulMatches.length} of ${matches.length} matches were saved successfully`)
+        }
 
         // Oppdater turneringsstatus i databasen til 'active'
         const statusResponse = await fetch('/api/tournaments', {
