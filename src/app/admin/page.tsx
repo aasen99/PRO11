@@ -1026,11 +1026,21 @@ PRO11 Team`)
     // Lagre kamper i databasen
     const saveMatchesToDatabase = async () => {
       try {
+        console.log(`Starting to save matches. Total matches generated: ${matches.length}`)
+        console.log('Generated matches:', matches.slice(0, 3).map(m => ({ team1: m.team1, team2: m.team2, round: m.round, group: m.group })))
+        
+        if (matches.length === 0) {
+          alert('Ingen kamper ble generert! Sjekk at turneringen har riktig format og at det er nok lag.')
+          return
+        }
+        
         // Slett eksisterende kamper for denne turneringen først
+        console.log('Deleting existing matches for tournament:', tournamentId)
         const deleteResponse = await fetch(`/api/matches?tournament_id=${tournamentId}`, {
           method: 'DELETE'
         })
         // Ignore delete errors (might not exist)
+        console.log('Delete response status:', deleteResponse.status)
 
         console.log(`Attempting to save ${matches.length} matches to database for tournament ${tournamentId}`)
         
