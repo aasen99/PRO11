@@ -6,37 +6,62 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     const tournamentId = searchParams.get('tournament_id')
 
+    console.log('GET /api/matches called with tournament_id:', tournamentId)
+
     const supabase = getSupabaseAdmin()
     if (!supabase) {
+      console.error('Failed to get Supabase admin client')
       return NextResponse.json({ error: 'Database connection failed' }, { status: 500 })
     }
+
+    console.log('Supabase admin client created, querying matches...')
 
     let query = supabase
       .from('matches')
       .select('*')
-      .order('scheduled_time', { ascending: true })
 
     if (tournamentId) {
+      console.log('Filtering by tournament_id:', tournamentId)
       query = query.eq('tournament_id', tournamentId)
     }
+
+    // Order by created_at first (always has value), then scheduled_time
+    query = query.order('created_at', { ascending: true })
 
     const { data: matches, error } = await query
 
     if (error) {
-      console.error('Database error fetching matches:', error)
-      return NextResponse.json({ error: 'Failed to fetch matches: ' + error.message }, { status: 400 })
+      console.error('Database error fetching matches:', {
+        error: error.message,
+        code: error.code,
+        details: error.details,
+        hint: error.hint
+      })
+      return NextResponse.json({ 
+        error: 'Failed to fetch matches: ' + error.message,
+        details: error
+      }, { status: 400 })
     }
 
     console.log('Fetched matches from database:', {
       tournamentId: tournamentId || 'all',
       count: matches?.length || 0,
-      matches: matches?.map((m: any) => ({ id: m.id, tournament_id: m.tournament_id, round: m.round, team1: m.team1_name, team2: m.team2_name }))
+      matches: matches?.map((m: any) => ({ 
+        id: m.id, 
+        tournament_id: m.tournament_id, 
+        round: m.round, 
+        team1: m.team1_name, 
+        team2: m.team2_name 
+      }))
     })
 
     return NextResponse.json({ matches: matches || [] })
   } catch (error: any) {
-    console.error('API error:', error)
-    return NextResponse.json({ error: 'Internal server error: ' + (error.message || 'Unknown error') }, { status: 500 })
+    console.error('API error in GET /api/matches:', error)
+    return NextResponse.json({ 
+      error: 'Internal server error: ' + (error.message || 'Unknown error'),
+      stack: error.stack
+    }, { status: 500 })
   }
 }
 
