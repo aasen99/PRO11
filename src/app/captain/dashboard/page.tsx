@@ -114,13 +114,20 @@ export default function CaptainDashboardPage() {
                   if (!isMyMatch) return null
                   
                   // Determine if this team can submit result (not completed, and hasn't submitted yet)
-                  const canSubmit = (m.status === 'scheduled' || m.status === 'live' || m.status === 'pending_result') && 
-                                    m.submitted_by !== parsedTeam.teamName
+                  const hasTeam1Submitted = m.team1_submitted_score1 !== null && m.team1_submitted_score1 !== undefined
+                  const hasTeam2Submitted = m.team2_submitted_score1 !== null && m.team2_submitted_score1 !== undefined
+                  const thisTeamHasSubmitted = (isTeam1 && hasTeam1Submitted) || (isTeam2 && hasTeam2Submitted)
+                  
+                  const canSubmit = (m.status === 'scheduled' || m.status === 'live' || m.status === 'pending_result' || m.status === 'pending_confirmation') && 
+                                    !thisTeamHasSubmitted &&
+                                    m.status !== 'completed'
                   
                   // Determine if this team can confirm (opponent has submitted, waiting for confirmation)
+                  // Can confirm if opponent has submitted but this team hasn't
+                  const opponentHasSubmitted = (isTeam1 && hasTeam2Submitted) || (isTeam2 && hasTeam1Submitted)
                   const canConfirm = m.status === 'pending_confirmation' && 
-                                     m.submitted_by && 
-                                     m.submitted_by !== parsedTeam.teamName
+                                     opponentHasSubmitted && 
+                                     !thisTeamHasSubmitted
                   
                   return {
                     id: m.id,
@@ -134,8 +141,8 @@ export default function CaptainDashboardPage() {
                     tournamentId: m.tournament_id,
                     canSubmitResult: canSubmit,
                     submittedBy: m.submitted_by || null,
-                    submittedScore1: m.submitted_score1 || null,
-                    submittedScore2: m.submitted_score2 || null,
+                    submittedScore1: isTeam1 ? (m.team1_submitted_score1 ?? m.submitted_score1 ?? null) : (m.team2_submitted_score1 ?? m.submitted_score1 ?? null),
+                    submittedScore2: isTeam1 ? (m.team1_submitted_score2 ?? m.submitted_score2 ?? null) : (m.team2_submitted_score2 ?? m.submitted_score2 ?? null),
                     canConfirmResult: canConfirm
                   }
                 }).filter((match: Match | null): match is Match => match !== null)
@@ -181,6 +188,13 @@ export default function CaptainDashboardPage() {
       }
       
       loadTournaments()
+      
+      // Auto-refresh every 10 seconds to see updated match results
+      const interval = setInterval(() => {
+        loadTournaments()
+      }, 10000)
+      
+      return () => clearInterval(interval)
     } else {
       // Ikke logget inn, redirect til login
       window.location.href = '/captain/login'

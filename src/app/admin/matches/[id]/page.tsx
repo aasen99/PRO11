@@ -141,6 +141,13 @@ export default function TournamentMatchesPage() {
     }
 
     loadData()
+    
+    // Auto-refresh every 10 seconds to see updated match results
+    const interval = setInterval(() => {
+      loadData()
+    }, 10000)
+    
+    return () => clearInterval(interval)
   }, [tournamentId])
 
   const calculateGroupStandings = (allMatches: Match[]): Record<string, GroupStanding[]> => {
