@@ -113,8 +113,18 @@ export default function TournamentMatchesPage() {
           const errorData = await matchesResponse.json().catch(() => ({}))
           console.error('Error loading matches:', {
             status: matchesResponse.status,
-            error: errorData
+            error: errorData,
+            errorMessage: errorData.error,
+            errorDetails: errorData.details,
+            errorCode: errorData.code
           })
+          
+          // If table doesn't exist, just show empty state
+          if (errorData.code === '42P01' || errorData.error?.includes('does not exist')) {
+            console.warn('Matches table does not exist, showing empty state')
+            setMatches([])
+            setGroupStandings({})
+          }
         }
       } catch (error) {
         console.error('Error loading data:', error)

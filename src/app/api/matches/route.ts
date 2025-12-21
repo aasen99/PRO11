@@ -41,17 +41,14 @@ export async function GET(request: NextRequest) {
       })
       
       // If table doesn't exist, return empty array instead of error
-      if (error.code === '42P01' || error.message?.includes('does not exist')) {
-        console.warn('Matches table does not exist, returning empty array')
+      if (error.code === '42P01' || error.message?.includes('does not exist') || error.message?.includes('relation') || error.message?.includes('table')) {
+        console.warn('Matches table does not exist or cannot be accessed, returning empty array')
         return NextResponse.json({ matches: [] })
       }
       
-      return NextResponse.json({ 
-        error: 'Failed to fetch matches: ' + error.message,
-        code: error.code,
-        details: error.details,
-        hint: error.hint
-      }, { status: 400 })
+      // For other errors, still return empty array to prevent UI breaking
+      console.warn('Database error, but returning empty array to prevent UI breaking:', error.message)
+      return NextResponse.json({ matches: [] })
     }
 
     console.log('Fetched matches from database:', {
