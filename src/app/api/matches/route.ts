@@ -23,9 +23,15 @@ export async function GET(request: NextRequest) {
     const { data: matches, error } = await query
 
     if (error) {
-      console.error('Database error:', error)
+      console.error('Database error fetching matches:', error)
       return NextResponse.json({ error: 'Failed to fetch matches: ' + error.message }, { status: 400 })
     }
+
+    console.log('Fetched matches from database:', {
+      tournamentId: tournamentId || 'all',
+      count: matches?.length || 0,
+      matches: matches?.map((m: any) => ({ id: m.id, tournament_id: m.tournament_id, round: m.round, team1: m.team1_name, team2: m.team2_name }))
+    })
 
     return NextResponse.json({ matches: matches || [] })
   } catch (error: any) {

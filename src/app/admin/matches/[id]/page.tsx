@@ -54,23 +54,67 @@ export default function TournamentMatchesPage() {
 
   useEffect(() => {
     const loadData = async () => {
+      if (!tournamentId) {
+        console.error('No tournament ID provided')
+        setIsLoading(false)
+        return
+      }
+
+      console.log('Loading data for tournament:', tournamentId)
+      
       try {
         // Load tournament
         const tournamentResponse = await fetch(`/api/tournaments?id=${tournamentId}`)
+        console.log('Tournament API response status:', tournamentResponse.status)
         if (tournamentResponse.ok) {
           const tournamentData = await tournamentResponse.json()
-          setTournament(tournamentData.tournament)
+          console.log('Tournament data received:', tournamentData)
+          if (tournamentData.tournament) {
+            setTournament(tournamentData.tournament)
+          } else {
+            console.error('No tournament in response:', tournamentData)
+          }
+        } else {
+          const errorData = await tournamentResponse.json().catch(() => ({}))
+          console.error('Error loading tournament:', errorData)
         }
 
         // Load matches
-        const matchesResponse = await fetch(`/api/matches?tournament_id=${tournamentId}`)
+        const matchesUrl = `/api/matches?tournament_id=${tournamentId}`
+        console.log('Fetching matches from:', matchesUrl)
+        const matchesResponse = await fetch(matchesUrl)
+        console.log('Matches API response status:', matchesResponse.status)
+        
         if (matchesResponse.ok) {
           const matchesData = await matchesResponse.json()
-          setMatches(matchesData.matches || [])
+          console.log('Matches data received:', {
+            tournamentId,
+            matchesCount: matchesData.matches?.length || 0,
+            matches: matchesData.matches?.map((m: any) => ({
+              id: m.id,
+              tournament_id: m.tournament_id,
+              round: m.round,
+              team1: m.team1_name,
+              team2: m.team2_name
+            }))
+          })
+          
+          const loadedMatches = matchesData.matches || []
+          setMatches(loadedMatches)
+          
+          if (loadedMatches.length === 0) {
+            console.warn('No matches found for tournament:', tournamentId)
+          }
           
           // Calculate group standings
-          const standings = calculateGroupStandings(matchesData.matches || [])
+          const standings = calculateGroupStandings(loadedMatches)
           setGroupStandings(standings)
+        } else {
+          const errorData = await matchesResponse.json().catch(() => ({}))
+          console.error('Error loading matches:', {
+            status: matchesResponse.status,
+            error: errorData
+          })
         }
       } catch (error) {
         console.error('Error loading data:', error)
@@ -79,9 +123,7 @@ export default function TournamentMatchesPage() {
       }
     }
 
-    if (tournamentId) {
-      loadData()
-    }
+    loadData()
   }, [tournamentId])
 
   const calculateGroupStandings = (allMatches: Match[]): Record<string, GroupStanding[]> => {
@@ -593,9 +635,10 @@ export default function TournamentMatchesPage() {
           </div>
         )}
 
-        {matches.length === 0 && groupMatches.length === 0 && knockoutMatches.length === 0 && (
+        {matches.length === 0 && (
           <div className="pro11-card p-8 text-center">
-            <p className="text-slate-400">Ingen kamper er generert for denne turneringen ennå.</p>
+            <p className="text-slate-400 mb-2">Ingen kamper er generert for denne turneringen ennå.</p>
+            <p className="text-slate-500 text-sm mb-4">Tournament ID: {tournamentId}</p>
             <Link href="/admin" className="pro11-button mt-4 inline-block">
               Gå til admin panel
             </Link>
