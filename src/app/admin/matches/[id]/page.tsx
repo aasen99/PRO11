@@ -734,6 +734,7 @@ export default function TournamentMatchesPage() {
                   </div>
                 ))}
               </div>
+              </div>
                 )}
               </div>
             )}
