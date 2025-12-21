@@ -266,9 +266,22 @@ export async function PUT(request: NextRequest) {
       }
     } else {
       // Admin or direct update (not team submission)
+      // When admin overrides results, clear all submitted fields and set final scores
       if (status) updateData.status = status
-      if (score1 !== undefined) updateData.score1 = score1
-      if (score2 !== undefined) updateData.score2 = score2
+      if (score1 !== undefined) {
+        updateData.score1 = score1
+        // If admin sets final scores, clear all submitted fields
+        updateData.team1_submitted_score1 = null
+        updateData.team1_submitted_score2 = null
+        updateData.team2_submitted_score1 = null
+        updateData.team2_submitted_score2 = null
+        updateData.submitted_by = null
+        updateData.submitted_score1 = null
+        updateData.submitted_score2 = null
+      }
+      if (score2 !== undefined) {
+        updateData.score2 = score2
+      }
       if (submitted_by !== undefined) updateData.submitted_by = submitted_by
       if (submitted_score1 !== undefined) updateData.submitted_score1 = submitted_score1
       if (submitted_score2 !== undefined) updateData.submitted_score2 = submitted_score2

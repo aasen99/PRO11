@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect, useRef } from 'react'
+import React, { useState, useEffect, useRef, useCallback } from 'react'
 import Link from 'next/link'
 import { useParams } from 'next/navigation'
 import { ArrowLeft, Trophy, Users, Calendar, Award, Edit, Save, X } from 'lucide-react'
@@ -78,8 +78,7 @@ export default function TournamentMatchesPage() {
     setToasts(prev => prev.filter(t => t.id !== id))
   }
 
-  useEffect(() => {
-    const loadData = async () => {
+  const loadData = useCallback(async () => {
       if (!tournamentId) {
         console.error('No tournament ID provided')
         setIsLoading(false)
@@ -184,8 +183,9 @@ export default function TournamentMatchesPage() {
       } finally {
         setIsLoading(false)
       }
-    }
+  }, [tournamentId])
 
+  useEffect(() => {
     loadData()
     
     // Auto-refresh every 10 seconds to see updated match results
@@ -194,7 +194,7 @@ export default function TournamentMatchesPage() {
     }, 10000)
     
     return () => clearInterval(interval)
-  }, [tournamentId])
+  }, [loadData])
 
   const calculateGroupStandings = (allMatches: Match[]): Record<string, GroupStanding[]> => {
     const standings: Record<string, Record<string, GroupStanding>> = {}
@@ -334,36 +334,53 @@ export default function TournamentMatchesPage() {
 
   const saveMatch = async (matchId: string) => {
     try {
+      // Build request body - only include defined values
+      const requestBody: any = {
+        id: matchId
+      }
+      
+      if (editForm.score1 !== undefined && editForm.score1 !== null) {
+        requestBody.score1 = parseInt(editForm.score1.toString())
+      }
+      
+      if (editForm.score2 !== undefined && editForm.score2 !== null) {
+        requestBody.score2 = parseInt(editForm.score2.toString())
+      }
+      
+      if (editForm.status) {
+        requestBody.status = editForm.status
+      }
+      
+      if (editForm.scheduled_time) {
+        requestBody.scheduled_time = new Date(editForm.scheduled_time).toISOString()
+      }
+      
+      console.log('Saving match with data:', requestBody)
+      
       const response = await fetch('/api/matches', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          id: matchId,
-          score1: editForm.score1 !== undefined ? parseInt(editForm.score1.toString()) : undefined,
-          score2: editForm.score2 !== undefined ? parseInt(editForm.score2.toString()) : undefined,
-          status: editForm.status,
-          scheduled_time: editForm.scheduled_time ? new Date(editForm.scheduled_time).toISOString() : undefined
-        })
+        body: JSON.stringify(requestBody)
       })
 
       if (response.ok) {
-        // Reload matches
-        const matchesResponse = await fetch(`/api/matches?tournament_id=${tournamentId}`)
-        if (matchesResponse.ok) {
-          const matchesData = await matchesResponse.json()
-          setMatches(matchesData.matches || [])
-          const standings = calculateGroupStandings(matchesData.matches || [])
-          setGroupStandings(standings)
-        }
+        const result = await response.json()
+        console.log('Match saved successfully:', result)
+        
+        // Reload all data using loadData function
+        await loadData()
+        
         setEditingMatch(null)
         setEditForm({})
+        alert('Kamp oppdatert!')
       } else {
-        const error = await response.json()
-        alert(`Kunne ikke oppdatere kamp: ${error.error || 'Ukjent feil'}`)
+        const errorData = await response.json().catch(() => ({ error: 'Ukjent feil' }))
+        console.error('Error response:', errorData)
+        alert(`Kunne ikke oppdatere kamp: ${errorData.error || 'Ukjent feil'}`)
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error saving match:', error)
-      alert('Noe gikk galt ved oppdatering av kamp')
+      alert(`Noe gikk galt ved oppdatering av kamp: ${error.message || 'Ukjent feil'}`)
     }
   }
 
