@@ -1,8 +1,10 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import { Shield, Trophy, Users, Calendar, Edit, CheckCircle, XCircle, ArrowRight, LogOut } from 'lucide-react'
+import Toast, { ToastContainer } from '@/components/Toast'
+import type { ToastType } from '@/components/Toast'
 
 interface Team {
   id: string
@@ -51,6 +53,12 @@ interface TeamStats {
   currentRanking: number
 }
 
+interface ToastMessage {
+  id: string
+  message: string
+  type: ToastType
+}
+
 export default function CaptainDashboardPage() {
   const [team, setTeam] = useState<Team | null>(null)
   const [tournaments, setTournaments] = useState<Tournament[]>([])
@@ -59,6 +67,17 @@ export default function CaptainDashboardPage() {
   const [showResultModal, setShowResultModal] = useState(false)
   const [resultScore1, setResultScore1] = useState(0)
   const [resultScore2, setResultScore2] = useState(0)
+  const [toasts, setToasts] = useState<ToastMessage[]>([])
+  const previousMatchesRef = useRef<Match[]>([])
+
+  const addToast = (toast: Omit<ToastMessage, 'id'>) => {
+    const id = Date.now().toString() + Math.random().toString(36).substr(2, 9)
+    setToasts(prev => [...prev, { ...toast, id }])
+  }
+
+  const removeToast = (id: string) => {
+    setToasts(prev => prev.filter(t => t.id !== id))
+  }
 
   useEffect(() => {
     // Hent lag-data fra localStorage
@@ -201,6 +220,32 @@ export default function CaptainDashboardPage() {
           })
           
           setTournaments(transformedTournaments)
+          
+          // Check for new notifications (opponent submitted result)
+          const allMatches = transformedTournaments.flatMap(t => t.matches)
+          const previousMatches = previousMatchesRef.current
+          
+          // Check if any match now has canConfirmResult = true that didn't before
+          allMatches.forEach(match => {
+            const previousMatch = previousMatches.find(pm => pm.id === match.id)
+            if (match.canConfirmResult && (!previousMatch || !previousMatch.canConfirmResult)) {
+              // Opponent has just submitted a result
+              const opponentName = match.team1 === parsedTeam.teamName ? match.team2 : match.team1
+              const opponentScore = match.team1 === parsedTeam.teamName 
+                ? (match.submittedScore2 || 0) 
+                : (match.submittedScore1 || 0)
+              const myScore = match.team1 === parsedTeam.teamName 
+                ? (match.submittedScore1 || 0) 
+                : (match.submittedScore2 || 0)
+              
+              addToast({
+                message: `${opponentName} har sendt inn resultat: ${opponentScore} - ${myScore}. Bekreft eller avvis resultatet.`,
+                type: 'info'
+              })
+            }
+          })
+          
+          previousMatchesRef.current = allMatches
           
           // Beregn lagstatistikk (foreløpig tom siden vi ikke har matches)
           const stats = calculateTeamStats(transformedTournaments, parsedTeam.teamName)
@@ -556,6 +601,7 @@ export default function CaptainDashboardPage() {
       </header>
 
       <main className="container mx-auto px-4 py-6 flex flex-col items-center">
+        <ToastContainer toasts={toasts} onRemove={removeToast} />
         <div className="max-w-4xl w-full">
           {/* Welcome Section */}
           <div className="pro11-card p-6 mb-6">
@@ -851,7 +897,8 @@ export default function CaptainDashboardPage() {
                 ))}
               </div>
             </div>
-          ))}
+            )
+          })}
 
           {tournaments.length === 0 && (
             <div className="pro11-card p-8 text-center">

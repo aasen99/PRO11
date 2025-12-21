@@ -1,9 +1,17 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import { useParams } from 'next/navigation'
 import { ArrowLeft, Trophy, Users, Calendar, Award, Edit, Save, X } from 'lucide-react'
+import { ToastContainer } from '@/components/Toast'
+import type { ToastType } from '@/components/Toast'
+
+interface ToastMessage {
+  id: string
+  message: string
+  type: ToastType
+}
 
 interface Match {
   id: string
@@ -58,6 +66,17 @@ export default function TournamentMatchesPage() {
     scheduled_time?: string
     status?: string
   }>({})
+  const [toasts, setToasts] = useState<ToastMessage[]>([])
+  const previousMatchesRef = useRef<Match[]>([])
+
+  const addToast = (toast: Omit<ToastMessage, 'id'>) => {
+    const id = Date.now().toString() + Math.random().toString(36).substr(2, 9)
+    setToasts(prev => [...prev, { ...toast, id }])
+  }
+
+  const removeToast = (id: string) => {
+    setToasts(prev => prev.filter(t => t.id !== id))
+  }
 
   useEffect(() => {
     const loadData = async () => {
@@ -107,6 +126,33 @@ export default function TournamentMatchesPage() {
           })
           
           const loadedMatches = matchesData.matches || []
+          
+          // Check for new result conflicts
+          const previousMatches = previousMatchesRef.current
+          loadedMatches.forEach((match: Match) => {
+            const previousMatch = previousMatches.find(pm => pm.id === match.id)
+            const hasConflict = match.team1_submitted_score1 !== null && 
+                                match.team2_submitted_score1 !== null && 
+                                (match.team1_submitted_score1 !== match.team2_submitted_score2 || 
+                                 match.team1_submitted_score2 !== match.team2_submitted_score1)
+            
+            const previousHasConflict = previousMatch && 
+                                        previousMatch.team1_submitted_score1 !== null && 
+                                        previousMatch.team2_submitted_score1 !== null && 
+                                        (previousMatch.team1_submitted_score1 !== previousMatch.team2_submitted_score2 || 
+                                         previousMatch.team1_submitted_score2 !== previousMatch.team2_submitted_score1)
+            
+            // If conflict just appeared (wasn't there before)
+            if (hasConflict && !previousHasConflict) {
+              addToast({
+                message: `⚠️ Resultatkonflikt: ${match.team1_name} vs ${match.team2_name}. Begge lag har sendt inn ulike resultater.`,
+                type: 'warning'
+              })
+            }
+          })
+          
+          previousMatchesRef.current = loadedMatches
+          
           setMatches(loadedMatches)
           
           if (loadedMatches.length === 0) {
@@ -352,6 +398,7 @@ export default function TournamentMatchesPage() {
 
   return (
     <div className="min-h-screen">
+      <ToastContainer toasts={toasts} onRemove={removeToast} />
       {/* Header */}
       <header className="pro11-card mx-4 mt-4 p-4">
         <div className="flex items-center justify-between">
