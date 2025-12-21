@@ -1093,17 +1093,42 @@ PRO11 Team`)
           }
           
           const result = await response.json()
-          console.log(`Successfully saved match ${index + 1}:`, result)
-          return result
+          if (result.match) {
+            console.log(`Successfully saved match ${index + 1}:`, {
+              matchId: result.match.id,
+              tournamentId: result.match.tournament_id,
+              team1: result.match.team1_name,
+              team2: result.match.team2_name,
+              round: result.match.round
+            })
+            return result
+          } else {
+            console.error(`Match ${index + 1} saved but no match data returned:`, result)
+            return null
+          }
         })
 
         const savedMatches = await Promise.all(matchPromises)
-        const successfulMatches = savedMatches.filter(m => m !== null)
+        const successfulMatches = savedMatches.filter(m => m !== null && m?.match !== null)
         
         console.log(`Saved ${successfulMatches.length} of ${matches.length} matches to database`)
+        console.log('Successful matches details:', successfulMatches.map((m: any) => ({
+          hasMatch: !!m?.match,
+          matchId: m?.match?.id,
+          tournamentId: m?.match?.tournament_id,
+          team1: m?.match?.team1_name,
+          team2: m?.match?.team2_name
+        })))
         
         if (successfulMatches.length < matches.length) {
           console.warn(`Warning: Only ${successfulMatches.length} of ${matches.length} matches were saved successfully`)
+          const failedCount = matches.length - successfulMatches.length
+          console.warn(`Failed to save ${failedCount} matches`)
+        }
+        
+        if (successfulMatches.length === 0) {
+          alert('Ingen kamper ble lagret! Sjekk konsollen for feilmeldinger.')
+          return
         }
 
         // Oppdater turneringsstatus i databasen til 'active'
