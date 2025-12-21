@@ -16,6 +16,7 @@ export async function GET(request: NextRequest) {
 
     console.log('Supabase admin client created, querying matches...')
 
+    // Try to query matches table
     let query = supabase
       .from('matches')
       .select('*')
@@ -25,7 +26,7 @@ export async function GET(request: NextRequest) {
       query = query.eq('tournament_id', tournamentId)
     }
 
-    // Order by created_at first (always has value), then scheduled_time
+    // Order by created_at first (always has value)
     query = query.order('created_at', { ascending: true })
 
     const { data: matches, error } = await query
@@ -35,18 +36,28 @@ export async function GET(request: NextRequest) {
         error: error.message,
         code: error.code,
         details: error.details,
-        hint: error.hint
+        hint: error.hint,
+        fullError: JSON.stringify(error, null, 2)
       })
+      
+      // If table doesn't exist, return empty array instead of error
+      if (error.code === '42P01' || error.message?.includes('does not exist')) {
+        console.warn('Matches table does not exist, returning empty array')
+        return NextResponse.json({ matches: [] })
+      }
+      
       return NextResponse.json({ 
         error: 'Failed to fetch matches: ' + error.message,
-        details: error
+        code: error.code,
+        details: error.details,
+        hint: error.hint
       }, { status: 400 })
     }
 
     console.log('Fetched matches from database:', {
       tournamentId: tournamentId || 'all',
       count: matches?.length || 0,
-      matches: matches?.map((m: any) => ({ 
+      matches: matches?.slice(0, 5).map((m: any) => ({ 
         id: m.id, 
         tournament_id: m.tournament_id, 
         round: m.round, 
@@ -57,10 +68,13 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({ matches: matches || [] })
   } catch (error: any) {
-    console.error('API error in GET /api/matches:', error)
+    console.error('API error in GET /api/matches:', {
+      message: error.message,
+      stack: error.stack,
+      name: error.name
+    })
     return NextResponse.json({ 
-      error: 'Internal server error: ' + (error.message || 'Unknown error'),
-      stack: error.stack
+      error: 'Internal server error: ' + (error.message || 'Unknown error')
     }, { status: 500 })
   }
 }
