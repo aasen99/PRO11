@@ -56,6 +56,232 @@ interface Tournament {
   groups?: string[][]
 }
 
+interface DatabaseMatch {
+  id: string
+  tournament_id: string
+  team1_name: string
+  team2_name: string
+  round: string
+  group_name?: string
+  status: string
+  score1?: number
+  score2?: number
+  scheduled_time?: string
+}
+
+function NextMatchQuickAction({ tournaments }: { tournaments: Tournament[] }) {
+  const [nextMatch, setNextMatch] = useState<DatabaseMatch | null>(null)
+  const [tournament, setTournament] = useState<Tournament | null>(null)
+  const [isEditing, setIsEditing] = useState(false)
+  const [editForm, setEditForm] = useState({
+    score1: 0,
+    score2: 0,
+    status: 'scheduled'
+  })
+
+  useEffect(() => {
+    const findNextMatch = async () => {
+      // Find active/ongoing tournaments
+      const activeTournaments = tournaments.filter(t => t.status === 'ongoing')
+      
+      if (activeTournaments.length === 0) return
+
+      // Find next scheduled match across all active tournaments
+      let earliestMatch: DatabaseMatch | null = null
+      let earliestTime: Date | null = null
+      let matchTournament: Tournament | null = null
+
+      for (const t of activeTournaments) {
+        try {
+          const response = await fetch(`/api/matches?tournament_id=${t.id}`)
+          if (response.ok) {
+            const data = await response.json()
+            const matches = (data.matches || []) as DatabaseMatch[]
+            
+            // Find next scheduled match
+            const scheduledMatches = matches.filter(m => 
+              m.status === 'scheduled' && m.scheduled_time
+            )
+            
+            for (const match of scheduledMatches) {
+              const matchTime = new Date(match.scheduled_time!)
+              if (!earliestTime || matchTime < earliestTime) {
+                earliestTime = matchTime
+                earliestMatch = match
+                matchTournament = t
+              }
+            }
+          }
+        } catch (error) {
+          console.error(`Error loading matches for tournament ${t.id}:`, error)
+        }
+      }
+
+      if (earliestMatch && matchTournament) {
+        setNextMatch(earliestMatch)
+        setTournament(matchTournament)
+        setEditForm({
+          score1: earliestMatch.score1 || 0,
+          score2: earliestMatch.score2 || 0,
+          status: earliestMatch.status
+        })
+      }
+    }
+
+    findNextMatch()
+  }, [tournaments])
+
+  const saveMatch = async () => {
+    if (!nextMatch) return
+
+    try {
+      const response = await fetch('/api/matches', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: nextMatch.id,
+          score1: editForm.score1,
+          score2: editForm.score2,
+          status: editForm.status
+        })
+      })
+
+      if (response.ok) {
+        // Reload next match
+        const activeTournaments = tournaments.filter(t => t.status === 'ongoing')
+        for (const t of activeTournaments) {
+          const matchesResponse = await fetch(`/api/matches?tournament_id=${t.id}`)
+          if (matchesResponse.ok) {
+            const matchesData = await matchesResponse.json()
+            const matches = (matchesData.matches || []) as DatabaseMatch[]
+            const scheduledMatches = matches.filter(m => 
+              m.status === 'scheduled' && m.scheduled_time
+            ).sort((a, b) => 
+              new Date(a.scheduled_time!).getTime() - new Date(b.scheduled_time!).getTime()
+            )
+            
+            if (scheduledMatches.length > 0) {
+              setNextMatch(scheduledMatches[0])
+              setEditForm({
+                score1: scheduledMatches[0].score1 || 0,
+                score2: scheduledMatches[0].score2 || 0,
+                status: scheduledMatches[0].status
+              })
+            } else {
+              setNextMatch(null)
+            }
+          }
+        }
+        setIsEditing(false)
+        alert('Kamp oppdatert!')
+      } else {
+        const error = await response.json()
+        alert(`Kunne ikke oppdatere kamp: ${error.error || 'Ukjent feil'}`)
+      }
+    } catch (error) {
+      console.error('Error saving match:', error)
+      alert('Noe gikk galt ved oppdatering av kamp')
+    }
+  }
+
+  if (!nextMatch || !tournament) {
+    return null
+  }
+
+  return (
+    <div className="pro11-card p-4 mb-6">
+      <h3 className="font-semibold mb-3 flex items-center space-x-2">
+        <Trophy className="w-5 h-5" />
+        <span>Hurtighandling - Neste kamp</span>
+      </h3>
+      <div className="bg-slate-800/50 rounded-lg p-4">
+        <div className="mb-2">
+          <p className="text-xs text-slate-400">{tournament.title}</p>
+          <p className="text-xs text-slate-400">{nextMatch.round} {nextMatch.group_name ? `• ${nextMatch.group_name}` : ''}</p>
+        </div>
+        {isEditing ? (
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="font-medium">{nextMatch.team1_name}</span>
+              <input
+                type="number"
+                min="0"
+                value={editForm.score1}
+                onChange={(e) => setEditForm({ ...editForm, score1: parseInt(e.target.value) || 0 })}
+                className="w-16 px-2 py-1 bg-slate-700 rounded text-center"
+              />
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="font-medium">{nextMatch.team2_name}</span>
+              <input
+                type="number"
+                min="0"
+                value={editForm.score2}
+                onChange={(e) => setEditForm({ ...editForm, score2: parseInt(e.target.value) || 0 })}
+                className="w-16 px-2 py-1 bg-slate-700 rounded text-center"
+              />
+            </div>
+            <div className="flex items-center space-x-2">
+              <select
+                value={editForm.status}
+                onChange={(e) => setEditForm({ ...editForm, status: e.target.value })}
+                className="flex-1 px-2 py-1 bg-slate-700 rounded text-sm"
+              >
+                <option value="scheduled">Planlagt</option>
+                <option value="live">LIVE</option>
+                <option value="completed">Ferdig</option>
+              </select>
+              <button
+                onClick={saveMatch}
+                className="pro11-button flex items-center space-x-1 text-sm px-3 py-1"
+              >
+                <CheckCircle className="w-4 h-4" />
+                <span>Lagre</span>
+              </button>
+              <button
+                onClick={() => setIsEditing(false)}
+                className="pro11-button-secondary flex items-center space-x-1 text-sm px-3 py-1"
+              >
+                <XCircle className="w-4 h-4" />
+                <span>Avbryt</span>
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="font-medium">{nextMatch.team1_name}</span>
+              <span className="text-lg font-bold">
+                {nextMatch.score1 !== undefined && nextMatch.score2 !== undefined 
+                  ? `${nextMatch.score1} - ${nextMatch.score2}` 
+                  : 'vs'}
+              </span>
+              <span className="font-medium">{nextMatch.team2_name}</span>
+            </div>
+            {nextMatch.scheduled_time && (
+              <p className="text-xs text-slate-400 text-center">
+                {new Date(nextMatch.scheduled_time).toLocaleString('nb-NO', {
+                  day: 'numeric',
+                  month: 'long',
+                  hour: '2-digit',
+                  minute: '2-digit'
+                })}
+              </p>
+            )}
+            <button
+              onClick={() => setIsEditing(true)}
+              className="pro11-button w-full flex items-center justify-center space-x-2"
+            >
+              <Edit className="w-4 h-4" />
+              <span>Legg inn resultat</span>
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
 export default function AdminPage() {
   const [isAuthenticated, setIsAuthenticated] = useState(false)
   const [password, setPassword] = useState('')
@@ -1169,6 +1395,9 @@ PRO11 Team`)
               </div>
             </div>
           </div>
+
+          {/* Quick Actions - Next Match */}
+          <NextMatchQuickAction tournaments={tournaments} />
 
           {/* Tabs */}
           <div className="pro11-card p-4 mb-6">
