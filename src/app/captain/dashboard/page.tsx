@@ -127,29 +127,14 @@ export default function CaptainDashboardPage() {
                   const opponentHasSubmitted = (isTeam1 && hasTeam2Submitted) || (isTeam2 && hasTeam1Submitted)
                   
                   // Can confirm if:
-                  // 1. Opponent has submitted their result
+                  // 1. Opponent has submitted their result (checked via team1/team2_submitted_score1)
                   // 2. This team hasn't submitted yet
                   // 3. Match is not completed
-                  // Status can be pending_confirmation OR we can still confirm if opponent submitted
+                  // 4. Status is pending_confirmation (meaning someone has submitted)
                   const canConfirm = opponentHasSubmitted && 
                                      !thisTeamHasSubmitted &&
-                                     m.status !== 'completed'
-                  
-                  // Debug logging
-                  if (isMyMatch) {
-                    console.log(`Match ${m.id} for team ${parsedTeam.teamName}:`, {
-                      isTeam1,
-                      isTeam2,
-                      hasTeam1Submitted,
-                      hasTeam2Submitted,
-                      thisTeamHasSubmitted,
-                      opponentHasSubmitted,
-                      status: m.status,
-                      canConfirm,
-                      team1_submitted_score1: m.team1_submitted_score1,
-                      team2_submitted_score1: m.team2_submitted_score1
-                    })
-                  }
+                                     m.status !== 'completed' &&
+                                     m.status === 'pending_confirmation'
                   
                   return {
                     id: m.id,
@@ -332,10 +317,10 @@ export default function CaptainDashboardPage() {
       if (updatedMatch.status === 'completed') {
         alert(`Resultat bekreftet og fullført: ${selectedMatch.team1} ${updatedMatch.score1} - ${updatedMatch.score2} ${selectedMatch.team2}\n\nBegge lag har bekreftet samme resultat.`)
       } else {
-        alert(`Resultat innsendt: ${selectedMatch.team1} ${resultScore1} - ${resultScore2} ${selectedMatch.team2}\n\nVenter på bekreftelse fra motstanderlaget.`)
+    alert(`Resultat innsendt: ${selectedMatch.team1} ${resultScore1} - ${resultScore2} ${selectedMatch.team2}\n\nVenter på bekreftelse fra motstanderlaget.`)
       }
       
-      setShowResultModal(false)
+    setShowResultModal(false)
       
       // Reload page to get updated match status
       window.location.reload()
@@ -346,7 +331,7 @@ export default function CaptainDashboardPage() {
   }
 
   const confirmResult = async (match: Match) => {
-    if (!match.submittedScore1 || !match.submittedScore2 || !team) return
+    if (!team) return
 
     // When confirming, the team needs to submit their own result
     // If it matches the opponent's result, the match will be automatically completed
@@ -359,19 +344,47 @@ export default function CaptainDashboardPage() {
       return
     }
 
-    // Get opponent's submitted result
-    // If team1 submitted: submittedScore1 is team1's score, submittedScore2 is team2's score
-    // If team2 submitted: submittedScore1 is team2's score, submittedScore2 is team1's score
-    // We need to reverse it for the confirming team
-    const opponentScore1 = match.submittedScore1 // Opponent's perspective: their score
-    const opponentScore2 = match.submittedScore2 // Opponent's perspective: our score
-    
-    // For confirming team: our score should match opponent's reported score for us
-    // And opponent's score should match what we report for them
-    const myScore = isTeam1 ? opponentScore2 : opponentScore1 // What opponent reported as our score
-    const opponentScore = isTeam1 ? opponentScore1 : opponentScore2 // What opponent reported as their score
-
+    // Get opponent's submitted result from the match data
+    // We need to fetch the latest match data to get the correct submitted scores
     try {
+      const matchResponse = await fetch(`/api/matches?tournament_id=${match.tournamentId}`)
+      if (!matchResponse.ok) {
+        alert('Kunne ikke hente kampdata. Prøv igjen.')
+        return
+      }
+      
+      const matchesData = await matchResponse.json()
+      const currentMatch = matchesData.matches?.find((m: any) => m.id === match.id)
+      
+      if (!currentMatch) {
+        alert('Kamp ikke funnet.')
+        return
+      }
+
+      // Get opponent's submitted scores
+      let opponentScore1: number | null = null
+      let opponentScore2: number | null = null
+      
+      if (isTeam1) {
+        // Team1 is confirming, so opponent is Team2
+        opponentScore1 = currentMatch.team2_submitted_score1 // Team2's score (from their perspective)
+        opponentScore2 = currentMatch.team2_submitted_score2 // Team1's score (from Team2's perspective)
+      } else {
+        // Team2 is confirming, so opponent is Team1
+        opponentScore1 = currentMatch.team1_submitted_score1 // Team1's score (from their perspective)
+        opponentScore2 = currentMatch.team1_submitted_score2 // Team2's score (from Team1's perspective)
+      }
+
+      if (opponentScore1 === null || opponentScore2 === null) {
+        alert('Motstanderens resultat ikke funnet. Prøv å oppdatere siden.')
+        return
+      }
+
+      // For confirming team: we need to submit the same result from our perspective
+      // If Team2 reported "3-1" (they scored 3, we scored 1), we should report "1-3" (we scored 1, they scored 3)
+      const myScore = isTeam1 ? opponentScore2 : opponentScore1 // What opponent reported as our score
+      const opponentScore = isTeam1 ? opponentScore1 : opponentScore2 // What opponent reported as their score
+
       // Submit our result - if it matches, match will be completed automatically
       const response = await fetch('/api/matches', {
         method: 'PUT',
@@ -379,8 +392,8 @@ export default function CaptainDashboardPage() {
         body: JSON.stringify({
           id: match.id,
           team_name: team.teamName,
-          team_score1: myScore, // Our score (from opponent's perspective)
-          team_score2: opponentScore // Opponent's score (from opponent's perspective)
+          team_score1: myScore, // Our score
+          team_score2: opponentScore // Opponent's score
         })
       })
 
@@ -411,6 +424,10 @@ export default function CaptainDashboardPage() {
   const rejectResult = async (match: Match) => {
     if (!team) return
 
+    if (!confirm('Er du sikker på at du vil avvise dette resultatet? Begge lag må legge inn resultatet på nytt.')) {
+      return
+    }
+
     try {
       // Reset the match to pending_result by clearing submitted fields
       const response = await fetch('/api/matches', {
@@ -432,11 +449,15 @@ export default function CaptainDashboardPage() {
 
       if (!response.ok) {
         const error = await response.json()
+        console.error('Reject result error:', error)
         alert(`Feil ved avvisning av resultat: ${error.error || 'Ukjent feil'}`)
         return
       }
 
-      alert('Resultat avvist. Begge lag må legge inn resultatet på nytt.')
+      const result = await response.json()
+      console.log('Reject result success:', result)
+
+    alert('Resultat avvist. Begge lag må legge inn resultatet på nytt.')
       
       // Reload page to get updated match status
       window.location.reload()
@@ -568,12 +589,12 @@ export default function CaptainDashboardPage() {
                                       Bekreft
                                     </button>
                                     {match.submittedBy && match.submittedBy !== team.teamName && (
-                                      <button
-                                        onClick={() => rejectResult(match)}
-                                        className="bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded text-xs font-medium transition-colors"
-                                      >
-                                        Avvis
-                                      </button>
+                                    <button
+                                      onClick={() => rejectResult(match)}
+                                      className="bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded text-xs font-medium transition-colors"
+                                    >
+                                      Avvis
+                                    </button>
                                     )}
                                   </>
                                 )}

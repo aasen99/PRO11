@@ -272,6 +272,15 @@ export async function PUT(request: NextRequest) {
       if (submitted_by !== undefined) updateData.submitted_by = submitted_by
       if (submitted_score1 !== undefined) updateData.submitted_score1 = submitted_score1
       if (submitted_score2 !== undefined) updateData.submitted_score2 = submitted_score2
+      
+      // Handle clearing of submitted fields (for rejectResult)
+      if (body.team1_submitted_score1 === null) updateData.team1_submitted_score1 = null
+      if (body.team1_submitted_score2 === null) updateData.team1_submitted_score2 = null
+      if (body.team2_submitted_score1 === null) updateData.team2_submitted_score1 = null
+      if (body.team2_submitted_score2 === null) updateData.team2_submitted_score2 = null
+      if (body.submitted_by === null) updateData.submitted_by = null
+      if (body.submitted_score1 === null) updateData.submitted_score1 = null
+      if (body.submitted_score2 === null) updateData.submitted_score2 = null
     }
 
     const { data: match, error } = await supabase
