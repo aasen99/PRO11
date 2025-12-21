@@ -337,14 +337,53 @@ export default function CaptainDashboardPage() {
       return
     }
 
-    // Open the result modal so they can submit their result
-    // The API will automatically check if results match when both teams have submitted
-    setSelectedMatch(match)
-    setResultScore1(match.submittedScore2) // Opponent's score becomes this team's score
-    setResultScore2(match.submittedScore1) // This team's score becomes opponent's score
-    setShowResultModal(true)
+    // Get opponent's submitted result
+    // If team1 submitted: submittedScore1 is team1's score, submittedScore2 is team2's score
+    // If team2 submitted: submittedScore1 is team2's score, submittedScore2 is team1's score
+    // We need to reverse it for the confirming team
+    const opponentScore1 = match.submittedScore1 // Opponent's perspective: their score
+    const opponentScore2 = match.submittedScore2 // Opponent's perspective: our score
     
-    alert('Vennligst send inn ditt eget resultat. Hvis det matcher motstanderens resultat, vil kampen automatisk bli fullført.')
+    // For confirming team: our score should match opponent's reported score for us
+    // And opponent's score should match what we report for them
+    const myScore = isTeam1 ? opponentScore2 : opponentScore1 // What opponent reported as our score
+    const opponentScore = isTeam1 ? opponentScore1 : opponentScore2 // What opponent reported as their score
+
+    try {
+      // Submit our result - if it matches, match will be completed automatically
+      const response = await fetch('/api/matches', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: match.id,
+          team_name: team.teamName,
+          team_score1: myScore, // Our score (from opponent's perspective)
+          team_score2: opponentScore // Opponent's score (from opponent's perspective)
+        })
+      })
+
+      if (!response.ok) {
+        const error = await response.json()
+        alert(`Feil ved bekreftelse av resultat: ${error.error || 'Ukjent feil'}`)
+        return
+      }
+
+      const result = await response.json()
+      const updatedMatch = result.match
+
+      // Check if match was automatically completed (both teams submitted matching results)
+      if (updatedMatch.status === 'completed') {
+        alert(`Resultat bekreftet og fullført: ${match.team1} ${updatedMatch.score1} - ${updatedMatch.score2} ${match.team2}\n\nBegge lag har bekreftet samme resultat.`)
+      } else {
+        alert(`Resultat sendt inn: ${match.team1} ${myScore} - ${opponentScore} ${match.team2}\n\nHvis resultatene ikke matcher, vil admin se på det.`)
+      }
+      
+      // Reload page to get updated match status
+      window.location.reload()
+    } catch (error) {
+      console.error('Error confirming result:', error)
+      alert('Noe gikk galt ved bekreftelse av resultat. Prøv igjen.')
+    }
   }
 
   const rejectResult = async (match: Match) => {

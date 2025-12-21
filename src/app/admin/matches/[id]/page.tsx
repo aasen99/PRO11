@@ -584,7 +584,7 @@ export default function TournamentMatchesPage() {
                   <Award className="w-5 h-5" />
                   <span>Sluttspill - Kamper</span>
                 </h2>
-                {!shouldShowKnockout && (
+                {!shouldShowKnockout && groupMatches.length > 0 ? (
                   <div className="pro11-card p-4 mb-4 bg-yellow-900/20 border border-yellow-600/30">
                     <p className="text-yellow-400">
                       ⚠️ Sluttspill vil bli vist når alle gruppespillkamper er ferdig.
@@ -593,8 +593,7 @@ export default function TournamentMatchesPage() {
                       Ferdig: {groupMatches.filter(m => m.status === 'completed').length} / {groupMatches.length} kamper
                     </p>
                   </div>
-                )}
-                {shouldShowKnockout && (
+                ) : shouldShowKnockout ? (
             <div className="pro11-card p-4">
               <div className="space-y-3">
                 {Object.entries(
