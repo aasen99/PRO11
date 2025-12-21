@@ -132,6 +132,11 @@ export default function TournamentsPage() {
                         Meld på lag
                       </Link>
                     )}
+                    {tournament.status === 'ongoing' && (
+                      <button disabled className="pro11-button-secondary text-center opacity-50 cursor-not-allowed">
+                        Påmelding stengt
+                      </button>
+                    )}
                     
                     <Link 
                       href={`/tournaments/${tournament.id}`}

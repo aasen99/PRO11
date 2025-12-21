@@ -1,8 +1,9 @@
 'use client'
 
-import React from 'react'
+import React, { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { ArrowLeft, ExternalLink } from 'lucide-react'
+import { fetchTournaments } from '../lib/tournaments'
 
 interface HeaderProps {
   backButton?: boolean
@@ -11,6 +12,21 @@ interface HeaderProps {
 }
 
 export default function Header({ backButton = false, backHref = '/', title }: HeaderProps) {
+  const [hasActiveTournament, setHasActiveTournament] = useState(false)
+
+  useEffect(() => {
+    const checkActiveTournament = async () => {
+      try {
+        const tournaments = await fetchTournaments()
+        const hasActive = tournaments.some(t => t.status === 'ongoing')
+        setHasActiveTournament(hasActive)
+      } catch (error) {
+        console.error('Error checking active tournament:', error)
+      }
+    }
+    checkActiveTournament()
+  }, [])
+
   return (
     <header className="pro11-card mx-4 mt-4 h-24">
       <div className="flex items-center justify-between">
@@ -26,9 +42,15 @@ export default function Header({ backButton = false, backHref = '/', title }: He
           <Link href="/tournaments" className="text-slate-300 hover:text-white transition-colors">
             Turneringer
           </Link>
-          <Link href="/register" className="text-slate-300 hover:text-white transition-colors">
-            Påmelding
-          </Link>
+          {hasActiveTournament ? (
+            <span className="text-slate-500 cursor-not-allowed">
+              Påmelding stengt
+            </span>
+          ) : (
+            <Link href="/register" className="text-slate-300 hover:text-white transition-colors">
+              Påmelding
+            </Link>
+          )}
           <Link href="/hall-of-fame" className="text-slate-300 hover:text-white transition-colors">
             Hall of Fame
           </Link>

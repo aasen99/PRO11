@@ -46,9 +46,15 @@ export default function HomePage() {
             <Link href="/tournaments" className="text-slate-300 hover:text-white transition-colors">
               Turneringer
             </Link>
-            <Link href="/register" className="text-slate-300 hover:text-white transition-colors">
-              Påmelding
-            </Link>
+            {nextTournament && nextTournament.status === 'ongoing' ? (
+              <span className="text-slate-500 cursor-not-allowed">
+                Påmelding stengt
+              </span>
+            ) : (
+              <Link href="/register" className="text-slate-300 hover:text-white transition-colors">
+                Påmelding
+              </Link>
+            )}
             <Link href="/hall-of-fame" className="text-slate-300 hover:text-white transition-colors">
               Hall of Fame
             </Link>
@@ -114,9 +120,15 @@ export default function HomePage() {
                 </div>
               </div>
               <div className="text-center">
-                <Link href="/register" className="pro11-button text-lg px-8 py-4 inline-block">
-                  Meld på lag
-                </Link>
+                {nextTournament.status === 'ongoing' ? (
+                  <button disabled className="pro11-button-secondary text-lg px-8 py-4 inline-block opacity-50 cursor-not-allowed">
+                    Påmelding stengt
+                  </button>
+                ) : (
+                  <Link href="/register" className="pro11-button text-lg px-8 py-4 inline-block">
+                    Meld på lag
+                  </Link>
+                )}
               </div>
             </div>
           </div>
