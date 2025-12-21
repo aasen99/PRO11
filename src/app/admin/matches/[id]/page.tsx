@@ -734,9 +734,9 @@ export default function TournamentMatchesPage() {
                   </div>
                 ))}
               </div>
-            </div>
-          </div>
-        )}
+                )}
+              </div>
+            )}
 
         {matches.length === 0 && (
           <div className="pro11-card p-8 text-center">
