@@ -39,8 +39,8 @@
 ## Nice to have - Kan vente
 
 8. **Notifikasjoner**
-   - Varsle lag når motstander har sendt inn resultat
-   - Varsle admin når resultater ikke matcher
+   - ✅ Varsle lag når motstander har sendt inn resultat
+   - ✅ Varsle admin når resultater ikke matcher
 
 9. **Tidsbegrensning**
    - Kunne sende inn resultater innen X timer etter kamp
