@@ -154,7 +154,18 @@ export async function POST(request: NextRequest) {
 export async function PUT(request: NextRequest) {
   try {
     const body = await request.json()
-    const { id, status, score1, score2, submitted_by, submitted_score1, submitted_score2 } = body
+    const { 
+      id, 
+      status, 
+      score1, 
+      score2, 
+      submitted_by, 
+      submitted_score1, 
+      submitted_score2,
+      team_name, // The team submitting the result
+      team_score1, // Score for team_name
+      team_score2 // Score for opponent
+    } = body
 
     if (!id) {
       return NextResponse.json({ error: 'Match ID is required' }, { status: 400 })
@@ -165,13 +176,103 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: 'Database connection failed' }, { status: 500 })
     }
 
+    // First, get the current match to check existing submissions
+    const { data: currentMatch, error: fetchError } = await supabase
+      .from('matches')
+      .select('*')
+      .eq('id', id)
+      .single()
+
+    if (fetchError || !currentMatch) {
+      return NextResponse.json({ error: 'Match not found' }, { status: 404 })
+    }
+
     const updateData: any = {}
-    if (status) updateData.status = status
-    if (score1 !== undefined) updateData.score1 = score1
-    if (score2 !== undefined) updateData.score2 = score2
-    if (submitted_by !== undefined) updateData.submitted_by = submitted_by
-    if (submitted_score1 !== undefined) updateData.submitted_score1 = submitted_score1
-    if (submitted_score2 !== undefined) updateData.submitted_score2 = submitted_score2
+    
+    // If a team is submitting a result
+    if (team_name && team_score1 !== undefined && team_score2 !== undefined) {
+      // Validation
+      if (team_score1 < 0 || team_score2 < 0) {
+        return NextResponse.json({ error: 'Resultater kan ikke være negative' }, { status: 400 })
+      }
+      
+      if (currentMatch.status === 'completed') {
+        return NextResponse.json({ error: 'Kampen er allerede fullført' }, { status: 400 })
+      }
+      
+      const isTeam1 = currentMatch.team1_name === team_name
+      const isTeam2 = currentMatch.team2_name === team_name
+      
+      if (!isTeam1 && !isTeam2) {
+        return NextResponse.json({ error: 'Team name does not match this match' }, { status: 400 })
+      }
+      
+      // Check if this team has already submitted
+      const alreadySubmitted = (isTeam1 && currentMatch.team1_submitted_score1 !== null) || 
+                              (isTeam2 && currentMatch.team2_submitted_score1 !== null)
+      
+      if (alreadySubmitted) {
+        return NextResponse.json({ error: 'Du har allerede sendt inn resultat for denne kampen' }, { status: 400 })
+      }
+
+      // Store the team's submitted result
+      if (isTeam1) {
+        updateData.team1_submitted_score1 = team_score1
+        updateData.team1_submitted_score2 = team_score2
+      } else {
+        updateData.team2_submitted_score1 = team_score1
+        updateData.team2_submitted_score2 = team_score2
+      }
+
+      // Also update legacy fields for backward compatibility
+      updateData.submitted_by = team_name
+      updateData.submitted_score1 = team_score1
+      updateData.submitted_score2 = team_score2
+
+      // Check if both teams have submitted
+      const team1Submitted = currentMatch.team1_submitted_score1 !== null || updateData.team1_submitted_score1 !== undefined
+      const team2Submitted = currentMatch.team2_submitted_score1 !== null || updateData.team2_submitted_score1 !== undefined
+
+      if (team1Submitted && team2Submitted) {
+        // Both teams have submitted - check if results match
+        const team1Score1 = updateData.team1_submitted_score1 ?? currentMatch.team1_submitted_score1
+        const team1Score2 = updateData.team1_submitted_score2 ?? currentMatch.team1_submitted_score2
+        const team2Score1 = updateData.team2_submitted_score1 ?? currentMatch.team2_submitted_score1
+        const team2Score2 = updateData.team2_submitted_score2 ?? currentMatch.team2_submitted_score2
+
+        // Team1's perspective: team1_score1 - team1_score2
+        // Team2's perspective: team2_score1 (their score) - team2_score2 (opponent's score)
+        // So team2_score1 should equal team1_score2, and team2_score2 should equal team1_score1
+        if (team1Score1 === team2Score2 && team1Score2 === team2Score1) {
+          // Results match! Complete the match
+          updateData.score1 = team1Score1
+          updateData.score2 = team1Score2
+          updateData.status = 'completed'
+          // Clear submitted fields
+          updateData.team1_submitted_score1 = null
+          updateData.team1_submitted_score2 = null
+          updateData.team2_submitted_score1 = null
+          updateData.team2_submitted_score2 = null
+          updateData.submitted_by = null
+          updateData.submitted_score1 = null
+          updateData.submitted_score2 = null
+        } else {
+          // Results don't match - wait for admin review
+          updateData.status = 'pending_confirmation'
+        }
+      } else {
+        // Only one team has submitted - wait for the other team
+        updateData.status = 'pending_confirmation'
+      }
+    } else {
+      // Admin or direct update (not team submission)
+      if (status) updateData.status = status
+      if (score1 !== undefined) updateData.score1 = score1
+      if (score2 !== undefined) updateData.score2 = score2
+      if (submitted_by !== undefined) updateData.submitted_by = submitted_by
+      if (submitted_score1 !== undefined) updateData.submitted_score1 = submitted_score1
+      if (submitted_score2 !== undefined) updateData.submitted_score2 = submitted_score2
+    }
 
     const { data: match, error } = await supabase
       .from('matches')

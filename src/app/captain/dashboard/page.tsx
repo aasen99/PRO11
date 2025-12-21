@@ -106,24 +106,39 @@ export default function CaptainDashboardPage() {
               
               if (matchesResponse.ok) {
                 const matchesData = await matchesResponse.json()
-                matches = (matchesData.matches || []).map((m: any) => ({
-                  id: m.id,
-                  team1: m.team1_name,
-                  team2: m.team2_name,
-                  score1: m.score1 || 0,
-                  score2: m.score2 || 0,
-                  status: m.status as 'scheduled' | 'live' | 'completed' | 'pending_result' | 'pending_confirmation',
-                  time: m.scheduled_time ? new Date(m.scheduled_time).toLocaleTimeString('nb-NO', { hour: '2-digit', minute: '2-digit' }) : '',
-                  round: m.round,
-                  tournamentId: m.tournament_id,
-                  canSubmitResult: m.status === 'scheduled' || m.status === 'live',
-                  submittedBy: m.submitted_by || null,
-                  submittedScore1: m.submitted_score1 || null,
-                  submittedScore2: m.submitted_score2 || null,
-                  canConfirmResult: m.status === 'pending_confirmation'
-                })).filter((match: Match) => 
-                  match.team1 === parsedTeam.teamName || match.team2 === parsedTeam.teamName
-                )
+                matches = (matchesData.matches || []).map((m: any) => {
+                  const isTeam1 = m.team1_name === parsedTeam.teamName
+                  const isTeam2 = m.team2_name === parsedTeam.teamName
+                  const isMyMatch = isTeam1 || isTeam2
+                  
+                  if (!isMyMatch) return null
+                  
+                  // Determine if this team can submit result (not completed, and hasn't submitted yet)
+                  const canSubmit = (m.status === 'scheduled' || m.status === 'live' || m.status === 'pending_result') && 
+                                    m.submitted_by !== parsedTeam.teamName
+                  
+                  // Determine if this team can confirm (opponent has submitted, waiting for confirmation)
+                  const canConfirm = m.status === 'pending_confirmation' && 
+                                     m.submitted_by && 
+                                     m.submitted_by !== parsedTeam.teamName
+                  
+                  return {
+                    id: m.id,
+                    team1: m.team1_name,
+                    team2: m.team2_name,
+                    score1: m.score1 || 0,
+                    score2: m.score2 || 0,
+                    status: m.status as 'scheduled' | 'live' | 'completed' | 'pending_result' | 'pending_confirmation',
+                    time: m.scheduled_time ? new Date(m.scheduled_time).toLocaleTimeString('nb-NO', { hour: '2-digit', minute: '2-digit' }) : '',
+                    round: m.round,
+                    tournamentId: m.tournament_id,
+                    canSubmitResult: canSubmit,
+                    submittedBy: m.submitted_by || null,
+                    submittedScore1: m.submitted_score1 || null,
+                    submittedScore2: m.submitted_score2 || null,
+                    canConfirmResult: canConfirm
+                  }
+                }).filter((match: Match | null): match is Match => match !== null)
               }
               
               return tournament ? { tournament, matches } : null
@@ -241,83 +256,119 @@ export default function CaptainDashboardPage() {
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
-  const submitResult = () => {
+  const submitResult = async () => {
     if (!selectedMatch || !team) return
 
-    // Oppdater match resultat til pending_confirmation
-    setTournaments(prev => 
-      prev.map(tournament => ({
-        ...tournament,
-        matches: tournament.matches.map(match =>
-          match.id === selectedMatch.id
-            ? {
-                ...match,
-                status: 'pending_confirmation' as const,
-                canSubmitResult: false,
-                canConfirmResult: true,
-                submittedBy: team.teamName,
-                submittedScore1: resultScore1,
-                submittedScore2: resultScore2
-              }
-            : match
-        )
-      }))
-    )
+    // Determine which team is submitting and adjust scores accordingly
+    const isTeam1 = selectedMatch.team1 === team.teamName
+    const isTeam2 = selectedMatch.team2 === team.teamName
+    
+    if (!isTeam1 && !isTeam2) {
+      alert('Du er ikke del av denne kampen.')
+      return
+    }
 
-    alert(`Resultat innsendt: ${selectedMatch.team1} ${resultScore1} - ${resultScore2} ${selectedMatch.team2}\n\nVenter på bekreftelse fra motstanderlaget.`)
-    setShowResultModal(false)
+    try {
+      // Send resultat til API
+      // If team1 is submitting: resultScore1 is their score, resultScore2 is opponent's score
+      // If team2 is submitting: resultScore1 is their score (which is team2's perspective), resultScore2 is opponent's score
+      const response = await fetch('/api/matches', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: selectedMatch.id,
+          team_name: team.teamName,
+          team_score1: resultScore1, // This team's score
+          team_score2: resultScore2   // Opponent's score
+        })
+      })
+
+      if (!response.ok) {
+        const error = await response.json()
+        alert(`Feil ved innsending av resultat: ${error.error || 'Ukjent feil'}`)
+        return
+      }
+
+      const result = await response.json()
+      const updatedMatch = result.match
+
+      // Check if match was automatically completed (both teams submitted matching results)
+      if (updatedMatch.status === 'completed') {
+        alert(`Resultat bekreftet og fullført: ${selectedMatch.team1} ${updatedMatch.score1} - ${updatedMatch.score2} ${selectedMatch.team2}\n\nBegge lag har bekreftet samme resultat.`)
+      } else {
+        alert(`Resultat innsendt: ${selectedMatch.team1} ${resultScore1} - ${resultScore2} ${selectedMatch.team2}\n\nVenter på bekreftelse fra motstanderlaget.`)
+      }
+      
+      setShowResultModal(false)
+      
+      // Reload page to get updated match status
+      window.location.reload()
+    } catch (error) {
+      console.error('Error submitting result:', error)
+      alert('Noe gikk galt ved innsending av resultat. Prøv igjen.')
+    }
   }
 
-  const confirmResult = (match: Match) => {
-    if (!match.submittedScore1 || !match.submittedScore2) return
+  const confirmResult = async (match: Match) => {
+    if (!match.submittedScore1 || !match.submittedScore2 || !team) return
 
-    // Bekreft resultatet og gjør det offisielt
-    setTournaments(prev => 
-      prev.map(tournament => ({
-        ...tournament,
-        matches: tournament.matches.map(m =>
-          m.id === match.id
-            ? {
-                ...m,
-                score1: match.submittedScore1!,
-                score2: match.submittedScore2!,
-                status: 'completed' as const,
-                canSubmitResult: false,
-                canConfirmResult: false,
-                submittedBy: null,
-                submittedScore1: null,
-                submittedScore2: null
-              }
-            : m
-        )
-      }))
-    )
+    // When confirming, the team needs to submit their own result
+    // If it matches the opponent's result, the match will be automatically completed
+    // If it doesn't match, it will wait for admin review
+    const isTeam1 = match.team1 === team.teamName
+    const isTeam2 = match.team2 === team.teamName
+    
+    if (!isTeam1 && !isTeam2) {
+      alert('Du er ikke del av denne kampen.')
+      return
+    }
 
-    alert(`Resultat bekreftet: ${match.team1} ${match.submittedScore1} - ${match.submittedScore2} ${match.team2}`)
+    // Open the result modal so they can submit their result
+    // The API will automatically check if results match when both teams have submitted
+    setSelectedMatch(match)
+    setResultScore1(match.submittedScore2) // Opponent's score becomes this team's score
+    setResultScore2(match.submittedScore1) // This team's score becomes opponent's score
+    setShowResultModal(true)
+    
+    alert('Vennligst send inn ditt eget resultat. Hvis det matcher motstanderens resultat, vil kampen automatisk bli fullført.')
   }
 
-  const rejectResult = (match: Match) => {
-    // Avvis resultatet og tilbakestill til pending_result
-    setTournaments(prev => 
-      prev.map(tournament => ({
-        ...tournament,
-        matches: tournament.matches.map(m =>
-          m.id === match.id
-            ? {
-                ...m,
-                status: 'pending_result' as const,
-                canSubmitResult: true,
-                canConfirmResult: false,
-                submittedBy: null,
-                submittedScore1: null,
-                submittedScore2: null
-              }
-            : m
-        )
-      }))
-    )
+  const rejectResult = async (match: Match) => {
+    if (!team) return
 
-    alert('Resultat avvist. Begge lag må legge inn resultatet på nytt.')
+    try {
+      // Reset the match to pending_result by clearing submitted fields
+      const response = await fetch('/api/matches', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: match.id,
+          status: 'pending_result',
+          // Clear all submitted fields
+          team1_submitted_score1: null,
+          team1_submitted_score2: null,
+          team2_submitted_score1: null,
+          team2_submitted_score2: null,
+          submitted_by: null,
+          submitted_score1: null,
+          submitted_score2: null
+        })
+      })
+
+      if (!response.ok) {
+        const error = await response.json()
+        alert(`Feil ved avvisning av resultat: ${error.error || 'Ukjent feil'}`)
+        return
+      }
+
+      alert('Resultat avvist. Begge lag må legge inn resultatet på nytt.')
+      
+      // Reload page to get updated match status
+      window.location.reload()
+    } catch (error) {
+      console.error('Error rejecting result:', error)
+      alert('Noe gikk galt ved avvisning av resultat. Prøv igjen.')
+    }
   }
 
   const getMatchStatusColor = (status: string) => {

@@ -15,6 +15,13 @@ interface Match {
   score1?: number
   score2?: number
   scheduled_time?: string
+  submitted_by?: string
+  submitted_score1?: number
+  submitted_score2?: number
+  team1_submitted_score1?: number
+  team1_submitted_score2?: number
+  team2_submitted_score1?: number
+  team2_submitted_score2?: number
 }
 
 interface Tournament {
@@ -228,12 +235,16 @@ export default function TournamentMatchesPage() {
         return 'bg-red-600'
       case 'scheduled':
         return 'bg-slate-600'
+      case 'pending_confirmation':
+        return 'bg-orange-600'
+      case 'pending_result':
+        return 'bg-yellow-600'
       default:
         return 'bg-yellow-600'
     }
   }
 
-  const getStatusText = (status: string) => {
+  const getStatusText = (status: string, match?: Match) => {
     switch (status) {
       case 'completed':
         return 'Ferdig'
@@ -241,6 +252,13 @@ export default function TournamentMatchesPage() {
         return 'LIVE'
       case 'scheduled':
         return 'Planlagt'
+      case 'pending_confirmation':
+        if (match?.submitted_by) {
+          return `Venter bekreftelse (${match.submitted_by})`
+        }
+        return 'Venter bekreftelse'
+      case 'pending_result':
+        return 'Venter resultat'
       default:
         return 'Venter'
     }
@@ -298,6 +316,13 @@ export default function TournamentMatchesPage() {
 
   const groupMatches = matches.filter(m => m.round === 'Gruppespill')
   const knockoutMatches = matches.filter(m => m.round !== 'Gruppespill')
+  
+  // Check if all group stage matches are completed
+  const allGroupMatchesCompleted = groupMatches.length > 0 && 
+    groupMatches.every(m => m.status === 'completed')
+  
+  // Only show knockout matches if group stage is complete or if there are no group matches
+  const shouldShowKnockout = groupMatches.length === 0 || allGroupMatchesCompleted
 
   if (isLoading) {
     return (
@@ -483,6 +508,26 @@ export default function TournamentMatchesPage() {
                                   <span className="text-lg font-bold px-4">
                                     {match.score1} - {match.score2}
                                   </span>
+                                ) : match.status === 'pending_confirmation' && (match.team1_submitted_score1 !== null || match.team2_submitted_score1 !== null) ? (
+                                  <div className="flex flex-col items-center px-4">
+                                    <div className="text-sm text-orange-400 mb-1">Venter bekreftelse</div>
+                                    {match.team1_submitted_score1 !== null && (
+                                      <div className="text-xs text-slate-400">
+                                        {match.team1_name}: {match.team1_submitted_score1} - {match.team1_submitted_score2}
+                                      </div>
+                                    )}
+                                    {match.team2_submitted_score1 !== null && (
+                                      <div className="text-xs text-slate-400">
+                                        {match.team2_name}: {match.team2_submitted_score1} - {match.team2_submitted_score2}
+                                      </div>
+                                    )}
+                                    {match.team1_submitted_score1 !== null && match.team2_submitted_score1 !== null && 
+                                     (match.team1_submitted_score1 !== match.team2_submitted_score2 || match.team1_submitted_score2 !== match.team2_submitted_score1) && (
+                                      <div className="text-xs text-red-400 mt-1 font-semibold">
+                                        ⚠️ Resultater matcher ikke!
+                                      </div>
+                                    )}
+                                  </div>
                                 ) : (
                                   <span className="text-slate-500 px-4">vs</span>
                                 )}
@@ -498,8 +543,13 @@ export default function TournamentMatchesPage() {
                                   </span>
                                 )}
                                 <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(match.status)}`}>
-                                  {getStatusText(match.status)}
+                                  {getStatusText(match.status, match)}
                                 </span>
+                                {match.status === 'pending_confirmation' && match.submitted_by && (
+                                  <span className="text-xs text-orange-400 ml-2">
+                                    ({match.submitted_by} har sendt inn: {match.submitted_score1 || match.team1_submitted_score1} - {match.submitted_score2 || match.team1_submitted_score2})
+                                  </span>
+                                )}
                                 <button
                                   onClick={() => startEditing(match)}
                                   className="text-blue-400 hover:text-blue-300"
@@ -520,13 +570,24 @@ export default function TournamentMatchesPage() {
           </div>
         )}
 
-        {/* Knockout Stage Matches */}
-        {knockoutMatches.length > 0 && (
-          <div className="mb-8">
-            <h2 className="text-xl font-bold mb-4 flex items-center space-x-2">
-              <Award className="w-5 h-5" />
-              <span>Sluttspill - Kamper</span>
-            </h2>
+            {/* Knockout Stage Matches */}
+            {knockoutMatches.length > 0 && (
+              <div className="mb-8">
+                <h2 className="text-xl font-bold mb-4 flex items-center space-x-2">
+                  <Award className="w-5 h-5" />
+                  <span>Sluttspill - Kamper</span>
+                </h2>
+                {!shouldShowKnockout && (
+                  <div className="pro11-card p-4 mb-4 bg-yellow-900/20 border border-yellow-600/30">
+                    <p className="text-yellow-400">
+                      ⚠️ Sluttspill vil bli vist når alle gruppespillkamper er ferdig.
+                    </p>
+                    <p className="text-slate-400 text-sm mt-2">
+                      Ferdig: {groupMatches.filter(m => m.status === 'completed').length} / {groupMatches.length} kamper
+                    </p>
+                  </div>
+                )}
+                {shouldShowKnockout && (
             <div className="pro11-card p-4">
               <div className="space-y-3">
                 {Object.entries(
@@ -608,6 +669,26 @@ export default function TournamentMatchesPage() {
                                   <span className="text-lg font-bold px-4">
                                     {match.score1} - {match.score2}
                                   </span>
+                                ) : match.status === 'pending_confirmation' && (match.team1_submitted_score1 !== null || match.team2_submitted_score1 !== null) ? (
+                                  <div className="flex flex-col items-center px-4">
+                                    <div className="text-sm text-orange-400 mb-1">Venter bekreftelse</div>
+                                    {match.team1_submitted_score1 !== null && (
+                                      <div className="text-xs text-slate-400">
+                                        {match.team1_name}: {match.team1_submitted_score1} - {match.team1_submitted_score2}
+                                      </div>
+                                    )}
+                                    {match.team2_submitted_score1 !== null && (
+                                      <div className="text-xs text-slate-400">
+                                        {match.team2_name}: {match.team2_submitted_score1} - {match.team2_submitted_score2}
+                                      </div>
+                                    )}
+                                    {match.team1_submitted_score1 !== null && match.team2_submitted_score1 !== null && 
+                                     (match.team1_submitted_score1 !== match.team2_submitted_score2 || match.team1_submitted_score2 !== match.team2_submitted_score1) && (
+                                      <div className="text-xs text-red-400 mt-1 font-semibold">
+                                        ⚠️ Resultater matcher ikke!
+                                      </div>
+                                    )}
+                                  </div>
                                 ) : (
                                   <span className="text-slate-500 px-4">vs</span>
                                 )}
@@ -623,8 +704,13 @@ export default function TournamentMatchesPage() {
                                   </span>
                                 )}
                                 <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(match.status)}`}>
-                                  {getStatusText(match.status)}
+                                  {getStatusText(match.status, match)}
                                 </span>
+                                {match.status === 'pending_confirmation' && match.submitted_by && (
+                                  <span className="text-xs text-orange-400 ml-2">
+                                    ({match.submitted_by} har sendt inn: {match.submitted_score1 || match.team1_submitted_score1} - {match.submitted_score2 || match.team1_submitted_score2})
+                                  </span>
+                                )}
                                 <button
                                   onClick={() => startEditing(match)}
                                   className="text-blue-400 hover:text-blue-300"
