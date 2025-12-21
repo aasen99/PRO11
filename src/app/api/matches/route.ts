@@ -110,8 +110,15 @@ export async function POST(request: NextRequest) {
       status: status || 'scheduled'
     }
 
-    if (group_name) insertData.group_name = group_name
-    if (scheduled_time) insertData.scheduled_time = scheduled_time
+    // Only include group_name if it's a non-empty string
+    if (group_name && group_name !== 'undefined' && group_name.trim() !== '') {
+      insertData.group_name = group_name
+    }
+    
+    // Only include scheduled_time if it's provided
+    if (scheduled_time && scheduled_time !== 'null' && scheduled_time !== 'undefined') {
+      insertData.scheduled_time = scheduled_time
+    }
 
     console.log('Inserting match with data:', insertData)
 

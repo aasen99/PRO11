@@ -1046,14 +1046,22 @@ PRO11 Team`)
         
         // Lagre alle kamper
         const matchPromises = matches.map(async (match, index) => {
-          const matchData = {
+          const matchData: any = {
             tournament_id: tournamentId,
             team1_name: match.team1,
             team2_name: match.team2,
             round: match.round,
-            group_name: match.group,
-            status: match.status || 'scheduled',
-            scheduled_time: match.time ? new Date(match.time).toISOString() : null
+            status: match.status || 'scheduled'
+          }
+          
+          // Only include group_name if it exists
+          if (match.group) {
+            matchData.group_name = match.group
+          }
+          
+          // Only include scheduled_time if it exists
+          if (match.time) {
+            matchData.scheduled_time = new Date(match.time).toISOString()
           }
           
           console.log(`Saving match ${index + 1}/${matches.length}:`, matchData)
@@ -1065,10 +1073,21 @@ PRO11 Team`)
           })
           
           if (!response.ok) {
-            const error = await response.json()
+            let error
+            try {
+              error = await response.json()
+            } catch (e) {
+              error = { error: 'Failed to parse error response', status: response.status }
+            }
             console.error(`Failed to save match ${index + 1}:`, {
               match: matchData,
-              error: error
+              error: error,
+              status: response.status,
+              statusText: response.statusText,
+              errorMessage: error.error,
+              errorCode: error.code,
+              errorDetails: error.details,
+              fullError: JSON.stringify(error, null, 2)
             })
             return null
           }
