@@ -171,23 +171,40 @@ export default function CaptainDashboardPage() {
             const startDate = new Date(tournament.start_date)
             const endDate = new Date(tournament.end_date)
             
-            return {
-              id: tournament.id,
-              title: tournament.title,
-              status: tournament.status === 'active' ? 'live' : tournament.status === 'completed' ? 'completed' : 'upcoming',
-              startDate: startDate.toLocaleDateString('nb-NO', { day: 'numeric', month: 'long', year: 'numeric' }),
-              endDate: endDate.toLocaleDateString('nb-NO', { day: 'numeric', month: 'long', year: 'numeric' }),
-              position: 0, // TODO: Calculate position from standings
-              totalTeams: tournament.max_teams,
-              matches: t.matches || []
-            }
+              // Filter out knockout matches if group stage is not completed
+              const allMatches = t.matches || []
+              const groupMatches = allMatches.filter((m: Match) => m.round === 'Gruppespill')
+              const knockoutMatches = allMatches.filter((m: Match) => m.round !== 'Gruppespill')
+              
+              // Check if all group stage matches are completed
+              const allGroupMatchesCompleted = groupMatches.length > 0 && 
+                groupMatches.every((m: Match) => m.status === 'completed')
+              
+              // Only show knockout matches if group stage is complete or if there are no group matches
+              const shouldShowKnockout = groupMatches.length === 0 || allGroupMatchesCompleted
+              
+              // Filter matches based on knockout visibility
+              const filteredMatches = shouldShowKnockout 
+                ? allMatches 
+                : allMatches.filter((m: Match) => m.round === 'Gruppespill')
+              
+              return {
+                id: tournament.id,
+                title: tournament.title,
+                status: tournament.status === 'active' ? 'live' : tournament.status === 'completed' ? 'completed' : 'upcoming',
+                startDate: startDate.toLocaleDateString('nb-NO', { day: 'numeric', month: 'long', year: 'numeric' }),
+                endDate: endDate.toLocaleDateString('nb-NO', { day: 'numeric', month: 'long', year: 'numeric' }),
+                position: 0, // TODO: Calculate position from standings
+                totalTeams: tournament.max_teams,
+                matches: filteredMatches
+              }
           })
           
           setTournaments(transformedTournaments)
           
           // Beregn lagstatistikk (foreløpig tom siden vi ikke har matches)
           const stats = calculateTeamStats(transformedTournaments, parsedTeam.teamName)
-          setTeamStats(stats)
+      setTeamStats(stats)
         } catch (error) {
           console.error('Error loading tournaments:', error)
           setTournaments([])
@@ -554,7 +571,18 @@ export default function CaptainDashboardPage() {
               <h2 className="text-xl font-bold mb-4">Hurtig-handlinger</h2>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {tournaments.filter(t => t.status === 'live').map(tournament => {
-                  const pendingMatches = tournament.matches.filter(m => 
+                  // Filter out knockout matches if group stage is not completed
+                  const groupMatches = tournament.matches.filter(m => m.round === 'Gruppespill')
+                  const allGroupMatchesCompleted = groupMatches.length > 0 && 
+                    groupMatches.every(m => m.status === 'completed')
+                  const shouldShowKnockout = groupMatches.length === 0 || allGroupMatchesCompleted
+                  
+                  // Filter matches based on knockout visibility
+                  const visibleMatches = shouldShowKnockout 
+                    ? tournament.matches 
+                    : tournament.matches.filter(m => m.round === 'Gruppespill')
+                  
+                  const pendingMatches = visibleMatches.filter(m => 
                     m.canSubmitResult || m.canConfirmResult
                   )
                   return (
@@ -718,7 +746,19 @@ export default function CaptainDashboardPage() {
           </div>
 
           {/* Current Tournaments */}
-          {tournaments.filter(t => t.status === 'live' || t.status === 'upcoming' || t.status === 'completed').map(tournament => (
+          {tournaments.filter(t => t.status === 'live' || t.status === 'upcoming' || t.status === 'completed').map(tournament => {
+            // Filter out knockout matches if group stage is not completed
+            const groupMatches = tournament.matches.filter(m => m.round === 'Gruppespill')
+            const allGroupMatchesCompleted = groupMatches.length > 0 && 
+              groupMatches.every(m => m.status === 'completed')
+            const shouldShowKnockout = groupMatches.length === 0 || allGroupMatchesCompleted
+            
+            // Filter matches based on knockout visibility
+            const visibleMatches = shouldShowKnockout 
+              ? tournament.matches 
+              : tournament.matches.filter(m => m.round === 'Gruppespill')
+            
+            return (
             <div key={tournament.id} className="pro11-card p-6 mb-6">
               <div className="flex items-center justify-between mb-4">
                 <div>
@@ -738,7 +778,17 @@ export default function CaptainDashboardPage() {
 
               {/* Matches */}
               <div className="space-y-3">
-                {tournament.matches.map(match => (
+                {!shouldShowKnockout && groupMatches.length > 0 && (
+                  <div className="p-4 mb-4 bg-yellow-900/20 border border-yellow-600/30 rounded-lg">
+                    <p className="text-yellow-400 text-sm">
+                      ⚠️ Sluttspillkamper vil bli vist når alle gruppespillkamper er ferdig.
+                    </p>
+                    <p className="text-slate-400 text-xs mt-1">
+                      Ferdig: {groupMatches.filter(m => m.status === 'completed').length} / {groupMatches.length} kamper
+                    </p>
+                  </div>
+                )}
+                {visibleMatches.map(match => (
                   <div key={match.id} className="flex items-center justify-between p-3 bg-slate-800/50 rounded-lg">
                     <div className="flex-1">
                       <div className="flex items-center space-x-4">
