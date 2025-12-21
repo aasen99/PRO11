@@ -649,9 +649,34 @@ export default function TournamentMatchesPage() {
           <div className="pro11-card p-8 text-center">
             <p className="text-slate-400 mb-2">Ingen kamper er generert for denne turneringen ennå.</p>
             <p className="text-slate-500 text-sm mb-4">Tournament ID: {tournamentId}</p>
-            <Link href="/admin" className="pro11-button mt-4 inline-block">
-              Gå til admin panel
-            </Link>
+            <div className="flex gap-4 justify-center mt-4">
+              <button
+                onClick={async () => {
+                  setIsLoading(true)
+                  try {
+                    const matchesResponse = await fetch(`/api/matches?tournament_id=${tournamentId}`)
+                    if (matchesResponse.ok) {
+                      const matchesData = await matchesResponse.json()
+                      setMatches(matchesData.matches || [])
+                      if (matchesData.matches && matchesData.matches.length > 0) {
+                        const standings = calculateGroupStandings(matchesData.matches)
+                        setGroupStandings(standings)
+                      }
+                    }
+                  } catch (error) {
+                    console.error('Error refreshing matches:', error)
+                  } finally {
+                    setIsLoading(false)
+                  }
+                }}
+                className="pro11-button-secondary"
+              >
+                Oppdater kamper
+              </button>
+              <Link href="/admin" className="pro11-button">
+                Gå til admin panel
+              </Link>
+            </div>
           </div>
         )}
       </main>
