@@ -734,7 +734,7 @@ export default function TournamentMatchesPage() {
                 ))}
               </div>
               </div>
-                )}
+                ) : null}
               </div>
             )}
 
