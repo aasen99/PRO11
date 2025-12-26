@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react'
 import Link from 'next/link'
 import { useParams } from 'next/navigation'
-import { ArrowLeft, Trophy, Users, Calendar, Award, Edit, Save, X } from 'lucide-react'
+import { ArrowLeft, Trophy, Users, Calendar, Award, Edit, Save, X, RefreshCw } from 'lucide-react'
 import { ToastContainer } from '@/components/Toast'
 import type { ToastType } from '@/components/Toast'
 
@@ -435,6 +435,75 @@ export default function TournamentMatchesPage() {
               </p>
             </div>
           </div>
+          <button
+            onClick={async () => {
+              if (!confirm('Dette vil oppdatere rundenavn for alle sluttspillkamper basert på antall lag. Fortsette?')) {
+                return
+              }
+              
+              try {
+                // Count unique teams in knockout matches
+                const knockoutMatches = matches.filter(m => m.round !== 'Gruppespill')
+                const uniqueTeams = new Set<string>()
+                knockoutMatches.forEach(m => {
+                  uniqueTeams.add(m.team1_name)
+                  uniqueTeams.add(m.team2_name)
+                })
+                const numTeams = uniqueTeams.size
+                
+                // Determine correct round name
+                const getRoundName = (num: number): string => {
+                  if (num === 2) return 'Finale'
+                  if (num === 4) return 'Semifinaler'
+                  if (num === 8) return 'Kvartfinaler'
+                  if (num > 8) return 'Kvartfinaler'
+                  if (num > 4) return 'Semifinaler'
+                  return 'Sluttspill'
+                }
+                
+                const correctRoundName = getRoundName(numTeams)
+                
+                // Update all knockout matches that have wrong round name
+                const matchesToUpdate = knockoutMatches.filter(m => m.round === 'Sluttspill' || m.round !== correctRoundName)
+                
+                if (matchesToUpdate.length === 0) {
+                  alert('Alle kamper har allerede riktig rundenavn!')
+                  return
+                }
+                
+                // Update each match
+                let updated = 0
+                for (const match of matchesToUpdate) {
+                  const response = await fetch('/api/matches', {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                      id: match.id,
+                      round: correctRoundName
+                    })
+                  })
+                  
+                  if (response.ok) {
+                    updated++
+                  }
+                }
+                
+                if (updated > 0) {
+                  alert(`Oppdaterte ${updated} kamper med rundenavn: ${correctRoundName}`)
+                  await loadData()
+                } else {
+                  alert('Kunne ikke oppdatere kamper. Prøv igjen.')
+                }
+              } catch (error) {
+                console.error('Error updating round names:', error)
+                alert('Noe gikk galt ved oppdatering av rundenavn.')
+              }
+            }}
+            className="pro11-button-secondary flex items-center space-x-2"
+          >
+            <RefreshCw className="w-4 h-4" />
+            <span>Oppdater rundenavn</span>
+          </button>
         </div>
       </header>
 

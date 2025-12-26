@@ -282,6 +282,7 @@ export async function PUT(request: NextRequest) {
       if (score2 !== undefined) {
         updateData.score2 = score2
       }
+      if (body.round !== undefined) updateData.round = body.round
       if (submitted_by !== undefined) updateData.submitted_by = submitted_by
       if (submitted_score1 !== undefined) updateData.submitted_score1 = submitted_score1
       if (submitted_score2 !== undefined) updateData.submitted_score2 = submitted_score2
