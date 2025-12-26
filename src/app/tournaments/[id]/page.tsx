@@ -500,18 +500,48 @@ export default function TournamentDetailPage() {
                  )
                }
                
+               // Sort rounds in order: Kvartfinaler -> Semifinaler -> Finale
+               const roundOrder: Record<string, number> = {
+                 'Kvartfinaler': 1,
+                 'Semifinaler': 2,
+                 'Finale': 3,
+                 'Sluttspill': 0 // Generic fallback
+               }
+               
+               const sortedRounds = Object.entries(matchesByRound).sort(([a], [b]) => {
+                 const orderA = roundOrder[a] ?? 999
+                 const orderB = roundOrder[b] ?? 999
+                 return orderA - orderB
+               })
+               
                return (
-                 <div className="space-y-6">
-                   {Object.entries(matchesByRound).map(([roundName, roundMatches]) => {
+                 <div className="space-y-8">
+                   {sortedRounds.map(([roundName, roundMatches]) => {
                      const typedRoundMatches = roundMatches as any[]
+                     
+                     // Get color based on round
+                     const getRoundColor = (round: string) => {
+                       if (round.includes('Kvartfinal')) return 'text-blue-400 border-blue-500'
+                       if (round.includes('Semifinal')) return 'text-green-400 border-green-500'
+                       if (round.includes('Finale')) return 'text-yellow-400 border-yellow-500'
+                       return 'text-purple-400 border-purple-500'
+                     }
+                     
+                     const roundColor = getRoundColor(roundName)
+                     
                      return (
                      <div key={roundName} className="pro11-card p-6">
-                       <h3 className="text-xl font-bold mb-4 flex items-center space-x-2">
-                         <Trophy className="w-5 h-5" />
-                         <span>{roundName}</span>
-                       </h3>
+                       <div className={`border-l-4 ${roundColor.split(' ')[1]} pl-4 mb-6`}>
+                         <h3 className={`text-2xl font-bold mb-2 flex items-center space-x-3 ${roundColor.split(' ')[0]}`}>
+                           <Trophy className="w-6 h-6" />
+                           <span>{roundName}</span>
+                         </h3>
+                         <p className="text-slate-400 text-sm">
+                           {typedRoundMatches.length} {typedRoundMatches.length === 1 ? 'kamp' : 'kamper'}
+                         </p>
+                       </div>
                        <div className="space-y-3">
-                         {typedRoundMatches.map((match: any) => {
+                         {typedRoundMatches.map((match: any, index: number) => {
                            const matchDate = match.scheduled_time 
                              ? new Date(match.scheduled_time).toLocaleDateString('nb-NO', { day: 'numeric', month: 'numeric', year: 'numeric' })
                              : ''
@@ -522,9 +552,12 @@ export default function TournamentDetailPage() {
                            return (
                              <div 
                                key={match.id} 
-                               className="flex items-center justify-between p-4 bg-slate-800/50 rounded-lg"
+                               className="flex items-center justify-between p-4 bg-slate-800/50 rounded-lg border border-slate-700/50"
                              >
                                <div className="flex-1 flex items-center space-x-4">
+                                 <div className="text-xs text-slate-500 font-medium w-8 text-center">
+                                   {index + 1}
+                                 </div>
                                  <span className="font-medium w-32 text-right">{match.team1_name}</span>
                                  {match.status === 'completed' && match.score1 !== undefined && match.score2 !== undefined ? (
                                    <span className="text-2xl font-bold px-4">
@@ -541,9 +574,10 @@ export default function TournamentDetailPage() {
                                </div>
                                <div className="flex items-center space-x-3">
                                  {matchDate && matchTime && (
-                                   <span className="text-xs text-slate-400">
-                                     {matchDate} {matchTime}
-                                   </span>
+                                   <div className="text-right">
+                                     <div className="text-xs text-slate-400">{matchDate}</div>
+                                     <div className="text-xs text-slate-500">{matchTime}</div>
+                                   </div>
                                  )}
                                  <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${
                                    match.status === 'completed' ? 'bg-green-600' :
