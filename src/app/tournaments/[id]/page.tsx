@@ -53,6 +53,8 @@ export default function TournamentDetailPage() {
 
   const [tournament, setTournament] = useState<any>(null)
   const [registeredTeams, setRegisteredTeams] = useState<any[]>([])
+  const [matches, setMatches] = useState<any[]>([])
+  const [groupStandings, setGroupStandings] = useState<Record<string, Team[]>>({})
   const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
@@ -79,25 +81,118 @@ export default function TournamentDetailPage() {
         console.warn('Error loading teams:', error)
       }
     }
+    
+    const loadMatches = async () => {
+      try {
+        const response = await fetch(`/api/matches?tournament_id=${tournamentId}`)
+        if (response.ok) {
+          const data = await response.json()
+          const loadedMatches = data.matches || []
+          setMatches(loadedMatches)
+          
+          // Calculate group standings from actual match results
+          const standings = calculateGroupStandings(loadedMatches)
+          setGroupStandings(standings)
+        }
+      } catch (error) {
+        console.warn('Error loading matches:', error)
+      }
+    }
+    
     if (tournamentId) {
       loadTeams()
+      loadMatches()
     }
   }, [tournamentId])
 
-  // Generate standings from registered teams (minimum 2 teams required)
-  const standings: Team[] = registeredTeams.length >= 2 
-    ? registeredTeams.map((team: any, index: number) => ({
-        id: team.id,
-        name: team.teamName || team.team_name,
-        played: 0,
-        won: 0,
-        drawn: 0,
-        lost: 0,
-        goalsFor: 0,
-        goalsAgainst: 0,
-        points: 0
-      }))
-    : []
+  // Calculate group standings from actual match results (same logic as admin)
+  const calculateGroupStandings = (allMatches: any[]): Record<string, Team[]> => {
+    const standings: Record<string, Record<string, Team>> = {}
+    
+    // Initialize standings for all teams from matches
+    allMatches.forEach(match => {
+      if (match.group_name && match.round === 'Gruppespill') {
+        if (!standings[match.group_name]) {
+          standings[match.group_name] = {}
+        }
+        
+        if (!standings[match.group_name][match.team1_name]) {
+          standings[match.group_name][match.team1_name] = {
+            id: match.team1_name,
+            name: match.team1_name,
+            played: 0,
+            won: 0,
+            drawn: 0,
+            lost: 0,
+            goalsFor: 0,
+            goalsAgainst: 0,
+            points: 0
+          }
+        }
+        
+        if (!standings[match.group_name][match.team2_name]) {
+          standings[match.group_name][match.team2_name] = {
+            id: match.team2_name,
+            name: match.team2_name,
+            played: 0,
+            won: 0,
+            drawn: 0,
+            lost: 0,
+            goalsFor: 0,
+            goalsAgainst: 0,
+            points: 0
+          }
+        }
+      }
+    })
+
+    // Calculate standings from completed matches
+    allMatches.forEach(match => {
+      if (match.group_name && match.round === 'Gruppespill' && match.status === 'completed' && match.score1 !== undefined && match.score2 !== undefined) {
+        const group = standings[match.group_name]
+        const team1 = group[match.team1_name]
+        const team2 = group[match.team2_name]
+
+        if (team1 && team2) {
+          team1.played++
+          team2.played++
+          team1.goalsFor += match.score1
+          team1.goalsAgainst += match.score2
+          team2.goalsFor += match.score2
+          team2.goalsAgainst += match.score1
+
+          if (match.score1 > match.score2) {
+            team1.won++
+            team1.points += 3
+            team2.lost++
+          } else if (match.score2 > match.score1) {
+            team2.won++
+            team2.points += 3
+            team1.lost++
+          } else {
+            team1.drawn++
+            team2.drawn++
+            team1.points += 1
+            team2.points += 1
+          }
+        }
+      }
+    })
+
+    // Convert to arrays and sort
+    const result: Record<string, Team[]> = {}
+    Object.keys(standings).forEach(groupName => {
+      result[groupName] = Object.values(standings[groupName]).sort((a, b) => {
+        if (b.points !== a.points) return b.points - a.points
+        const aDiff = a.goalsFor - a.goalsAgainst
+        const bDiff = b.goalsFor - b.goalsAgainst
+        if (bDiff !== aDiff) return bDiff - aDiff
+        return b.goalsFor - a.goalsFor
+      })
+    })
+
+    return result
+  }
 
   if (isLoading || !tournament) {
     return (
@@ -107,39 +202,19 @@ export default function TournamentDetailPage() {
     )
   }
 
-  // Generate matches from registered teams
-  const generateMatches = () => {
-    if (registeredTeams.length < 2) {
-      // No matches if not enough teams
-      return []
-    }
-
-    // Generate matches from actual registered teams
-    const teamNames = registeredTeams.map((team: any) => team.teamName || team.team_name)
-    const matches: Match[] = []
-    let matchId = 1
-
-    // Generate group stage matches (round-robin)
-    for (let i = 0; i < teamNames.length; i++) {
-      for (let j = i + 1; j < teamNames.length; j++) {
-        matches.push({
-          id: `match-${matchId++}`,
-          homeTeam: teamNames[i],
-          awayTeam: teamNames[j],
-          homeScore: null,
-          awayScore: null,
-          date: '15.09.2025',
-          time: '19:00',
-          status: 'scheduled',
-          group: 'A'
-        })
-      }
-    }
-
-    return matches
-  }
-
-  const matches = generateMatches()
+  // Transform database matches to display format
+  const displayMatches: Match[] = matches.map((m: any) => ({
+    id: m.id,
+    homeTeam: m.team1_name,
+    awayTeam: m.team2_name,
+    homeScore: m.score1 ?? null,
+    awayScore: m.score2 ?? null,
+    date: m.scheduled_time ? new Date(m.scheduled_time).toLocaleDateString('nb-NO', { day: 'numeric', month: 'numeric', year: 'numeric' }) : '',
+    time: m.scheduled_time ? new Date(m.scheduled_time).toLocaleTimeString('nb-NO', { hour: '2-digit', minute: '2-digit' }) : '',
+    status: m.status === 'completed' ? 'completed' : m.status === 'live' ? 'live' : 'scheduled',
+    group: m.group_name || undefined,
+    round: m.round || undefined
+  }))
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -262,46 +337,65 @@ export default function TournamentDetailPage() {
 
             {activeTab === 'standings' && (
               <div>
-                {standings.length >= 2 ? (
-                  <div className="overflow-x-auto">
-                    <table className="w-full">
-                      <thead>
-                        <tr className="border-b border-slate-700">
-                          <th className="text-left p-3">Pos</th>
-                          <th className="text-left p-3">Lag</th>
-                          <th className="text-center p-3">K</th>
-                          <th className="text-center p-3">V</th>
-                          <th className="text-center p-3">U</th>
-                          <th className="text-center p-3">T</th>
-                          <th className="text-center p-3">M+</th>
-                          <th className="text-center p-3">M-</th>
-                          <th className="text-center p-3">P</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {standings.map((team, index) => (
-                          <tr key={team.id} className="border-b border-slate-700 hover:bg-slate-700/30">
-                            <td className="p-3 font-semibold">{index + 1}</td>
-                            <td className="p-3 font-medium">{team.name}</td>
-                            <td className="p-3 text-center">{team.played}</td>
-                            <td className="p-3 text-center">{team.won}</td>
-                            <td className="p-3 text-center">{team.drawn}</td>
-                            <td className="p-3 text-center">{team.lost}</td>
-                            <td className="p-3 text-center">{team.goalsFor}</td>
-                            <td className="p-3 text-center">{team.goalsAgainst}</td>
-                            <td className="p-3 text-center font-bold">{team.points}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
+                {Object.keys(groupStandings).length > 0 ? (
+                  <div className="grid md:grid-cols-2 gap-4">
+                    {Object.entries(groupStandings).map(([groupName, standings]) => (
+                      <div key={groupName} className="pro11-card p-4">
+                        <h3 className="font-semibold mb-3 text-lg">{groupName}</h3>
+                        <div className="overflow-x-auto">
+                          <table className="w-full text-sm">
+                            <thead>
+                              <tr className="border-b border-slate-700">
+                                <th className="text-left py-2 px-2">Pos</th>
+                                <th className="text-left py-2 px-2">Lag</th>
+                                <th className="text-center py-2 px-2">K</th>
+                                <th className="text-center py-2 px-2">V</th>
+                                <th className="text-center py-2 px-2">U</th>
+                                <th className="text-center py-2 px-2">T</th>
+                                <th className="text-center py-2 px-2">M+</th>
+                                <th className="text-center py-2 px-2">M-</th>
+                                <th className="text-center py-2 px-2 font-bold">P</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {standings.map((team, index) => (
+                                <tr 
+                                  key={team.id} 
+                                  className={`border-b border-slate-700/50 ${
+                                    index < 2 ? 'bg-green-900/20' : ''
+                                  }`}
+                                >
+                                  <td className="py-2 px-2 font-semibold">{index + 1}</td>
+                                  <td className="py-2 px-2 font-medium">{team.name}</td>
+                                  <td className="text-center py-2 px-2">{team.played}</td>
+                                  <td className="text-center py-2 px-2 text-green-400">{team.won}</td>
+                                  <td className="text-center py-2 px-2 text-yellow-400">{team.drawn}</td>
+                                  <td className="text-center py-2 px-2 text-red-400">{team.lost}</td>
+                                  <td className="text-center py-2 px-2">{team.goalsFor}</td>
+                                  <td className="text-center py-2 px-2">{team.goalsAgainst}</td>
+                                  <td className="text-center py-2 px-2 font-bold text-blue-400">{team.points}</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : matches.length > 0 ? (
+                  <div className="text-center py-12">
+                    <div className="text-slate-400 mb-4">
+                      <Trophy className="w-16 h-16 mx-auto mb-4 opacity-50" />
+                      <h3 className="text-xl font-semibold mb-2">Ingen gruppespillkamper ferdig ennå</h3>
+                      <p>Tabellen vil vises når kamper er spilt og resultater er registrert.</p>
+                    </div>
                   </div>
                 ) : (
                   <div className="text-center py-12">
                     <div className="text-slate-400 mb-4">
                       <Trophy className="w-16 h-16 mx-auto mb-4 opacity-50" />
-                      <h3 className="text-xl font-semibold mb-2">Ikke nok lag registrert</h3>
-                      <p>Det må være minst 2 godkjente lag for å vise tabell.</p>
-                      <p className="text-sm mt-2">Antall registrerte lag: {registeredTeams.length}</p>
+                      <h3 className="text-xl font-semibold mb-2">Ingen kamper generert</h3>
+                      <p>Kamper må genereres før tabellen kan vises.</p>
                     </div>
                   </div>
                 )}
@@ -310,9 +404,9 @@ export default function TournamentDetailPage() {
 
             {activeTab === 'matches' && (
               <div>
-                {matches.length > 0 ? (
+                {displayMatches.length > 0 ? (
                   <div className="space-y-4">
-                    {matches.map(match => (
+                    {displayMatches.map(match => (
                   <div key={match.id} className="pro11-card p-4">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center space-x-4 flex-1">
