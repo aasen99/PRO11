@@ -455,94 +455,116 @@ export default function TournamentDetailPage() {
               </div>
             )}
 
-             {activeTab === 'bracket' && (
-               <div>
-                 {registeredTeams.length >= 2 ? (
-                   <div className="flex justify-center">
-                     <div className="w-full max-w-5xl">
-                       {/* Bracket Container */}
-                       <div className="bg-slate-800/50 rounded-lg p-6">
-                         
-                         {/* Quarter Finals Row */}
-                         <div className="flex justify-between mb-12">
-                           <h3 className="text-lg font-semibold text-center w-52">Kvartfinaler</h3>
-                           <h3 className="text-lg font-semibold text-center w-56">Semifinaler</h3>
-                           <h3 className="text-lg font-semibold text-center w-52">Kvartfinaler</h3>
-                         </div>
-                         <div className="flex justify-between mb-12">
-                           {/* Left Quarter Finals */}
-                           <div className="flex flex-col space-y-6 w-52">
-                             {registeredTeams.slice(0, 2).map((team: any, index: number) => (
-                               <div key={team.id} className="pro11-card p-4 text-center">
-                                 <div className="text-sm font-medium">{team.teamName || team.team_name}</div>
-                                 <div className="text-xl font-bold text-blue-400">vs</div>
-                                 <div className="text-sm font-medium">Motstander</div>
-                               </div>
-                             ))}
-                           </div>
-                           
-                           {/* Semi Finals in Center */}
-                           <div className="flex flex-col justify-center space-y-6 w-56">
-                             {registeredTeams.slice(0, 2).map((team: any, index: number) => (
-                               <div key={`semi-${team.id}`} className="pro11-card p-5 text-center">
-                                 <div className="text-base font-medium">{team.teamName || team.team_name}</div>
-                                 <div className="text-xl font-bold text-green-400">vs</div>
-                                 <div className="text-base font-medium">Motstander</div>
-                               </div>
-                             ))}
-                           </div>
-                           
-                           {/* Right Quarter Finals */}
-                           <div className="flex flex-col space-y-6 w-52">
-                             {registeredTeams.slice(2, 4).map((team: any, index: number) => (
-                               <div key={`q2-${team.id}`} className="pro11-card p-4 text-center">
-                                 <div className="text-sm font-medium">{team.teamName || team.team_name}</div>
-                                 <div className="text-xl font-bold text-blue-400">vs</div>
-                                 <div className="text-sm font-medium">Motstander</div>
-                               </div>
-                             ))}
-                           </div>
-                         </div>
-                         
-                         {/* Final Row */}
-                         <div className="flex justify-center mb-4">
-                           <h3 className="text-lg font-semibold text-center">Finale</h3>
-                         </div>
-                         <div className="flex justify-center mb-12">
-                           <div className="pro11-card p-6 text-center w-72">
-                             <div className="text-lg font-medium">Finalist 1</div>
-                             <div className="text-3xl font-bold text-yellow-400 my-3">vs</div>
-                             <div className="text-lg font-medium">Finalist 2</div>
-                             <div className="text-sm text-slate-400 mt-3">27.09.2025 19:00</div>
-                           </div>
-                         </div>
-                         
-                         {/* Winner */}
-                         <div className="flex justify-center mb-4">
-                           <h3 className="text-lg font-semibold text-center">Vinner</h3>
-                         </div>
-                         <div className="flex justify-center">
-                           <div className="pro11-card p-6 text-center w-56">
-                             <div className="text-4xl mb-3">🏆</div>
-                             <div className="text-lg font-medium">TBD</div>
-                             <div className="text-sm text-slate-400 mt-2">{tournament.prize}</div>
-                           </div>
-                         </div>
-                       </div>
-                     </div>
-                   </div>
-                 ) : (
+             {activeTab === 'bracket' && (() => {
+               // Filter knockout matches (not group stage)
+               const knockoutMatches = matches.filter((m: any) => m.round && m.round !== 'Gruppespill')
+               
+               // Group matches by round
+               const matchesByRound = knockoutMatches.reduce((acc: any, match: any) => {
+                 const round = match.round || 'Ukjent runde'
+                 if (!acc[round]) acc[round] = []
+                 acc[round].push(match)
+                 return acc
+               }, {} as Record<string, any[]>)
+               
+               // Check if group stage is complete (only show knockout if group stage is done or no group matches)
+               const groupMatches = matches.filter((m: any) => m.round === 'Gruppespill')
+               const allGroupMatchesCompleted = groupMatches.length > 0 && 
+                 groupMatches.every((m: any) => m.status === 'completed')
+               const shouldShowKnockout = groupMatches.length === 0 || allGroupMatchesCompleted
+               
+               if (!shouldShowKnockout && groupMatches.length > 0) {
+                 return (
                    <div className="text-center py-12">
                      <div className="text-slate-400 mb-4">
                        <Trophy className="w-16 h-16 mx-auto mb-4 opacity-50" />
-                       <h3 className="text-xl font-semibold mb-2">Ingen sluttspill tilgjengelig</h3>
-                       <p>Det må være minst 2 godkjente lag for å vise sluttspill.</p>
-                       <p className="text-sm mt-2">Antall registrerte lag: {registeredTeams.length}</p>
+                       <h3 className="text-xl font-semibold mb-2">Sluttspill ikke tilgjengelig ennå</h3>
+                       <p>Sluttspill vil bli vist når alle gruppespillkamper er ferdig.</p>
+                       <p className="text-sm mt-2">
+                         Ferdig: {groupMatches.filter((m: any) => m.status === 'completed').length} / {groupMatches.length} kamper
+                       </p>
                      </div>
                    </div>
-                 )}
-               </div>
-             )}
+                 )
+               }
+               
+               if (knockoutMatches.length === 0) {
+                 return (
+                   <div className="text-center py-12">
+                     <div className="text-slate-400 mb-4">
+                       <Trophy className="w-16 h-16 mx-auto mb-4 opacity-50" />
+                       <h3 className="text-xl font-semibold mb-2">Ingen sluttspillkamper generert</h3>
+                       <p>Sluttspillkamper må genereres før de kan vises.</p>
+                     </div>
+                   </div>
+                 )
+               }
+               
+               return (
+                 <div className="space-y-6">
+                   {Object.entries(matchesByRound).map(([roundName, roundMatches]) => {
+                     const typedRoundMatches = roundMatches as any[]
+                     return (
+                     <div key={roundName} className="pro11-card p-6">
+                       <h3 className="text-xl font-bold mb-4 flex items-center space-x-2">
+                         <Trophy className="w-5 h-5" />
+                         <span>{roundName}</span>
+                       </h3>
+                       <div className="space-y-3">
+                         {typedRoundMatches.map((match: any) => {
+                           const matchDate = match.scheduled_time 
+                             ? new Date(match.scheduled_time).toLocaleDateString('nb-NO', { day: 'numeric', month: 'numeric', year: 'numeric' })
+                             : ''
+                           const matchTime = match.scheduled_time 
+                             ? new Date(match.scheduled_time).toLocaleTimeString('nb-NO', { hour: '2-digit', minute: '2-digit' })
+                             : ''
+                           
+                           return (
+                             <div 
+                               key={match.id} 
+                               className="flex items-center justify-between p-4 bg-slate-800/50 rounded-lg"
+                             >
+                               <div className="flex-1 flex items-center space-x-4">
+                                 <span className="font-medium w-32 text-right">{match.team1_name}</span>
+                                 {match.status === 'completed' && match.score1 !== undefined && match.score2 !== undefined ? (
+                                   <span className="text-2xl font-bold px-4">
+                                     {match.score1} - {match.score2}
+                                   </span>
+                                 ) : match.status === 'live' && match.score1 !== undefined && match.score2 !== undefined ? (
+                                   <span className="text-2xl font-bold text-red-400 px-4">
+                                     {match.score1} - {match.score2}
+                                   </span>
+                                 ) : (
+                                   <span className="text-slate-500 px-4">vs</span>
+                                 )}
+                                 <span className="font-medium w-32">{match.team2_name}</span>
+                               </div>
+                               <div className="flex items-center space-x-3">
+                                 {matchDate && matchTime && (
+                                   <span className="text-xs text-slate-400">
+                                     {matchDate} {matchTime}
+                                   </span>
+                                 )}
+                                 <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${
+                                   match.status === 'completed' ? 'bg-green-600' :
+                                   match.status === 'live' ? 'bg-red-600' :
+                                   'bg-slate-600'
+                                 }`}>
+                                   {match.status === 'completed' ? 'Ferdig' :
+                                    match.status === 'live' ? 'LIVE' :
+                                    'Planlagt'}
+                                 </span>
+                               </div>
+                             </div>
+                           )
+                         })}
+                       </div>
+                     </div>
+                     )
+                   })}
+                 </div>
+               )
+             })()}
 
              {activeTab === 'info' && (
               <div className="space-y-6">
