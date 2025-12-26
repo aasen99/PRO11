@@ -983,6 +983,45 @@ PRO11 Team`)
     return matches
   }
 
+  // Generate knockout bracket with proper round names (Kvartfinaler, Semifinaler, Finale)
+  // Only generates the first round - later rounds should be generated when previous round is complete
+  const generateKnockoutBracket = (teams: string[]): Match[] => {
+    const shuffledTeams = shuffleArray(teams)
+    const matches: Match[] = []
+    let matchIdCounter = 1
+    
+    // Determine round name based on number of teams
+    const getRoundName = (numTeams: number): string => {
+      if (numTeams === 2) return 'Finale'
+      if (numTeams === 4) return 'Semifinaler'
+      if (numTeams === 8) return 'Kvartfinaler'
+      if (numTeams > 8) return 'Kvartfinaler'
+      if (numTeams > 4) return 'Semifinaler'
+      return 'Sluttspill'
+    }
+    
+    const roundName = getRoundName(shuffledTeams.length)
+    
+    // Generate matches for first round only
+    for (let i = 0; i < shuffledTeams.length; i += 2) {
+      if (i + 1 < shuffledTeams.length) {
+        matches.push({
+          id: `match-${Date.now()}-${matchIdCounter++}`,
+          team1: shuffledTeams[i],
+          team2: shuffledTeams[i + 1],
+          round: roundName,
+          status: 'scheduled'
+        })
+      } else {
+        // Odd number of teams - last team gets a bye (advances automatically)
+        // We could create a "bye" match, but for now we'll skip it
+        // The team will need to be manually added to next round
+      }
+    }
+    
+    return matches
+  }
+
   const autoGenerateMatches = (tournamentId: string) => {
     const tournament = tournaments.find(t => t.id === tournamentId)
     if (!tournament) {
@@ -1019,7 +1058,8 @@ PRO11 Team`)
         knockoutTeams = groups.flatMap(group => group.slice(0, 2)) // Top 2 fra hver gruppe
       }
       
-      const knockoutMatches = generateKnockoutMatches(knockoutTeams, 'Sluttspill')
+      // Generate knockout bracket with proper round names (Kvartfinaler, Semifinaler, Finale)
+      const knockoutMatches = generateKnockoutBracket(knockoutTeams)
       matches = [...matches, ...knockoutMatches]
     }
 
