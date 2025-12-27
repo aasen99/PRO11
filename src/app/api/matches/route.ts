@@ -279,6 +279,11 @@ export async function PUT(request: NextRequest) {
       if (score2 !== undefined) {
         updateData.score2 = score2
       }
+      
+      // If both scores are set and status is not explicitly set, mark as completed
+      if (score1 !== undefined && score2 !== undefined && !status) {
+        updateData.status = 'completed'
+      }
       if (body.round !== undefined) updateData.round = body.round
       if (submitted_by !== undefined) updateData.submitted_by = submitted_by
       if (submitted_score1 !== undefined) updateData.submitted_score1 = submitted_score1
@@ -327,12 +332,12 @@ export async function PUT(request: NextRequest) {
         const currentRound = match.round
         const roundMatches = allMatches.filter((m: any) => m.round === currentRound && m.round !== 'Gruppespill')
         
-        // Check if all matches in round are completed (have scores or status = completed)
+        // Check if all matches in round are completed (have scores AND status = completed)
         const allRoundMatchesCompleted = roundMatches.length > 0 && 
           roundMatches.every((m: any) => {
             const hasScores = m.score1 !== null && m.score1 !== undefined && 
                             m.score2 !== null && m.score2 !== undefined
-            return m.status === 'completed' || hasScores
+            return m.status === 'completed' && hasScores
           })
         
         if (allRoundMatchesCompleted) {
@@ -349,14 +354,11 @@ export async function PUT(request: NextRequest) {
             // Get winners from completed matches
             const winners: string[] = []
             roundMatches.forEach((m: any) => {
-              // Check if match has scores (either from status or direct score update)
-              const score1 = m.score1 !== null && m.score1 !== undefined ? m.score1 : updateData.score1
-              const score2 = m.score2 !== null && m.score2 !== undefined ? m.score2 : updateData.score2
-              
-              if (score1 !== null && score1 !== undefined && score2 !== null && score2 !== undefined) {
-                if (score1 > score2) {
+              if (m.status === 'completed' && m.score1 !== null && m.score1 !== undefined && 
+                  m.score2 !== null && m.score2 !== undefined) {
+                if (m.score1 > m.score2) {
                   winners.push(m.team1_name)
-                } else if (score2 > score1) {
+                } else if (m.score2 > m.score1) {
                   winners.push(m.team2_name)
                 } else {
                   // Draw - use team1 as winner (could be improved with penalty shootout logic)
