@@ -260,9 +260,6 @@ export async function PUT(request: NextRequest) {
           // Results don't match - wait for admin review
           updateData.status = 'pending_confirmation'
         }
-      } else {
-        // Only one team has submitted - wait for the other team
-        updateData.status = 'pending_confirmation'
       }
     } else {
       // Admin or direct update (not team submission)
@@ -307,6 +304,88 @@ export async function PUT(request: NextRequest) {
     if (error) {
       console.error('Database error:', error)
       return NextResponse.json({ error: 'Failed to update match: ' + error.message }, { status: 400 })
+    }
+
+    // If match was completed, check if we need to generate next round
+    if (match && (updateData.status === 'completed' || match.status === 'completed')) {
+      // Get all matches for this tournament
+      const { data: allMatches, error: matchesError } = await supabase
+        .from('matches')
+        .select('*')
+        .eq('tournament_id', match.tournament_id) as { data: any[] | null, error: any }
+      
+      if (!matchesError && allMatches && Array.isArray(allMatches)) {
+        // Check if all matches in current round are completed
+        const currentRound = match.round
+        const roundMatches = allMatches.filter((m: any) => m.round === currentRound && m.round !== 'Gruppespill')
+        const allRoundMatchesCompleted = roundMatches.length > 0 && 
+          roundMatches.every((m: any) => m.status === 'completed')
+        
+        if (allRoundMatchesCompleted) {
+          // Determine next round and winners
+          const getNextRoundName = (currentRound: string): string | null => {
+            if (currentRound === 'Kvartfinaler') return 'Semifinaler'
+            if (currentRound === 'Semifinaler') return 'Finale'
+            return null // No next round
+          }
+          
+          const nextRoundName = getNextRoundName(currentRound)
+          
+          if (nextRoundName) {
+            // Get winners from completed matches
+            const winners: string[] = []
+            roundMatches.forEach((m: any) => {
+              if (m.status === 'completed' && m.score1 !== undefined && m.score2 !== undefined) {
+                if (m.score1 > m.score2) {
+                  winners.push(m.team1_name)
+                } else if (m.score2 > m.score1) {
+                  winners.push(m.team2_name)
+                } else {
+                  // Draw - use team1 as winner (could be improved with penalty shootout logic)
+                  winners.push(m.team1_name)
+                }
+              }
+            })
+            
+            // Check if next round matches already exist
+            const { data: existingNextRoundMatches, error: nextRoundError } = await supabase
+              .from('matches')
+              .select('*')
+              .eq('tournament_id', match.tournament_id)
+              .eq('round', nextRoundName)
+            
+            // Only generate if next round doesn't exist yet
+            if (!nextRoundError && (!existingNextRoundMatches || existingNextRoundMatches.length === 0)) {
+              // Generate matches for next round
+              const nextRoundMatches: any[] = []
+              for (let i = 0; i < winners.length; i += 2) {
+                if (i + 1 < winners.length) {
+                  nextRoundMatches.push({
+                    tournament_id: match.tournament_id,
+                    team1_name: winners[i],
+                    team2_name: winners[i + 1],
+                    round: nextRoundName,
+                    status: 'scheduled'
+                  })
+                }
+              }
+              
+              // Insert next round matches
+              if (nextRoundMatches.length > 0) {
+                const { error: insertError } = await supabase
+                  .from('matches')
+                  .insert(nextRoundMatches)
+                
+                if (insertError) {
+                  console.error('Error generating next round:', insertError)
+                } else {
+                  console.log(`Generated ${nextRoundMatches.length} matches for ${nextRoundName}`)
+                }
+              }
+            }
+          }
+        }
+      }
     }
 
     return NextResponse.json({ match })

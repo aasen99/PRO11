@@ -384,6 +384,139 @@ export default function TournamentMatchesPage() {
     }
   }
 
+  const generateNextRound = async () => {
+    // Find completed rounds and generate next round
+    const knockoutMatches = matches.filter(m => m.round !== 'Gruppespill')
+    const rounds = [...new Set(knockoutMatches.map(m => m.round))]
+    
+    // Find the latest completed round
+    const roundOrder: Record<string, number> = {
+      'Kvartfinaler': 1,
+      'Semifinaler': 2,
+      'Finale': 3
+    }
+    
+    const sortedRounds = rounds
+      .filter(r => roundOrder[r] !== undefined)
+      .sort((a, b) => (roundOrder[a] || 999) - (roundOrder[b] || 999))
+    
+    if (sortedRounds.length === 0) {
+      addToast({ message: 'Ingen sluttspillrunder funnet å generere neste runde fra.', type: 'info' })
+      return
+    }
+    
+    // Check the latest round
+    const latestRound = sortedRounds[sortedRounds.length - 1]
+    const latestRoundMatches = knockoutMatches.filter(m => m.round === latestRound)
+    
+    // Check if all matches in latest round are completed
+    const allCompleted = latestRoundMatches.length > 0 && 
+      latestRoundMatches.every(m => m.status === 'completed' && m.score1 !== undefined && m.score2 !== undefined)
+    
+    if (!allCompleted) {
+      addToast({ 
+        message: `Alle kamper i ${latestRound} må være ferdig før neste runde kan genereres.`, 
+        type: 'warning' 
+      })
+      return
+    }
+    
+    // Determine next round name
+    const getNextRoundName = (currentRound: string): string | null => {
+      if (currentRound === 'Kvartfinaler') return 'Semifinaler'
+      if (currentRound === 'Semifinaler') return 'Finale'
+      return null
+    }
+    
+    const nextRoundName = getNextRoundName(latestRound)
+    
+    if (!nextRoundName) {
+      addToast({ message: 'Det er ingen neste runde å generere (turneringen er ferdig).', type: 'info' })
+      return
+    }
+    
+    // Check if next round already exists
+    const nextRoundExists = knockoutMatches.some(m => m.round === nextRoundName)
+    if (nextRoundExists) {
+      addToast({ message: `${nextRoundName} er allerede generert.`, type: 'info' })
+      return
+    }
+    
+    // Get winners from completed matches
+    const winners: string[] = []
+    latestRoundMatches.forEach(match => {
+      if (match.status === 'completed' && match.score1 !== undefined && match.score2 !== undefined) {
+        if (match.score1 > match.score2) {
+          winners.push(match.team1_name)
+        } else if (match.score2 > match.score1) {
+          winners.push(match.team2_name)
+        } else {
+          // Draw - use team1 as winner
+          winners.push(match.team1_name)
+        }
+      }
+    })
+    
+    if (winners.length === 0) {
+      addToast({ message: 'Kunne ikke finne vinnere fra forrige runde.', type: 'error' })
+      return
+    }
+    
+    if (!confirm(`Dette vil generere ${nextRoundName} med ${winners.length} lag:\n${winners.join(', ')}\n\nFortsette?`)) {
+      return
+    }
+    
+    setIsLoading(true)
+    try {
+      // Generate matches for next round
+      const nextRoundMatches: any[] = []
+      for (let i = 0; i < winners.length; i += 2) {
+        if (i + 1 < winners.length) {
+          nextRoundMatches.push({
+            tournament_id: tournamentId,
+            team1_name: winners[i],
+            team2_name: winners[i + 1],
+            round: nextRoundName,
+            status: 'scheduled'
+          })
+        }
+      }
+      
+      // Insert matches
+      const insertPromises = nextRoundMatches.map(async (match) => {
+        const response = await fetch('/api/matches', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(match)
+        })
+        
+        if (!response.ok) {
+          const errorData = await response.json()
+          throw new Error(errorData.error || 'Kunne ikke opprette kamp')
+        }
+        
+        return await response.json()
+      })
+      
+      await Promise.all(insertPromises)
+      addToast({ 
+        message: `${nextRoundName} generert med ${nextRoundMatches.length} kamper!`, 
+        type: 'success' 
+      })
+      
+      // Reload data
+      await loadData()
+    } catch (error: any) {
+      console.error('Error generating next round:', error)
+      addToast({ 
+        message: `Feil ved generering av neste runde: ${error.message || 'Ukjent feil'}`, 
+        type: 'error' 
+      })
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
   const groupMatches = matches.filter(m => m.round === 'Gruppespill')
   const knockoutMatches = matches.filter(m => m.round !== 'Gruppespill')
   
@@ -435,11 +568,19 @@ export default function TournamentMatchesPage() {
               </p>
             </div>
           </div>
-          <button
-            onClick={async () => {
-              if (!confirm('Dette vil oppdatere rundenavn for alle sluttspillkamper basert på antall lag. Fortsette?')) {
-                return
-              }
+          <div className="flex items-center space-x-2">
+            <button
+              onClick={generateNextRound}
+              className="pro11-button flex items-center space-x-2"
+            >
+              <Award className="w-4 h-4" />
+              <span>Generer neste runde</span>
+            </button>
+            <button
+              onClick={async () => {
+                if (!confirm('Dette vil oppdatere rundenavn for alle sluttspillkamper basert på antall lag. Fortsette?')) {
+                  return
+                }
               
               try {
                 // Count unique teams in knockout matches
@@ -504,6 +645,11 @@ export default function TournamentMatchesPage() {
             <RefreshCw className="w-4 h-4" />
             <span>Oppdater rundenavn</span>
           </button>
+            <button onClick={loadData} className="pro11-button-secondary flex items-center space-x-2">
+              <RefreshCw className="w-4 h-4" />
+              <span>Oppdater</span>
+            </button>
+          </div>
         </div>
       </header>
 
