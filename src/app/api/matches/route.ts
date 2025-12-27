@@ -382,7 +382,7 @@ export async function PUT(request: NextRequest) {
               for (let i = 0; i < winners.length; i += 2) {
                 if (i + 1 < winners.length) {
                   nextRoundMatches.push({
-                    tournament_id: match.tournament_id,
+                    tournament_id: tournamentId,
                     team1_name: winners[i],
                     team2_name: winners[i + 1],
                     round: nextRoundName,
