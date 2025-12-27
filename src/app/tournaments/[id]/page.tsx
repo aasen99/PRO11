@@ -488,7 +488,44 @@ export default function TournamentDetailPage() {
                  )
                }
                
-               if (knockoutMatches.length === 0) {
+               // Check if semifinals are completed but final is not generated yet
+               const semifinalMatches = knockoutMatches.filter((m: any) => m.round === 'Semifinaler')
+               const allSemifinalsCompleted = semifinalMatches.length > 0 && 
+                 semifinalMatches.every((m: any) => m.status === 'completed' && m.score1 !== null && m.score2 !== null)
+               const finalExists = knockoutMatches.some((m: any) => m.round === 'Finale')
+               
+               // If semifinals are done but final doesn't exist, add a placeholder final
+               if (allSemifinalsCompleted && !finalExists && semifinalMatches.length > 0) {
+                 // Get winners from semifinals
+                 const semifinalWinners: string[] = []
+                 semifinalMatches.forEach((m: any) => {
+                   if (m.status === 'completed' && m.score1 !== null && m.score2 !== null) {
+                     if (m.score1 > m.score2) {
+                       semifinalWinners.push(m.team1_name)
+                     } else if (m.score2 > m.score1) {
+                       semifinalWinners.push(m.team2_name)
+                     } else {
+                       semifinalWinners.push(m.team1_name) // Draw - use team1
+                     }
+                   }
+                 })
+                 
+                 // Add placeholder final match
+                 if (semifinalWinners.length === 2) {
+                   matchesByRound['Finale'] = [{
+                     id: 'placeholder-final',
+                     team1_name: semifinalWinners[0],
+                     team2_name: semifinalWinners[1],
+                     round: 'Finale',
+                     status: 'scheduled',
+                     score1: null,
+                     score2: null,
+                     isPlaceholder: true
+                   }]
+                 }
+               }
+               
+               if (knockoutMatches.length === 0 && !allSemifinalsCompleted) {
                  return (
                    <div className="text-center py-12">
                      <div className="text-slate-400 mb-4">
