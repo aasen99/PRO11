@@ -330,7 +330,7 @@ export async function PUT(request: NextRequest) {
       
       if (!matchesError && allMatches && Array.isArray(allMatches)) {
         // Check if all matches in current round are completed
-        const currentRound = match.round
+        const currentRound = match.round as string
         const roundMatches = allMatches.filter((m: any) => m.round === currentRound && m.round !== 'Gruppespill')
         
         // Check if all matches in round are completed (have scores AND status = completed)
