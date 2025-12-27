@@ -372,7 +372,7 @@ export async function PUT(request: NextRequest) {
             const { data: existingNextRoundMatches, error: nextRoundError } = await supabase
               .from('matches')
               .select('*')
-              .eq('tournament_id', match.tournament_id)
+              .eq('tournament_id', tournamentId)
               .eq('round', nextRoundName)
             
             // Only generate if next round doesn't exist yet
