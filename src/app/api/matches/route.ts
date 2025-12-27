@@ -322,10 +322,11 @@ export async function PUT(request: NextRequest) {
     
     if (match && matchIsCompleted && match.round && match.round !== 'Gruppespill') {
       // Get all matches for this tournament
+      const tournamentId = match.tournament_id as string
       const { data: allMatches, error: matchesError } = await supabase
         .from('matches')
         .select('*')
-        .eq('tournament_id', match.tournament_id) as { data: any[] | null, error: any }
+        .eq('tournament_id', tournamentId) as { data: any[] | null, error: any }
       
       if (!matchesError && allMatches && Array.isArray(allMatches)) {
         // Check if all matches in current round are completed
