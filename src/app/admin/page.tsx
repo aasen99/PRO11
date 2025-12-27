@@ -294,9 +294,20 @@ export default function AdminPage() {
   const [showTournamentModal, setShowTournamentModal] = useState(false)
   const [showSettingsModal, setShowSettingsModal] = useState(false)
   const [showPrizeModal, setShowPrizeModal] = useState(false)
+  const [showMatchConfigModal, setShowMatchConfigModal] = useState(false)
   const [selectedTeam, setSelectedTeam] = useState<Team | null>(null)
   const [editingTournament, setEditingTournament] = useState<Tournament | null>(null)
   const [isNewTournament, setIsNewTournament] = useState(false)
+  const [tournamentForMatchGeneration, setTournamentForMatchGeneration] = useState<string | null>(null)
+  
+  // Match generation config
+  const [matchConfig, setMatchConfig] = useState({
+    numGroups: 2,
+    teamsPerGroup: 0, // 0 = auto-calculate
+    teamsToKnockout: 2, // Teams per group that advance
+    useBestRunnersUp: false,
+    numBestRunnersUp: 0 // Number of best 2nd place teams to include
+  })
   
   // Prize management state
   const [prizeSettings, setPrizeSettings] = useState({
@@ -1022,7 +1033,7 @@ PRO11 Team`)
     return matches
   }
 
-  const autoGenerateMatches = (tournamentId: string) => {
+  const openMatchConfigModal = (tournamentId: string) => {
     const tournament = tournaments.find(t => t.id === tournamentId)
     if (!tournament) {
       alert('Turnering ikke funnet!')
@@ -1039,23 +1050,91 @@ PRO11 Team`)
       return
     }
 
+    // Calculate default values
+    const totalTeams = approvedTeams.length
+    let defaultNumGroups = 2
+    if (totalTeams > 16) defaultNumGroups = 4
+    else if (totalTeams > 8) defaultNumGroups = 3
+    
+    const defaultTeamsPerGroup = Math.floor(totalTeams / defaultNumGroups)
+    const defaultTeamsToKnockout = Math.min(2, defaultTeamsPerGroup)
+
+    setMatchConfig({
+      numGroups: defaultNumGroups,
+      teamsPerGroup: 0, // Auto
+      teamsToKnockout: defaultTeamsToKnockout,
+      useBestRunnersUp: false,
+      numBestRunnersUp: 0
+    })
+    
+    setTournamentForMatchGeneration(tournamentId)
+    setShowMatchConfigModal(true)
+  }
+
+  const autoGenerateMatches = (tournamentId: string, config?: typeof matchConfig) => {
+    const tournament = tournaments.find(t => t.id === tournamentId)
+    if (!tournament) {
+      alert('Turnering ikke funnet!')
+      return
+    }
+
+    const approvedTeams = teams
+      .filter(team => team.status === 'approved' && (team.tournamentId === tournamentId || team.tournament_id === tournamentId))
+      .map(team => team.teamName || team.team_name)
+      .filter((name): name is string => name !== undefined && name !== null)
+
+    if (approvedTeams.length < 4) {
+      alert('Du trenger minst 4 godkjente lag for å generere kamper!')
+      return
+    }
+
+    // Use provided config or default
+    const useConfig = config || matchConfig
+    const totalTeams = approvedTeams.length
+
     let matches: Match[] = []
     let groups: string[][] = []
 
     if (tournament.format === 'group_stage' || tournament.format === 'mixed') {
-      // Beregn antall grupper basert på antall lag
-      const numGroups = approvedTeams.length <= 8 ? 2 : 4
+      // Calculate number of groups
+      let numGroups = useConfig.numGroups
+      if (numGroups <= 0) {
+        numGroups = totalTeams <= 8 ? 2 : 4
+      }
+
+      // Calculate teams per group
+      let teamsPerGroup = useConfig.teamsPerGroup
+      if (teamsPerGroup <= 0) {
+        teamsPerGroup = Math.floor(totalTeams / numGroups)
+      }
+
+      // Validate configuration
+      if (numGroups * teamsPerGroup > totalTeams) {
+        alert(`Konfigurasjonen er ugyldig: ${numGroups} grupper × ${teamsPerGroup} lag = ${numGroups * teamsPerGroup} lag, men du har bare ${totalTeams} lag.`)
+        return
+      }
+
       groups = generateGroupStage(approvedTeams, numGroups)
       matches = generateGroupMatches(groups)
     }
 
     if (tournament.format === 'knockout' || tournament.format === 'mixed') {
-      // For knockout eller mixed, generer sluttspill basert på antall lag
-      let knockoutTeams = approvedTeams
+      // For knockout eller mixed, generer sluttspill basert på konfigurasjon
+      let knockoutTeams: string[] = []
       
       if (tournament.format === 'mixed' && groups.length > 0) {
-        // For mixed format, ta de beste lagene fra hver gruppe
-        knockoutTeams = groups.flatMap(group => group.slice(0, 2)) // Top 2 fra hver gruppe
+        // For mixed format, ta lag basert på konfigurasjon
+        const teamsPerGroup = useConfig.teamsToKnockout
+        
+        // Get top teams from each group (will be calculated from standings later)
+        // For now, we'll use a placeholder that will be updated after group stage
+        knockoutTeams = groups.flatMap(group => group.slice(0, teamsPerGroup))
+        
+        // If using best runners-up, we'll need to calculate this after group stage is complete
+        // For now, we'll just use the top teams from each group
+      } else {
+        // Pure knockout - use all teams
+        knockoutTeams = approvedTeams
       }
       
       // Generate knockout bracket with proper round names (Kvartfinaler, Semifinaler, Finale)
@@ -1734,7 +1813,7 @@ PRO11 Team`)
                               <span>Se kamper</span>
                             </Link>
                             <button 
-                              onClick={() => autoGenerateMatches(tournament.id)}
+                              onClick={() => openMatchConfigModal(tournament.id)}
                               className="pro11-button flex items-center space-x-1 text-xs"
                               title="Generer kamper"
                             >
@@ -2131,6 +2210,192 @@ PRO11 Team`)
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Match Generation Config Modal */}
+      {showMatchConfigModal && tournamentForMatchGeneration && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50">
+          <div className="pro11-card p-6 max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-bold">Konfigurer kampgenerering</h2>
+              <button
+                onClick={() => {
+                  setShowMatchConfigModal(false)
+                  setTournamentForMatchGeneration(null)
+                }}
+                className="text-slate-400 hover:text-white"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              {/* Number of Groups */}
+              <div>
+                <label className="block text-sm font-medium text-slate-300 mb-1">
+                  Antall grupper
+                </label>
+                <input
+                  type="number"
+                  min="1"
+                  max="8"
+                  value={matchConfig.numGroups}
+                  onChange={(e) => {
+                    const numGroups = parseInt(e.target.value) || 1
+                    setMatchConfig({ ...matchConfig, numGroups })
+                  }}
+                  className="pro11-input"
+                />
+                <p className="text-xs text-slate-400 mt-1">
+                  Antall grupper turneringen skal deles inn i
+                </p>
+              </div>
+
+              {/* Teams per Group (optional - auto if 0) */}
+              <div>
+                <label className="block text-sm font-medium text-slate-300 mb-1">
+                  Lag per gruppe (0 = automatisk)
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  value={matchConfig.teamsPerGroup}
+                  onChange={(e) => {
+                    const teamsPerGroup = parseInt(e.target.value) || 0
+                    setMatchConfig({ ...matchConfig, teamsPerGroup })
+                  }}
+                  className="pro11-input"
+                />
+                <p className="text-xs text-slate-400 mt-1">
+                  La stå på 0 for automatisk fordeling basert på antall lag
+                </p>
+              </div>
+
+              {/* Teams to Knockout per Group */}
+              <div>
+                <label className="block text-sm font-medium text-slate-300 mb-1">
+                  Lag til sluttspill per gruppe
+                </label>
+                <input
+                  type="number"
+                  min="1"
+                  value={matchConfig.teamsToKnockout}
+                  onChange={(e) => {
+                    const teamsToKnockout = parseInt(e.target.value) || 1
+                    setMatchConfig({ ...matchConfig, teamsToKnockout })
+                  }}
+                  className="pro11-input"
+                />
+                <p className="text-xs text-slate-400 mt-1">
+                  Hvor mange lag fra hver gruppe som går videre til sluttspill
+                </p>
+              </div>
+
+              {/* Use Best Runners-Up */}
+              <div>
+                <label className="flex items-center space-x-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={matchConfig.useBestRunnersUp}
+                    onChange={(e) => {
+                      setMatchConfig({ 
+                        ...matchConfig, 
+                        useBestRunnersUp: e.target.checked,
+                        numBestRunnersUp: e.target.checked ? matchConfig.numBestRunnersUp : 0
+                      })
+                    }}
+                    className="w-4 h-4"
+                  />
+                  <span className="text-sm font-medium text-slate-300">
+                    Inkluder beste 2. plassene (best runners-up)
+                  </span>
+                </label>
+                <p className="text-xs text-slate-400 mt-1 ml-6">
+                  Aktiver for å inkludere de beste 2. plassene fra gruppene i sluttspill
+                </p>
+              </div>
+
+              {/* Number of Best Runners-Up */}
+              {matchConfig.useBestRunnersUp && (
+                <div>
+                  <label className="block text-sm font-medium text-slate-300 mb-1">
+                    Antall beste 2. plasser å inkludere
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={matchConfig.numBestRunnersUp}
+                    onChange={(e) => {
+                      const numBestRunnersUp = parseInt(e.target.value) || 0
+                      setMatchConfig({ ...matchConfig, numBestRunnersUp })
+                    }}
+                    className="pro11-input"
+                  />
+                  <p className="text-xs text-slate-400 mt-1">
+                    F.eks. 3 for å inkludere de 3 beste 2. plassene basert på poeng, målforskjell, etc.
+                  </p>
+                </div>
+              )}
+
+              {/* Info about current teams */}
+              {tournamentForMatchGeneration && (() => {
+                const tournament = tournaments.find(t => t.id === tournamentForMatchGeneration)
+                const approvedTeams = teams
+                  .filter(team => team.status === 'approved' && (team.tournamentId === tournamentForMatchGeneration || team.tournament_id === tournamentForMatchGeneration))
+                  .map(team => team.teamName || team.team_name)
+                  .filter((name): name is string => name !== undefined && name !== null)
+                
+                const totalTeams = approvedTeams.length
+                const teamsPerGroup = matchConfig.teamsPerGroup || Math.floor(totalTeams / matchConfig.numGroups)
+                const totalInGroups = matchConfig.numGroups * teamsPerGroup
+                const teamsToKnockout = matchConfig.numGroups * matchConfig.teamsToKnockout + (matchConfig.useBestRunnersUp ? matchConfig.numBestRunnersUp : 0)
+
+                return (
+                  <div className="pro11-card p-4 bg-slate-800/50">
+                    <h3 className="font-semibold mb-2 text-sm">Oversikt</h3>
+                    <div className="space-y-1 text-xs text-slate-300">
+                      <p>Totalt antall godkjente lag: <span className="font-semibold text-white">{totalTeams}</span></p>
+                      <p>Lag per gruppe: <span className="font-semibold text-white">{teamsPerGroup}</span></p>
+                      <p>Totalt i grupper: <span className="font-semibold text-white">{totalInGroups}</span></p>
+                      {totalInGroups < totalTeams && (
+                        <p className="text-yellow-400">⚠️ {totalTeams - totalInGroups} lag vil ikke bli plassert i grupper</p>
+                      )}
+                      <p>Lag til sluttspill: <span className="font-semibold text-white">{teamsToKnockout}</span></p>
+                      {teamsToKnockout % 2 !== 0 && (
+                        <p className="text-yellow-400">⚠️ Oddetall lag i sluttspill - siste lag får walkover</p>
+                      )}
+                    </div>
+                  </div>
+                )
+              })()}
+
+              <div className="flex space-x-2 pt-4">
+                <button
+                  onClick={() => {
+                    if (tournamentForMatchGeneration) {
+                      autoGenerateMatches(tournamentForMatchGeneration, matchConfig)
+                      setShowMatchConfigModal(false)
+                      setTournamentForMatchGeneration(null)
+                    }
+                  }}
+                  className="pro11-button flex items-center space-x-1 text-sm"
+                >
+                  <Trophy className="w-4 h-4" />
+                  <span>Generer kamper</span>
+                </button>
+                <button
+                  onClick={() => {
+                    setShowMatchConfigModal(false)
+                    setTournamentForMatchGeneration(null)
+                  }}
+                  className="pro11-button-secondary flex items-center space-x-1 text-sm"
+                >
+                  <span>Avbryt</span>
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}
