@@ -387,7 +387,7 @@ export default function TournamentMatchesPage() {
   const generateNextRound = async () => {
     // Find completed rounds and generate next round
     const knockoutMatches = matches.filter(m => m.round !== 'Gruppespill')
-    const rounds = [...new Set(knockoutMatches.map(m => m.round))]
+    const rounds = Array.from(new Set(knockoutMatches.map(m => m.round)))
     
     // Find the latest completed round
     const roundOrder: Record<string, number> = {
