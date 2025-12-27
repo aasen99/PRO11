@@ -307,7 +307,15 @@ export async function PUT(request: NextRequest) {
     }
 
     // If match was completed, check if we need to generate next round
-    if (match && (updateData.status === 'completed' || match.status === 'completed')) {
+    // Check if we should generate next round
+    // This happens when:
+    // 1. Match status is set to 'completed', OR
+    // 2. Match has both score1 and score2 set (even if status isn't explicitly 'completed')
+    const matchIsCompleted = (updateData.status === 'completed' || match.status === 'completed') ||
+                            (updateData.score1 !== undefined && updateData.score2 !== undefined && 
+                             updateData.score1 !== null && updateData.score2 !== null)
+    
+    if (match && matchIsCompleted && match.round && match.round !== 'Gruppespill') {
       // Get all matches for this tournament
       const { data: allMatches, error: matchesError } = await supabase
         .from('matches')
@@ -318,8 +326,14 @@ export async function PUT(request: NextRequest) {
         // Check if all matches in current round are completed
         const currentRound = match.round
         const roundMatches = allMatches.filter((m: any) => m.round === currentRound && m.round !== 'Gruppespill')
+        
+        // Check if all matches in round are completed (have scores or status = completed)
         const allRoundMatchesCompleted = roundMatches.length > 0 && 
-          roundMatches.every((m: any) => m.status === 'completed')
+          roundMatches.every((m: any) => {
+            const hasScores = m.score1 !== null && m.score1 !== undefined && 
+                            m.score2 !== null && m.score2 !== undefined
+            return m.status === 'completed' || hasScores
+          })
         
         if (allRoundMatchesCompleted) {
           // Determine next round and winners
@@ -335,10 +349,14 @@ export async function PUT(request: NextRequest) {
             // Get winners from completed matches
             const winners: string[] = []
             roundMatches.forEach((m: any) => {
-              if (m.status === 'completed' && m.score1 !== undefined && m.score2 !== undefined) {
-                if (m.score1 > m.score2) {
+              // Check if match has scores (either from status or direct score update)
+              const score1 = m.score1 !== null && m.score1 !== undefined ? m.score1 : updateData.score1
+              const score2 = m.score2 !== null && m.score2 !== undefined ? m.score2 : updateData.score2
+              
+              if (score1 !== null && score1 !== undefined && score2 !== null && score2 !== undefined) {
+                if (score1 > score2) {
                   winners.push(m.team1_name)
-                } else if (m.score2 > m.score1) {
+                } else if (score2 > score1) {
                   winners.push(m.team2_name)
                 } else {
                   // Draw - use team1 as winner (could be improved with penalty shootout logic)
