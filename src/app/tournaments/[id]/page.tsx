@@ -488,42 +488,66 @@ export default function TournamentDetailPage() {
                  )
                }
                
-               // Check if semifinals are completed but final is not generated yet
-               const semifinalMatches = knockoutMatches.filter((m: any) => m.round === 'Semifinaler')
-               const allSemifinalsCompleted = semifinalMatches.length > 0 && 
-                 semifinalMatches.every((m: any) => m.status === 'completed' && m.score1 !== null && m.score2 !== null)
-               const finalExists = knockoutMatches.some((m: any) => m.round === 'Finale')
-               
-               // If semifinals are done but final doesn't exist, add a placeholder final
-               if (allSemifinalsCompleted && !finalExists && semifinalMatches.length > 0) {
-                 // Get winners from semifinals
-                 const semifinalWinners: string[] = []
-                 semifinalMatches.forEach((m: any) => {
+               // Helper function to get winners from a round
+               const getWinnersFromRound = (roundMatches: any[]): string[] => {
+                 const winners: string[] = []
+                 roundMatches.forEach((m: any) => {
                    if (m.status === 'completed' && m.score1 !== null && m.score2 !== null) {
                      if (m.score1 > m.score2) {
-                       semifinalWinners.push(m.team1_name)
+                       winners.push(m.team1_name)
                      } else if (m.score2 > m.score1) {
-                       semifinalWinners.push(m.team2_name)
+                       winners.push(m.team2_name)
                      } else {
-                       semifinalWinners.push(m.team1_name) // Draw - use team1
+                       winners.push(m.team1_name) // Draw - use team1
                      }
                    }
                  })
+                 return winners
+               }
+               
+               // Helper function to check if a round is completed
+               const isRoundCompleted = (roundMatches: any[]): boolean => {
+                 return roundMatches.length > 0 && 
+                   roundMatches.every((m: any) => m.status === 'completed' && m.score1 !== null && m.score2 !== null)
+               }
+               
+               // Helper function to add placeholder matches for next round
+               const addPlaceholderForNextRound = (currentRoundName: string, nextRoundName: string) => {
+                 const currentRoundMatches = knockoutMatches.filter((m: any) => m.round === currentRoundName)
+                 const nextRoundExists = knockoutMatches.some((m: any) => m.round === nextRoundName)
                  
-                 // Add placeholder final match
-                 if (semifinalWinners.length === 2) {
-                   matchesByRound['Finale'] = [{
-                     id: 'placeholder-final',
-                     team1_name: semifinalWinners[0],
-                     team2_name: semifinalWinners[1],
-                     round: 'Finale',
-                     status: 'scheduled',
-                     score1: null,
-                     score2: null,
-                     isPlaceholder: true
-                   }]
+                 if (isRoundCompleted(currentRoundMatches) && !nextRoundExists && currentRoundMatches.length > 0) {
+                   const winners = getWinnersFromRound(currentRoundMatches)
+                   
+                   // Generate placeholder matches for next round
+                   const placeholderMatches: any[] = []
+                   for (let i = 0; i < winners.length; i += 2) {
+                     if (i + 1 < winners.length) {
+                       placeholderMatches.push({
+                         id: `placeholder-${nextRoundName.toLowerCase()}-${i}`,
+                         team1_name: winners[i],
+                         team2_name: winners[i + 1],
+                         round: nextRoundName,
+                         status: 'scheduled',
+                         score1: null,
+                         score2: null,
+                         isPlaceholder: true
+                       })
+                     }
+                   }
+                   
+                   if (placeholderMatches.length > 0) {
+                     matchesByRound[nextRoundName] = placeholderMatches
+                   }
                  }
                }
+               
+               // Check and add placeholders for all rounds in order
+               // 16-delsfinaler -> Åttendelsfinaler -> Kvartfinaler -> Semifinaler -> Finale
+               addPlaceholderForNextRound('16-delsfinaler', 'Åttendelsfinaler')
+               addPlaceholderForNextRound('Åttendelsfinaler', 'Kvartfinaler')
+               addPlaceholderForNextRound('Kvartfinaler', 'Semifinaler')
+               addPlaceholderForNextRound('Semifinaler', 'Finale')
                
                if (knockoutMatches.length === 0 && !allSemifinalsCompleted) {
                  return (
