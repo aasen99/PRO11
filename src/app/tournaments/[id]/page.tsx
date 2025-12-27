@@ -586,16 +586,24 @@ export default function TournamentDetailPage() {
                              ? new Date(match.scheduled_time).toLocaleTimeString('nb-NO', { hour: '2-digit', minute: '2-digit' })
                              : ''
                            
+                           const isPlaceholder = match.isPlaceholder || false
+                           
                            return (
                              <div 
                                key={match.id} 
-                               className="flex items-center justify-between p-4 bg-slate-800/50 rounded-lg border border-slate-700/50"
+                               className={`flex items-center justify-between p-4 rounded-lg border ${
+                                 isPlaceholder 
+                                   ? 'bg-yellow-900/20 border-yellow-600/50 border-dashed' 
+                                   : 'bg-slate-800/50 border-slate-700/50'
+                               }`}
                              >
                                <div className="flex-1 flex items-center space-x-4">
                                  <div className="text-xs text-slate-500 font-medium w-8 text-center">
                                    {index + 1}
                                  </div>
-                                 <span className="font-medium w-32 text-right">{match.team1_name}</span>
+                                 <span className={`font-medium w-32 text-right ${isPlaceholder ? 'text-yellow-300' : ''}`}>
+                                   {match.team1_name}
+                                 </span>
                                  {match.status === 'completed' && match.score1 !== undefined && match.score2 !== undefined ? (
                                    <span className="text-2xl font-bold px-4">
                                      {match.score1} - {match.score2}
@@ -604,10 +612,14 @@ export default function TournamentDetailPage() {
                                    <span className="text-2xl font-bold text-red-400 px-4">
                                      {match.score1} - {match.score2}
                                    </span>
+                                 ) : isPlaceholder ? (
+                                   <span className="text-yellow-400 px-4 font-semibold">TBD</span>
                                  ) : (
                                    <span className="text-slate-500 px-4">vs</span>
                                  )}
-                                 <span className="font-medium w-32">{match.team2_name}</span>
+                                 <span className={`font-medium w-32 ${isPlaceholder ? 'text-yellow-300' : ''}`}>
+                                   {match.team2_name}
+                                 </span>
                                </div>
                                <div className="flex items-center space-x-3">
                                  <span className={`inline-flex items-center px-2 py-1 rounded text-xs font-semibold ${
@@ -618,21 +630,29 @@ export default function TournamentDetailPage() {
                                  }`}>
                                    {roundName}
                                  </span>
-                                 {matchDate && matchTime && (
-                                   <div className="text-right">
-                                     <div className="text-xs text-slate-400">{matchDate}</div>
-                                     <div className="text-xs text-slate-500">{matchTime}</div>
-                                   </div>
+                                 {isPlaceholder ? (
+                                   <span className="text-xs text-yellow-400 italic">
+                                     Venter på generering
+                                   </span>
+                                 ) : (
+                                   <>
+                                     {matchDate && matchTime && (
+                                       <div className="text-right">
+                                         <div className="text-xs text-slate-400">{matchDate}</div>
+                                         <div className="text-xs text-slate-500">{matchTime}</div>
+                                       </div>
+                                     )}
+                                     <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${
+                                       match.status === 'completed' ? 'bg-green-600' :
+                                       match.status === 'live' ? 'bg-red-600' :
+                                       'bg-slate-600'
+                                     }`}>
+                                       {match.status === 'completed' ? 'Ferdig' :
+                                        match.status === 'live' ? 'LIVE' :
+                                        'Planlagt'}
+                                     </span>
+                                   </>
                                  )}
-                                 <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${
-                                   match.status === 'completed' ? 'bg-green-600' :
-                                   match.status === 'live' ? 'bg-red-600' :
-                                   'bg-slate-600'
-                                 }`}>
-                                   {match.status === 'completed' ? 'Ferdig' :
-                                    match.status === 'live' ? 'LIVE' :
-                                    'Planlagt'}
-                                 </span>
                                </div>
                              </div>
                            )
