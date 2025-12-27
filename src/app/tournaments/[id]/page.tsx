@@ -573,6 +573,14 @@ export default function TournamentDetailPage() {
                                  <span className="font-medium w-32">{match.team2_name}</span>
                                </div>
                                <div className="flex items-center space-x-3">
+                                 <span className={`inline-flex items-center px-2 py-1 rounded text-xs font-semibold ${
+                                   roundName.includes('Kvartfinal') ? 'bg-blue-600/20 text-blue-400 border border-blue-500/50' :
+                                   roundName.includes('Semifinal') ? 'bg-green-600/20 text-green-400 border border-green-500/50' :
+                                   roundName.includes('Finale') ? 'bg-yellow-600/20 text-yellow-400 border border-yellow-500/50' :
+                                   'bg-purple-600/20 text-purple-400 border border-purple-500/50'
+                                 }`}>
+                                   {roundName}
+                                 </span>
                                  {matchDate && matchTime && (
                                    <div className="text-right">
                                      <div className="text-xs text-slate-400">{matchDate}</div>
