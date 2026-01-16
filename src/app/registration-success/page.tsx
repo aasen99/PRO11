@@ -12,6 +12,7 @@ interface RegistrationData {
   teamId: string
   password: string
   tournamentId?: string
+  entryFee?: number
 }
 
 export default function RegistrationSuccessPage() {
@@ -145,7 +146,7 @@ export default function RegistrationSuccessPage() {
               onClick={handleContinue}
               className="pro11-button w-full text-lg py-4 flex items-center justify-center space-x-2"
             >
-              <span>Fortsett til betaling</span>
+              <span>{registrationData.entryFee === 0 ? 'Fullfør gratis påmelding' : 'Fortsett til betaling'}</span>
               <ArrowRight className="w-5 h-5" />
             </button>
             

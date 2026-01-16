@@ -4,7 +4,7 @@ import { getSupabaseAdmin } from '@/lib/supabase'
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { teamId, amount, currency = 'nok' } = body
+    const { teamId, amount, currency = 'nok', paymentMethod = 'paypal' } = body
 
     // Use admin client to bypass RLS
     const supabase = getSupabaseAdmin()
@@ -31,7 +31,7 @@ export async function POST(request: NextRequest) {
         amount: amount,
         currency: currency,
         status: 'pending',
-        payment_method: 'paypal'
+        payment_method: paymentMethod
       })
       .select()
       .single()

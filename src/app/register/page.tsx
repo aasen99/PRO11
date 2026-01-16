@@ -103,7 +103,8 @@ export default function RegisterPage() {
         const registrationData = {
           ...formData,
           teamId: result.team.id,
-          password: result.password
+          password: result.password,
+          entryFee: tournament?.entryFee ?? 0
         }
         localStorage.setItem('teamRegistration', JSON.stringify(registrationData))
         
@@ -143,7 +144,14 @@ export default function RegisterPage() {
             <div className="mb-8 p-4 bg-blue-600/20 rounded-lg border border-blue-500/30">
               <h3 className="text-xl font-semibold mb-2">Turnering</h3>
               <p className="text-slate-300">{tournament?.title} - {tournament?.date}</p>
-              <p className="text-slate-400 text-sm">Premie: {tournament?.prize} | Påmeldingsgebyr: {tournament?.entryFee} NOK</p>
+              <p className="text-slate-400 text-sm">
+                Premie: {tournament?.prize} | Påmeldingsgebyr:{' '}
+                {tournament?.entryFee === 0 ? (
+                  <span className="text-green-400 font-semibold">GRATIS</span>
+                ) : (
+                  <span>{tournament?.entryFee} NOK</span>
+                )}
+              </p>
             </div>
 
             {/* Team Information */}

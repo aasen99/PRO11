@@ -548,6 +548,9 @@ export default function TournamentDetailPage() {
                addPlaceholderForNextRound('Åttendelsfinaler', 'Kvartfinaler')
                addPlaceholderForNextRound('Kvartfinaler', 'Semifinaler')
                addPlaceholderForNextRound('Semifinaler', 'Finale')
+
+              const semifinalMatches = knockoutMatches.filter((m: any) => m.round === 'Semifinaler')
+              const allSemifinalsCompleted = isRoundCompleted(semifinalMatches)
                
                if (knockoutMatches.length === 0 && !allSemifinalsCompleted) {
                  return (

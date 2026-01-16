@@ -108,6 +108,22 @@ export default function PaymentPage() {
   }, [])
 
 
+  const updateLocalTeamStatus = () => {
+    if (!paymentData) return
+
+    const storedTeams = localStorage.getItem('adminTeams')
+    if (storedTeams) {
+      const teams = JSON.parse(storedTeams)
+      const updatedTeams = teams.map((team: any) => 
+        team.id === paymentData.teamId 
+          ? { ...team, paymentStatus: 'completed', payment_status: 'completed', status: 'approved' }
+          : team
+      )
+      localStorage.setItem('adminTeams', JSON.stringify(updatedTeams))
+      console.log('Updated team payment status in localStorage')
+    }
+  }
+
   const handlePaymentSuccess = async (details: any) => {
     setIsProcessing(true)
     
@@ -156,25 +172,65 @@ export default function PaymentPage() {
       setPaymentComplete(true)
       
       // Oppdater team-status i localStorage for adminpanelet
-      if (paymentData) {
-        const storedTeams = localStorage.getItem('adminTeams')
-        if (storedTeams) {
-          const teams = JSON.parse(storedTeams)
-          const updatedTeams = teams.map((team: any) => 
-            team.id === paymentData.teamId 
-              ? { ...team, paymentStatus: 'completed', payment_status: 'completed', status: 'approved' }
-              : team
-          )
-          localStorage.setItem('adminTeams', JSON.stringify(updatedTeams))
-          console.log('Updated team payment status in localStorage')
-        }
-      }
+      updateLocalTeamStatus()
       
       // Ikke fjern registreringsdata - brukeren kan trenge passordet
       
     } catch (error) {
       console.error('Payment error:', error)
       alert('Betalingen feilet. Prøv igjen.')
+    } finally {
+      setIsProcessing(false)
+    }
+  }
+
+  const handleFreeRegistration = async () => {
+    if (!paymentData?.teamId) {
+      alert('Mangler laginformasjon for gratis påmelding.')
+      return
+    }
+
+    setIsProcessing(true)
+    try {
+      let paymentRecordId = null
+      const createResponse = await fetch('/api/payments', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          teamId: paymentData.teamId,
+          amount: paymentData.amount,
+          currency: 'NOK',
+          paymentMethod: 'free'
+        })
+      })
+
+      if (createResponse.ok) {
+        const paymentData_result = await createResponse.json()
+        paymentRecordId = paymentData_result.paymentId
+      }
+
+      if (paymentRecordId) {
+        await fetch('/api/payments', {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            paymentId: paymentRecordId,
+            status: 'completed'
+          })
+        })
+      } else {
+        console.warn('Free registration payment record not created.')
+      }
+
+      updateLocalTeamStatus()
+      setPaymentComplete(true)
+    } catch (error) {
+      console.error('Free registration error:', error)
+      alert('Kunne ikke fullføre gratis påmelding. Prøv igjen.')
     } finally {
       setIsProcessing(false)
     }
@@ -221,6 +277,8 @@ export default function PaymentPage() {
       </div>
     )
   }
+
+  const isFree = paymentData.amount === 0
 
   if (paymentComplete) {
     return (
@@ -336,83 +394,114 @@ export default function PaymentPage() {
               <div className="space-y-4">
                 <div className="flex justify-between items-center p-4 bg-slate-800/50 rounded-lg">
                   <span className="text-slate-300">Turneringsgebyr</span>
-                  <span className="text-2xl font-bold text-green-400">{paymentData.amount} NOK</span>
+                  <span className="text-2xl font-bold text-green-400">
+                    {isFree ? 'GRATIS' : `${paymentData.amount} NOK`}
+                  </span>
                 </div>
                 <div className="text-sm text-slate-400">
-                  <p>• Inkluderer deltakelse i turneringen</p>
-                  <p>• Alle spillere på laget kan delta</p>
-                  <p>• Betalingen er ikke refunderbar</p>
+                  {isFree ? (
+                    <>
+                      <p>• Påmeldingen er gratis</p>
+                      <p>• Ingen betaling er nødvendig</p>
+                    </>
+                  ) : (
+                    <>
+                      <p>• Inkluderer deltakelse i turneringen</p>
+                      <p>• Alle spillere på laget kan delta</p>
+                      <p>• Betalingen er ikke refunderbar</p>
+                    </>
+                  )}
                 </div>
               </div>
             </div>
           </div>
 
-          {/* PayPal Payment */}
-          <div className="pro11-card p-6 mt-8">
-            <h2 className="text-xl font-bold mb-4">Betaling med PayPal</h2>
-            <p className="text-slate-300 mb-6 text-center">
-              Trygg og sikker betaling med PayPal
-            </p>
-            
-            <div className="text-center">
-              {paypalLoading ? (
-                <div className="p-8">
-                  <p className="text-slate-300">Laster PayPal-konfigurasjon...</p>
-                </div>
-              ) : paypalClientId ? (
-                <PayPalScriptProvider 
-                  options={{ 
-                    clientId: paypalClientId,
-                    currency: 'NOK',
-                    intent: 'capture'
-                  }}
-                >
-                  <PayPalButtons
-                    createOrder={(data, actions) => {
-                      return actions.order.create({
-                        intent: 'CAPTURE',
-                        purchase_units: [{
-                          amount: {
-                            value: paymentData.amount.toString(),
-                            currency_code: 'NOK'
-                          },
-                          description: `PRO11 Turnering - ${paymentData.teamName}`
-                        }]
-                      })
-                    }}
-                    onApprove={(data, actions) => {
-                      return actions.order!.capture().then((details) => {
-                        handlePaymentSuccess(details)
-                      })
-                    }}
-                    onError={handlePaymentError}
-                    style={{
-                      layout: 'vertical',
-                      color: 'blue',
-                      shape: 'rect',
-                      label: 'paypal'
-                    }}
-                  />
-                </PayPalScriptProvider>
-              ) : (
-                <div className="p-8 bg-yellow-900/20 border border-yellow-600/30 rounded-lg">
-                  <p className="text-yellow-400 mb-4 font-semibold">
-                    ⚠️ PayPal er ikke konfigurert ennå
-                  </p>
-                  <p className="text-slate-300 mb-4">
-                    For å aktivere PayPal-betaling, legg til NEXT_PUBLIC_PAYPAL_CLIENT_ID i miljøvariablene.
-                  </p>
-                  <p className="text-slate-400 text-sm mb-4">
-                    Inntil PayPal er konfigurert, kan du ikke fullføre betalingen. Kontakt administrator for hjelp.
-                  </p>
-                </div>
-              )}
-              
-              <p className="text-slate-400 text-sm mt-4">
-                Etter fullført betaling vil laget ditt bli godkjent for turneringen
+          {isFree ? (
+            <div className="pro11-card p-6 mt-8">
+              <h2 className="text-xl font-bold mb-4">Gratis påmelding</h2>
+              <p className="text-slate-300 mb-6 text-center">
+                Påmeldingsavgiften er 0 kr. Ingen betaling er nødvendig.
               </p>
+              <div className="text-center">
+                <button
+                  onClick={handleFreeRegistration}
+                  disabled={isProcessing}
+                  className="pro11-button w-full md:w-auto"
+                >
+                  {isProcessing ? 'Fullfører...' : 'Fullfør gratis påmelding'}
+                </button>
+                <p className="text-slate-400 text-sm mt-4">
+                  Laget ditt blir godkjent umiddelbart etter fullføring.
+                </p>
+              </div>
             </div>
-          </div>
+          ) : (
+            <div className="pro11-card p-6 mt-8">
+              <h2 className="text-xl font-bold mb-4">Betaling med PayPal</h2>
+              <p className="text-slate-300 mb-6 text-center">
+                Trygg og sikker betaling med PayPal
+              </p>
+              
+              <div className="text-center">
+                {paypalLoading ? (
+                  <div className="p-8">
+                    <p className="text-slate-300">Laster PayPal-konfigurasjon...</p>
+                  </div>
+                ) : paypalClientId ? (
+                  <PayPalScriptProvider 
+                    options={{ 
+                      clientId: paypalClientId,
+                      currency: 'NOK',
+                      intent: 'capture'
+                    }}
+                  >
+                    <PayPalButtons
+                      createOrder={(data, actions) => {
+                        return actions.order.create({
+                          intent: 'CAPTURE',
+                          purchase_units: [{
+                            amount: {
+                              value: paymentData.amount.toString(),
+                              currency_code: 'NOK'
+                            },
+                            description: `PRO11 Turnering - ${paymentData.teamName}`
+                          }]
+                        })
+                      }}
+                      onApprove={(data, actions) => {
+                        return actions.order!.capture().then((details) => {
+                          handlePaymentSuccess(details)
+                        })
+                      }}
+                      onError={handlePaymentError}
+                      style={{
+                        layout: 'vertical',
+                        color: 'blue',
+                        shape: 'rect',
+                        label: 'paypal'
+                      }}
+                    />
+                  </PayPalScriptProvider>
+                ) : (
+                  <div className="p-8 bg-yellow-900/20 border border-yellow-600/30 rounded-lg">
+                    <p className="text-yellow-400 mb-4 font-semibold">
+                      ⚠️ PayPal er ikke konfigurert ennå
+                    </p>
+                    <p className="text-slate-300 mb-4">
+                      For å aktivere PayPal-betaling, legg til NEXT_PUBLIC_PAYPAL_CLIENT_ID i miljøvariablene.
+                    </p>
+                    <p className="text-slate-400 text-sm mb-4">
+                      Inntil PayPal er konfigurert, kan du ikke fullføre betalingen. Kontakt administrator for hjelp.
+                    </p>
+                  </div>
+                )}
+                
+                <p className="text-slate-400 text-sm mt-4">
+                  Etter fullført betaling vil laget ditt bli godkjent for turneringen
+                </p>
+              </div>
+            </div>
+          )}
         </div>
       </main>
     </div>
