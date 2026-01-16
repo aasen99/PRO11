@@ -133,7 +133,7 @@ export default function FAQPage() {
                 <section key={category} className="space-y-6">
                   <div className="flex items-center gap-3">
                     <div className="h-px flex-1 bg-slate-800/80" />
-                    <h2 className="text-sm font-semibold tracking-[0.2em] text-slate-400 uppercase">
+                    <h2 className="text-base md:text-lg font-semibold tracking-[0.18em] text-slate-300 uppercase">
                       {categoryLabels[category]}
                     </h2>
                     <div className="h-px flex-1 bg-slate-800/80" />
