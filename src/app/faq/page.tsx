@@ -114,7 +114,8 @@ export default function FAQPage() {
       </header>
 
       <main className="container mx-auto px-4 py-12 flex flex-col items-center">
-        <div className="max-w-3xl w-full">
+        <div className="pro11-card p-8 w-full max-w-4xl">
+          <div className="max-w-3xl w-full mx-auto">
           {/* Page Header */}
           <div className="text-center mb-12">
             <h1 className="text-4xl font-semibold tracking-tight mb-3">Spørsmål og svar</h1>
@@ -175,6 +176,7 @@ export default function FAQPage() {
             >
               <span>Bli med på Discord</span>
             </a>
+          </div>
           </div>
         </div>
       </main>
