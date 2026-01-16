@@ -196,10 +196,10 @@ export default function FAQPage() {
           {/* FAQ Items */}
           <div className="space-y-4">
             {filteredItems.map(item => (
-              <div key={item.id} className="bg-slate-900/50 border border-slate-800/80 rounded-xl">
+              <div key={item.id} className="bg-slate-900/70 border border-slate-800/80 rounded-xl overflow-hidden">
                 <button
                   onClick={() => toggleItem(item.id)}
-                  className="w-full p-5 flex items-center justify-between hover:bg-slate-800/60 transition-colors text-left"
+                  className="w-full p-5 flex items-center justify-between bg-slate-900/70 hover:bg-slate-800/60 transition-colors text-left"
                 >
                   <h3 className="text-base md:text-lg font-semibold text-slate-100">{item.question}</h3>
                   {openItems.includes(item.id) ? (
@@ -209,7 +209,7 @@ export default function FAQPage() {
                   )}
                 </button>
                 {openItems.includes(item.id) && (
-                  <div className="px-5 pb-5">
+                  <div className="px-5 pb-5 bg-slate-900/60">
                     <p className="text-slate-300 leading-relaxed text-sm md:text-base">{item.answer}</p>
                   </div>
                 )}
