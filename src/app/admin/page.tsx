@@ -2059,6 +2059,7 @@ PRO11 Team`)
                 const date = formData.get('date') as string
                 const time = formData.get('time') as string
                 const prizeText = formData.get('prize') as string
+                const entryFeeValue = Number(formData.get('entryFee'))
                 
                 console.log('Form data:', {
                   title: formData.get('title'),
@@ -2077,7 +2078,7 @@ PRO11 Team`)
                   time: time,
                   maxTeams: parseInt(formData.get('maxTeams') as string || '16'),
                   prize: prizeText || '0',
-                  entryFee: parseInt(formData.get('entryFee') as string || '299'),
+                  entryFee: Number.isFinite(entryFeeValue) ? entryFeeValue : 299,
                   status: (formData.get('status') as 'open' | 'ongoing' | 'closed' | 'completed') || 'open'
                 })
               }}

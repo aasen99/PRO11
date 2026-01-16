@@ -57,6 +57,8 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
     const { title, description, start_date, end_date, max_teams, prize_pool, entry_fee, status } = body
+    const normalizedEntryFee = Number(entry_fee)
+    const safeEntryFee = Number.isFinite(normalizedEntryFee) ? normalizedEntryFee : 299
 
     console.log('POST /api/tournaments - Received data:', body)
     console.log('Environment check:', {
@@ -92,7 +94,7 @@ export async function POST(request: NextRequest) {
       end_date,
       max_teams: max_teams || 16,
       prize_pool: prize_pool || 0,
-      entry_fee: entry_fee ?? 299,
+      entry_fee: safeEntryFee,
       status: status || 'upcoming',
       current_teams: 0
     }
@@ -161,7 +163,10 @@ export async function PUT(request: NextRequest) {
     if (end_date) updateData.end_date = end_date
     if (max_teams !== undefined) updateData.max_teams = max_teams
     if (prize_pool !== undefined) updateData.prize_pool = prize_pool
-    if (entry_fee !== undefined) updateData.entry_fee = entry_fee
+    if (entry_fee !== undefined) {
+      const normalizedEntryFee = Number(entry_fee)
+      updateData.entry_fee = Number.isFinite(normalizedEntryFee) ? normalizedEntryFee : 299
+    }
     if (status) updateData.status = status
 
     const { data: tournament, error } = await supabase
