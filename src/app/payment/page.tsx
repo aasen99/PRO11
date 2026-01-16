@@ -65,7 +65,7 @@ export default function PaymentPage() {
             if (response.ok) {
               const tournamentData = await response.json()
               if (tournamentData.tournament) {
-                const entryFee = tournamentData.tournament.entry_fee || 299
+                const entryFee = tournamentData.tournament.entry_fee ?? 299
                 setTournamentEntryFee(entryFee)
                 setPaymentData({
                   ...data,
@@ -74,26 +74,26 @@ export default function PaymentPage() {
               } else {
                 setPaymentData({
                   ...data,
-                  amount: 299 // Fallback
+                  amount: data.entryFee ?? 299 // Fallback
                 })
               }
             } else {
               setPaymentData({
                 ...data,
-                amount: 299 // Fallback
+                amount: data.entryFee ?? 299 // Fallback
               })
             }
           } catch (error) {
             console.error('Error loading tournament:', error)
             setPaymentData({
               ...data,
-              amount: 299 // Fallback
+              amount: data.entryFee ?? 299 // Fallback
             })
           }
         } else {
           setPaymentData({
             ...data,
-            amount: 299 // Fallback
+            amount: data.entryFee ?? 299 // Fallback
           })
         }
       }

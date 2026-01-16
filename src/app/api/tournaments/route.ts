@@ -92,7 +92,7 @@ export async function POST(request: NextRequest) {
       end_date,
       max_teams: max_teams || 16,
       prize_pool: prize_pool || 0,
-      entry_fee: entry_fee || 299,
+      entry_fee: entry_fee ?? 299,
       status: status || 'upcoming',
       current_teams: 0
     }

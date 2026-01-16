@@ -2157,7 +2157,7 @@ PRO11 Team`)
                   <input
                     type="number"
                     name="entryFee"
-                    defaultValue={editingTournament?.entryFee || 299}
+                    defaultValue={editingTournament?.entryFee ?? 299}
                     className="pro11-input"
                     min="0"
                     required
