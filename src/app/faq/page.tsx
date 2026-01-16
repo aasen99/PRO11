@@ -160,7 +160,7 @@ export default function FAQPage() {
           </div>
 
           {/* FAQ Items */}
-          <div className="space-y-12">
+          <div className="space-y-12 text-center">
             {categoryOrder.map(category => {
               const items = faqItems.filter(item => item.category === category)
               if (items.length === 0) return null
@@ -176,18 +176,13 @@ export default function FAQPage() {
                   </div>
                   <div className="space-y-8">
                     {items.map((item, index) => (
-                      <div key={item.id} className="grid md:grid-cols-[32px_1fr] gap-4">
-                        <div className="text-slate-500 text-sm font-semibold pt-1">
-                          {String(index + 1).padStart(2, '0')}
-                        </div>
-                        <div>
-                          <h3 className="text-base md:text-lg font-semibold text-slate-100 mb-2">
-                            {item.question}
-                          </h3>
-                          <p className="text-slate-300 leading-relaxed text-sm md:text-base">
-                            {item.answer}
-                          </p>
-                        </div>
+                      <div key={item.id} className="max-w-2xl mx-auto">
+                        <h3 className="text-base md:text-lg font-semibold text-slate-100 mb-2">
+                          {item.question}
+                        </h3>
+                        <p className="text-slate-300 leading-relaxed text-sm md:text-base">
+                          {item.answer}
+                        </p>
                       </div>
                     ))}
                   </div>
