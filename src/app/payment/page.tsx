@@ -25,6 +25,7 @@ export default function PaymentPage() {
   const [tournamentEntryFee, setTournamentEntryFee] = useState<number>(299)
   const [paypalClientId, setPaypalClientId] = useState<string | null>(null)
   const [paypalLoading, setPaypalLoading] = useState(true)
+  const [isLoadingRegistration, setIsLoadingRegistration] = useState(true)
 
   useEffect(() => {
     // Check PayPal Client ID from API (works even if NEXT_PUBLIC_ var wasn't available at build time)
@@ -89,12 +90,15 @@ export default function PaymentPage() {
               ...data,
               amount: data.entryFee ?? 299 // Fallback
             })
+          } finally {
+            setIsLoadingRegistration(false)
           }
         } else {
           setPaymentData({
             ...data,
             amount: data.entryFee ?? 299 // Fallback
           })
+          setIsLoadingRegistration(false)
         }
       }
       
@@ -104,6 +108,8 @@ export default function PaymentPage() {
       if (data.teamId) {
         setPaymentId(data.teamId)
       }
+    } else {
+      setIsLoadingRegistration(false)
     }
   }, [])
 
@@ -240,6 +246,14 @@ export default function PaymentPage() {
     console.error('PayPal error:', error)
     alert('Betalingen feilet. Prøv igjen.')
     setIsProcessing(false)
+  }
+
+  if (isLoadingRegistration) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="w-8 h-8 border-2 border-blue-400 border-t-transparent rounded-full animate-spin"></div>
+      </div>
+    )
   }
 
   if (!paymentData) {
