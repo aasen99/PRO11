@@ -163,20 +163,6 @@ export default function FAQPage() {
           </div>
 
           {/* Contact Section */}
-          <div className="text-center mt-14 p-8 border border-slate-900 rounded-xl bg-slate-950">
-            <h2 className="text-2xl font-semibold mb-3">Trenger du mer hjelp?</h2>
-            <p className="text-slate-300 mb-6">
-              Ta kontakt på Discord så hjelper vi deg videre.
-            </p>
-            <a 
-              href="https://discord.gg/Es8UAkax8H" 
-              target="_blank" 
-              rel="noopener noreferrer"
-              className="pro11-button inline-flex items-center space-x-2"
-            >
-              <span>Bli med på Discord</span>
-            </a>
-          </div>
           
           </div>
         </div>
