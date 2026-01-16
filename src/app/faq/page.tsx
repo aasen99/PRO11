@@ -160,27 +160,38 @@ export default function FAQPage() {
           </div>
 
           {/* FAQ Items */}
-          <div className="space-y-10">
+          <div className="space-y-12">
             {categoryOrder.map(category => {
               const items = faqItems.filter(item => item.category === category)
               if (items.length === 0) return null
 
               return (
-                <div key={category} className="bg-slate-900/60 border border-slate-800/80 rounded-xl p-6">
-                  <h2 className="text-xl font-bold mb-4">{categoryLabels[category]}</h2>
-                  <div className="space-y-5">
-                    {items.map(item => (
-                      <div key={item.id} className="border-b border-slate-800/80 pb-5 last:border-b-0 last:pb-0">
-                        <h3 className="text-base md:text-lg font-semibold text-slate-100 mb-2">
-                          {item.question}
-                        </h3>
-                        <p className="text-slate-300 leading-relaxed text-sm md:text-base">
-                          {item.answer}
-                        </p>
+                <section key={category} className="space-y-6">
+                  <div className="flex items-center gap-3">
+                    <div className="h-px flex-1 bg-slate-800/80" />
+                    <h2 className="text-lg font-semibold tracking-wide text-slate-200 uppercase">
+                      {categoryLabels[category]}
+                    </h2>
+                    <div className="h-px flex-1 bg-slate-800/80" />
+                  </div>
+                  <div className="space-y-8">
+                    {items.map((item, index) => (
+                      <div key={item.id} className="grid md:grid-cols-[32px_1fr] gap-4">
+                        <div className="text-slate-500 text-sm font-semibold pt-1">
+                          {String(index + 1).padStart(2, '0')}
+                        </div>
+                        <div>
+                          <h3 className="text-base md:text-lg font-semibold text-slate-100 mb-2">
+                            {item.question}
+                          </h3>
+                          <p className="text-slate-300 leading-relaxed text-sm md:text-base">
+                            {item.answer}
+                          </p>
+                        </div>
                       </div>
                     ))}
                   </div>
-                </div>
+                </section>
               )
             })}
           </div>
