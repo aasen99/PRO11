@@ -28,6 +28,8 @@ interface Match {
   submittedBy: string | null
   submittedScore1: number | null
   submittedScore2: number | null
+  opponentSubmittedScore1: number | null
+  opponentSubmittedScore2: number | null
   canConfirmResult: boolean
 }
 
@@ -155,6 +157,13 @@ export default function CaptainDashboardPage() {
                                      !thisTeamHasSubmitted &&
                                      m.status !== 'completed'
                   
+                  const opponentSubmittedScore1 = isTeam1
+                    ? (m.team2_submitted_score2 ?? null)
+                    : (m.team1_submitted_score1 ?? null)
+                  const opponentSubmittedScore2 = isTeam1
+                    ? (m.team2_submitted_score1 ?? null)
+                    : (m.team1_submitted_score2 ?? null)
+
                   return {
                     id: m.id,
                     team1: m.team1_name,
@@ -169,6 +178,8 @@ export default function CaptainDashboardPage() {
                     submittedBy: m.submitted_by || null,
                     submittedScore1: isTeam1 ? (m.team1_submitted_score1 ?? m.submitted_score1 ?? null) : (m.team2_submitted_score1 ?? m.submitted_score1 ?? null),
                     submittedScore2: isTeam1 ? (m.team1_submitted_score2 ?? m.submitted_score2 ?? null) : (m.team2_submitted_score2 ?? m.submitted_score2 ?? null),
+                    opponentSubmittedScore1,
+                    opponentSubmittedScore2,
                     canConfirmResult: canConfirm
                   }
                 }).filter((match: Match | null): match is Match => match !== null)
@@ -232,11 +243,11 @@ export default function CaptainDashboardPage() {
               // Opponent has just submitted a result
               const opponentName = match.team1 === parsedTeam.teamName ? match.team2 : match.team1
               const opponentScore = match.team1 === parsedTeam.teamName 
-                ? (match.submittedScore2 || 0) 
-                : (match.submittedScore1 || 0)
+                ? (match.opponentSubmittedScore2 || 0) 
+                : (match.opponentSubmittedScore1 || 0)
               const myScore = match.team1 === parsedTeam.teamName 
-                ? (match.submittedScore1 || 0) 
-                : (match.submittedScore2 || 0)
+                ? (match.opponentSubmittedScore1 || 0) 
+                : (match.opponentSubmittedScore2 || 0)
               
               addToast({
                 message: `${opponentName} har sendt inn resultat: ${opponentScore} - ${myScore}. Bekreft eller avvis resultatet.`,
@@ -645,6 +656,11 @@ export default function CaptainDashboardPage() {
                                   {match.team1} vs {match.team2}
                                 </div>
                                 <div className="text-xs text-slate-400">{match.round}</div>
+                                {match.canConfirmResult && match.opponentSubmittedScore1 !== null && match.opponentSubmittedScore2 !== null && (
+                                  <div className="text-xs text-slate-300 mt-1">
+                                    Innsendt: {match.team1} {match.opponentSubmittedScore1} - {match.opponentSubmittedScore2} {match.team2}
+                                  </div>
+                                )}
                               </div>
                               <div className="flex space-x-2">
                                 {match.canSubmitResult && (
@@ -860,9 +876,9 @@ export default function CaptainDashboardPage() {
                          </div>
                        )}
                        
-                       {match.status === 'pending_confirmation' && match.submittedScore1 !== null && match.submittedScore2 !== null && (
+                      {match.status === 'pending_confirmation' && match.opponentSubmittedScore1 !== null && match.opponentSubmittedScore2 !== null && (
                          <div className="text-sm font-medium px-4 py-2 bg-orange-700/50 rounded">
-                           {match.submittedScore1} - {match.submittedScore2}
+                          {match.opponentSubmittedScore1} - {match.opponentSubmittedScore2}
                          </div>
                        )}
                        
