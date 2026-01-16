@@ -143,15 +143,8 @@ export default function TournamentsPage() {
                       className="pro11-button-secondary flex items-center justify-center space-x-2"
                     >
                       <ExternalLink className="w-4 h-4" />
-                      <span>Se detaljer</span>
+                      <span>Kamper og resultater</span>
                     </Link>
-                    
-                    {tournament.status === 'ongoing' && (
-                      <button className="pro11-button-secondary flex items-center justify-center space-x-2">
-                        <Trophy className="w-4 h-4" />
-                        <span>Live resultater</span>
-                      </button>
-                    )}
                   </div>
                 </div>
 
