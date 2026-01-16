@@ -145,7 +145,7 @@ export default function FAQPage() {
   }
 
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen bg-slate-950">
       {/* Header */}
       <header className="pro11-card mx-4 mt-4 h-24">
         <div className="flex items-center justify-between">
@@ -164,18 +164,19 @@ export default function FAQPage() {
         </div>
       </header>
 
-      <main className="container mx-auto px-4 py-8 flex flex-col items-center">
-        <div className="max-w-md w-full">
+      <main className="container mx-auto px-4 py-10 flex flex-col items-center">
+        <div className="max-w-3xl w-full">
           {/* Page Header */}
-          <div className="text-center mb-12">
-            <h1 className="text-4xl font-bold mb-4">FAQ</h1>
+          <div className="mb-10">
+            <h1 className="text-4xl font-bold mb-3">FAQ</h1>
             <p className="text-slate-300 text-lg">
               Ofte stilte spørsmål om PRO11
             </p>
           </div>
 
           {/* Category Filter */}
-          <div className="flex flex-wrap gap-2 mb-8 justify-center">
+          <div className="pro11-card p-4 mb-8 bg-slate-900/60 border border-slate-800/80">
+            <div className="flex flex-wrap gap-2">
             {categories.map(category => (
               <button
                 key={category.id}
@@ -183,42 +184,41 @@ export default function FAQPage() {
                 className={`px-4 py-2 rounded-lg font-medium transition-colors ${
                   activeCategory === category.id
                     ? 'bg-blue-600 text-white'
-                    : 'text-slate-400 hover:text-white'
+                    : 'bg-slate-800/60 text-slate-300 hover:text-white hover:bg-slate-700/60'
                 }`}
               >
                 {category.name} ({category.count})
               </button>
             ))}
+            </div>
           </div>
 
           {/* FAQ Items */}
-          <div className="space-y-3">
+          <div className="space-y-4">
             {filteredItems.map(item => (
-              <div key={item.id} className="border border-slate-700 rounded-lg">
+              <div key={item.id} className="bg-slate-900/50 border border-slate-800/80 rounded-xl">
                 <button
                   onClick={() => toggleItem(item.id)}
-                  className="w-full p-3 text-center flex items-center justify-center hover:bg-slate-800 transition-colors"
+                  className="w-full p-5 flex items-center justify-between hover:bg-slate-800/60 transition-colors text-left"
                 >
-                  <div className="flex items-center space-x-3">
-                    <h3 className="text-lg font-medium">{item.question}</h3>
-                    {openItems.includes(item.id) ? (
-                      <ChevronUp className="w-5 h-5 text-slate-400" />
-                    ) : (
-                      <ChevronDown className="w-5 h-5 text-slate-400" />
-                    )}
-                  </div>
-                </button>
-                                  {openItems.includes(item.id) && (
-                    <div className="px-3 pb-3 text-center">
-                      <p className="text-slate-300 leading-relaxed text-sm">{item.answer}</p>
-                    </div>
+                  <h3 className="text-base md:text-lg font-semibold text-slate-100">{item.question}</h3>
+                  {openItems.includes(item.id) ? (
+                    <ChevronUp className="w-5 h-5 text-slate-400" />
+                  ) : (
+                    <ChevronDown className="w-5 h-5 text-slate-400" />
                   )}
+                </button>
+                {openItems.includes(item.id) && (
+                  <div className="px-5 pb-5">
+                    <p className="text-slate-300 leading-relaxed text-sm md:text-base">{item.answer}</p>
+                  </div>
+                )}
               </div>
             ))}
           </div>
 
           {/* Contact Section */}
-          <div className="text-center mt-12 p-8 border border-slate-700 rounded-lg">
+          <div className="text-left mt-12 p-8 border border-slate-800/80 rounded-xl bg-slate-900/60">
             <h2 className="text-2xl font-bold mb-4">Ikke funnet svaret du leter etter?</h2>
             <p className="text-slate-300 mb-6">
               Kontakt oss på Discord eller send oss en melding
