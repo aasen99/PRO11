@@ -703,7 +703,7 @@ PRO11 Team`)
         end_date: endDate.toISOString(),
         max_teams: tournamentData.maxTeams || 16,
         prize_pool: prizePool,
-        entry_fee: tournamentData.entryFee || 299,
+        entry_fee: tournamentData.entryFee ?? 299,
         status: tournamentData.status === 'open' ? 'upcoming' : 
                 tournamentData.status === 'ongoing' ? 'active' :
                 tournamentData.status === 'completed' ? 'completed' : 'cancelled'
