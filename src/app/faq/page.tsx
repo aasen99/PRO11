@@ -178,10 +178,6 @@ export default function FAQPage() {
             </a>
           </div>
           
-          <div className="mt-10 text-center text-xs text-slate-500 space-y-2">
-            <p>© 2026 PRO11. En del av E-spårt AS.</p>
-            <p>PRO11 er en uavhengig turneringsarrangør og har ingen tilknytning til Electronic Arts Inc.</p>
-          </div>
           </div>
         </div>
       </main>
