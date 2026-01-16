@@ -214,13 +214,6 @@ export default function HomePage() {
         </div>
       </main>
 
-      {/* Footer */}
-      <footer className="pro11-card mx-4 mb-4 p-6 mt-16">
-        <div className="text-center text-slate-400">
-          <p>&copy; 2025 PRO11. Alle rettigheter forbeholdt.</p>
-          <p className="mt-2">Lansering september 2025 - FC 26</p>
-        </div>
-      </footer>
     </div>
   )
 } 
