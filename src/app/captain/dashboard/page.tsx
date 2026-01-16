@@ -352,17 +352,19 @@ export default function CaptainDashboardPage() {
     }
 
     try {
-      // Send resultat til API
-      // If team1 is submitting: resultScore1 is their score, resultScore2 is opponent's score
-      // If team2 is submitting: resultScore1 is their score (which is team2's perspective), resultScore2 is opponent's score
+      // Send resultat til API fra riktig perspektiv
+      // UI viser alltid team1/team2, så vi må mappe til "mitt lag" før vi sender
+      const teamScore1 = isTeam1 ? resultScore1 : resultScore2
+      const teamScore2 = isTeam1 ? resultScore2 : resultScore1
+
       const response = await fetch('/api/matches', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           id: selectedMatch.id,
           team_name: team.teamName,
-          team_score1: resultScore1, // This team's score
-          team_score2: resultScore2   // Opponent's score
+          team_score1: teamScore1, // This team's score
+          team_score2: teamScore2  // Opponent's score
         })
       })
 
