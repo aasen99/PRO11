@@ -137,14 +137,14 @@ export default function CaptainDashboardPage() {
                   const hasTeam2Submitted = m.team2_submitted_score1 !== null && m.team2_submitted_score1 !== undefined
                   const thisTeamHasSubmitted = (isTeam1 && hasTeam1Submitted) || (isTeam2 && hasTeam2Submitted)
                   
+                  // Determine if this team can confirm (opponent has submitted, waiting for confirmation)
+                  // Can confirm if opponent has submitted but this team hasn't
+                  const opponentHasSubmitted = (isTeam1 && hasTeam2Submitted) || (isTeam2 && hasTeam1Submitted)
+                  
                   const canSubmit = (m.status === 'scheduled' || m.status === 'live' || m.status === 'pending_result' || m.status === 'pending_confirmation') && 
                                     !thisTeamHasSubmitted &&
                                     !opponentHasSubmitted &&
                                     m.status !== 'completed'
-                  
-                  // Determine if this team can confirm (opponent has submitted, waiting for confirmation)
-                  // Can confirm if opponent has submitted but this team hasn't
-                  const opponentHasSubmitted = (isTeam1 && hasTeam2Submitted) || (isTeam2 && hasTeam1Submitted)
                   
                   // Can confirm if:
                   // 1. Opponent has submitted their result (checked via team1/team2_submitted_score1)
