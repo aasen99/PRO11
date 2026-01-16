@@ -420,6 +420,7 @@ export async function DELETE(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
     const tournamentId = searchParams.get('tournament_id')
+    const keepGroup = searchParams.get('keep_group') === 'true'
 
     if (!tournamentId) {
       return NextResponse.json({ error: 'tournament_id is required' }, { status: 400 })
@@ -430,10 +431,16 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: 'Database connection failed' }, { status: 500 })
     }
 
-    const { error } = await supabase
+    let deleteQuery = supabase
       .from('matches')
       .delete()
       .eq('tournament_id', tournamentId)
+
+    if (keepGroup) {
+      deleteQuery = deleteQuery.neq('round', 'Gruppespill')
+    }
+
+    const { error } = await deleteQuery
 
     if (error) {
       console.error('Database error:', error)

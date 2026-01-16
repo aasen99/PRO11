@@ -1118,24 +1118,12 @@ PRO11 Team`)
       matches = generateGroupMatches(groups)
     }
 
-    if (tournament.format === 'knockout' || tournament.format === 'mixed') {
+    if (tournament.format === 'knockout') {
       // For knockout eller mixed, generer sluttspill basert på konfigurasjon
       let knockoutTeams: string[] = []
       
-      if (tournament.format === 'mixed' && groups.length > 0) {
-        // For mixed format, ta lag basert på konfigurasjon
-        const teamsPerGroup = useConfig.teamsToKnockout
-        
-        // Get top teams from each group (will be calculated from standings later)
-        // For now, we'll use a placeholder that will be updated after group stage
-        knockoutTeams = groups.flatMap(group => group.slice(0, teamsPerGroup))
-        
-        // If using best runners-up, we'll need to calculate this after group stage is complete
-        // For now, we'll just use the top teams from each group
-      } else {
-        // Pure knockout - use all teams
-        knockoutTeams = approvedTeams
-      }
+      // Pure knockout - use all teams
+      knockoutTeams = approvedTeams
       
       // Generate knockout bracket with proper round names (Kvartfinaler, Semifinaler, Finale)
       const knockoutMatches = generateKnockoutBracket(knockoutTeams)
@@ -1418,26 +1406,100 @@ PRO11 Team`)
       })
     })
 
-    // Ta de beste lagene fra hver gruppe (top 2)
-    const knockoutTeams = groupStandings.flatMap(standings => 
-      standings.slice(0, 2).map(s => s.team)
+    // Ta de beste lagene fra hver gruppe (konfigurerbart antall)
+    const teamsToKnockout = Math.max(1, matchConfig.teamsToKnockout || 2)
+    const baseTeams = groupStandings.flatMap(standings => 
+      standings.slice(0, teamsToKnockout).map(s => s.team)
     )
+    
+    // Valgfritt: ta beste 2.-plasser
+    let knockoutTeams = baseTeams
+    if (matchConfig.useBestRunnersUp && matchConfig.numBestRunnersUp > 0) {
+      const runnersUp = groupStandings
+        .map(standings => standings[1])
+        .filter(Boolean)
+        .sort((a, b) => {
+          if (b.points !== a.points) return b.points - a.points
+          if (b.goalDifference !== a.goalDifference) return b.goalDifference - a.goalDifference
+          return b.goalsFor - a.goalsFor
+        })
+      const extraTeams = runnersUp
+        .slice(0, matchConfig.numBestRunnersUp)
+        .map(s => s.team)
+      const combinedTeams = [...knockoutTeams, ...extraTeams]
+      knockoutTeams = combinedTeams.filter((team, index) => combinedTeams.indexOf(team) === index)
+    }
 
     if (knockoutTeams.length < 4) {
       alert('Du trenger minst 4 lag for sluttspill!')
       return
     }
 
-    // Generer sluttspill-kamper
-    const knockoutMatches = generateKnockoutMatches(knockoutTeams, 'Sluttspill')
+    // Generer sluttspill-kamper med riktig rundenavn
+    const knockoutMatches = generateKnockoutBracket(knockoutTeams)
     
-    // Legg til nye kamper til eksisterende turnering
-    const updatedMatches = [...tournament.matches, ...knockoutMatches]
-    
-    console.log('Generated knockout matches:', knockoutMatches)
-    console.log('Group standings:', groupStandings)
-    
-    alert(`Sluttspill generert!\n\n${knockoutTeams.length} lag kvalifisert til sluttspill\n${knockoutMatches.length} nye kamper opprettet`)
+    const saveKnockoutMatches = async () => {
+      try {
+        // Slett eksisterende sluttspillkamper, behold gruppespill
+        const deleteResponse = await fetch(`/api/matches?tournament_id=${tournamentId}&keep_group=true`, {
+          method: 'DELETE'
+        })
+        if (!deleteResponse.ok) {
+          const errorData = await deleteResponse.json()
+          throw new Error(errorData.error || 'Kunne ikke slette sluttspillkamper')
+        }
+
+        // Lagre nye sluttspillkamper
+        const insertPromises = knockoutMatches.map(async (match) => {
+          const response = await fetch('/api/matches', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              tournament_id: tournamentId,
+              team1_name: match.team1,
+              team2_name: match.team2,
+              round: match.round,
+              status: match.status || 'scheduled'
+            })
+          })
+          if (!response.ok) {
+            const errorData = await response.json()
+            throw new Error(errorData.error || 'Kunne ikke opprette kamp')
+          }
+          return response.json()
+        })
+        
+        await Promise.all(insertPromises)
+
+        // Reload matches for this tournament
+        const matchesResponse = await fetch(`/api/matches?tournament_id=${tournamentId}`)
+        if (matchesResponse.ok) {
+          const matchesData = await matchesResponse.json()
+          const refreshedMatches = (matchesData.matches || []).map((m: any) => ({
+            id: m.id,
+            team1: m.team1_name,
+            team2: m.team2_name,
+            round: m.round,
+            group: m.group_name,
+            status: m.status as 'scheduled' | 'live' | 'completed',
+            score1: m.score1,
+            score2: m.score2,
+            time: m.scheduled_time ? new Date(m.scheduled_time).toLocaleTimeString('nb-NO', { hour: '2-digit', minute: '2-digit' }) : undefined
+          }))
+          setTournaments(prev => prev.map(t => t.id === tournamentId ? { ...t, matches: refreshedMatches } : t))
+        }
+
+        console.log('Generated knockout matches:', knockoutMatches)
+        console.log('Group standings:', groupStandings)
+        
+        alert(`Sluttspill generert!\n\n${knockoutTeams.length} lag kvalifisert til sluttspill\n${knockoutMatches.length} nye kamper opprettet`)
+      } catch (error: any) {
+        console.error('Error generating knockout matches:', error)
+        alert(`Feil ved generering av sluttspill: ${error.message || 'Ukjent feil'}`)
+      }
+    }
+
+    saveKnockoutMatches()
   }
 
   // Statistics
