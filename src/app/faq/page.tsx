@@ -147,7 +147,7 @@ export default function FAQPage() {
   return (
     <div className="min-h-screen bg-slate-950">
       {/* Header */}
-      <header className="pro11-card mx-4 mt-4 h-24">
+      <header className="mx-4 mt-4 h-24 bg-slate-900/70 border border-slate-800/80 rounded-xl">
         <div className="flex items-center justify-between">
           <div className="flex items-center">
             <Link href="/" className="w-24 h-full flex items-center justify-center hover:opacity-80 transition-opacity">
@@ -175,7 +175,7 @@ export default function FAQPage() {
           </div>
 
           {/* Category Filter */}
-          <div className="pro11-card p-4 mb-8 bg-slate-900/60 border border-slate-800/80">
+          <div className="p-4 mb-8 bg-slate-900/60 border border-slate-800/80 rounded-xl">
             <div className="flex flex-wrap gap-2">
             {categories.map(category => (
               <button
