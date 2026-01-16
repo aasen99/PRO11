@@ -139,6 +139,7 @@ export default function CaptainDashboardPage() {
                   
                   const canSubmit = (m.status === 'scheduled' || m.status === 'live' || m.status === 'pending_result' || m.status === 'pending_confirmation') && 
                                     !thisTeamHasSubmitted &&
+                                    !opponentHasSubmitted &&
                                     m.status !== 'completed'
                   
                   // Determine if this team can confirm (opponent has submitted, waiting for confirmation)
@@ -152,8 +153,7 @@ export default function CaptainDashboardPage() {
                   // 4. Status is pending_confirmation (meaning someone has submitted)
                   const canConfirm = opponentHasSubmitted && 
                                      !thisTeamHasSubmitted &&
-                                     m.status !== 'completed' &&
-                                     m.status === 'pending_confirmation'
+                                     m.status !== 'completed'
                   
                   return {
                     id: m.id,
