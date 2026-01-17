@@ -976,7 +976,7 @@ export default function TournamentMatchesPage() {
             {knockoutMatches.length > 0 && (
               <div className="mb-8">
                 <h2 className="text-xl font-bold mb-4 flex items-center space-x-2">
-                  <Award className="w-5 h-5" />
+                  <Trophy className="w-5 h-5" />
                   <span>Sluttspill - Kamper</span>
                 </h2>
                 {!shouldShowKnockout && groupMatches.length > 0 ? (
