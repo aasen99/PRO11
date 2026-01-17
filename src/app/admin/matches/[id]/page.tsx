@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react'
 import Link from 'next/link'
 import { useParams } from 'next/navigation'
-import { ArrowLeft, Trophy, Users, Calendar, Award, Edit, Save, X, RefreshCw } from 'lucide-react'
+import { ArrowLeft, Trophy, Users, Calendar, Edit, Save, X, RefreshCw } from 'lucide-react'
 import { ToastContainer } from '@/components/Toast'
 import type { ToastType } from '@/components/Toast'
 
@@ -384,139 +384,6 @@ export default function TournamentMatchesPage() {
     }
   }
 
-  const generateNextRound = async () => {
-    // Find completed rounds and generate next round
-    const knockoutMatches = matches.filter(m => m.round !== 'Gruppespill')
-    const rounds = Array.from(new Set(knockoutMatches.map(m => m.round)))
-    
-    // Find the latest completed round
-    const roundOrder: Record<string, number> = {
-      'Kvartfinaler': 1,
-      'Semifinaler': 2,
-      'Finale': 3
-    }
-    
-    const sortedRounds = rounds
-      .filter(r => roundOrder[r] !== undefined)
-      .sort((a, b) => (roundOrder[a] || 999) - (roundOrder[b] || 999))
-    
-    if (sortedRounds.length === 0) {
-      addToast({ message: 'Ingen sluttspillrunder funnet å generere neste runde fra.', type: 'info' })
-      return
-    }
-    
-    // Check the latest round
-    const latestRound = sortedRounds[sortedRounds.length - 1]
-    const latestRoundMatches = knockoutMatches.filter(m => m.round === latestRound)
-    
-    // Check if all matches in latest round are completed
-    const allCompleted = latestRoundMatches.length > 0 && 
-      latestRoundMatches.every(m => m.status === 'completed' && m.score1 !== undefined && m.score2 !== undefined)
-    
-    if (!allCompleted) {
-      addToast({ 
-        message: `Alle kamper i ${latestRound} må være ferdig før neste runde kan genereres.`, 
-        type: 'warning' 
-      })
-      return
-    }
-    
-    // Determine next round name
-    const getNextRoundName = (currentRound: string): string | null => {
-      if (currentRound === 'Kvartfinaler') return 'Semifinaler'
-      if (currentRound === 'Semifinaler') return 'Finale'
-      return null
-    }
-    
-    const nextRoundName = getNextRoundName(latestRound)
-    
-    if (!nextRoundName) {
-      addToast({ message: 'Det er ingen neste runde å generere (turneringen er ferdig).', type: 'info' })
-      return
-    }
-    
-    // Check if next round already exists
-    const nextRoundExists = knockoutMatches.some(m => m.round === nextRoundName)
-    if (nextRoundExists) {
-      addToast({ message: `${nextRoundName} er allerede generert.`, type: 'info' })
-      return
-    }
-    
-    // Get winners from completed matches
-    const winners: string[] = []
-    latestRoundMatches.forEach(match => {
-      if (match.status === 'completed' && match.score1 !== undefined && match.score2 !== undefined) {
-        if (match.score1 > match.score2) {
-          winners.push(match.team1_name)
-        } else if (match.score2 > match.score1) {
-          winners.push(match.team2_name)
-        } else {
-          // Draw - use team1 as winner
-          winners.push(match.team1_name)
-        }
-      }
-    })
-    
-    if (winners.length === 0) {
-      addToast({ message: 'Kunne ikke finne vinnere fra forrige runde.', type: 'error' })
-      return
-    }
-    
-    if (!confirm(`Dette vil generere ${nextRoundName} med ${winners.length} lag:\n${winners.join(', ')}\n\nFortsette?`)) {
-      return
-    }
-    
-    setIsLoading(true)
-    try {
-      // Generate matches for next round
-      const nextRoundMatches: any[] = []
-      for (let i = 0; i < winners.length; i += 2) {
-        if (i + 1 < winners.length) {
-          nextRoundMatches.push({
-            tournament_id: tournamentId,
-            team1_name: winners[i],
-            team2_name: winners[i + 1],
-            round: nextRoundName,
-            status: 'scheduled'
-          })
-        }
-      }
-      
-      // Insert matches
-      const insertPromises = nextRoundMatches.map(async (match) => {
-        const response = await fetch('/api/matches', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(match)
-        })
-        
-        if (!response.ok) {
-          const errorData = await response.json()
-          throw new Error(errorData.error || 'Kunne ikke opprette kamp')
-        }
-        
-        return await response.json()
-      })
-      
-      await Promise.all(insertPromises)
-      addToast({ 
-        message: `${nextRoundName} generert med ${nextRoundMatches.length} kamper!`, 
-        type: 'success' 
-      })
-      
-      // Reload data
-      await loadData()
-    } catch (error: any) {
-      console.error('Error generating next round:', error)
-      addToast({ 
-        message: `Feil ved generering av neste runde: ${error.message || 'Ukjent feil'}`, 
-        type: 'error' 
-      })
-    } finally {
-      setIsLoading(false)
-    }
-  }
-
   const groupMatches = matches.filter(m => m.round === 'Gruppespill')
   const knockoutMatches = matches.filter(m => m.round !== 'Gruppespill')
   
@@ -569,85 +436,9 @@ export default function TournamentMatchesPage() {
             </div>
           </div>
           <div className="flex items-center space-x-2">
-            <button
-              onClick={generateNextRound}
-              className="pro11-button flex items-center space-x-2"
-            >
-              <Award className="w-4 h-4" />
-              <span>Generer neste runde</span>
-            </button>
-            <button
-              onClick={async () => {
-                if (!confirm('Dette vil oppdatere rundenavn for alle sluttspillkamper basert på antall lag. Fortsette?')) {
-                  return
-                }
-              
-              try {
-                // Count unique teams in knockout matches
-                const knockoutMatches = matches.filter(m => m.round !== 'Gruppespill')
-                const uniqueTeams = new Set<string>()
-                knockoutMatches.forEach(m => {
-                  uniqueTeams.add(m.team1_name)
-                  uniqueTeams.add(m.team2_name)
-                })
-                const numTeams = uniqueTeams.size
-                
-                // Determine correct round name
-                const getRoundName = (num: number): string => {
-                  if (num === 2) return 'Finale'
-                  if (num === 4) return 'Semifinaler'
-                  if (num === 8) return 'Kvartfinaler'
-                  if (num > 8) return 'Kvartfinaler'
-                  if (num > 4) return 'Semifinaler'
-                  return 'Sluttspill'
-                }
-                
-                const correctRoundName = getRoundName(numTeams)
-                
-                // Update all knockout matches that have wrong round name
-                const matchesToUpdate = knockoutMatches.filter(m => m.round === 'Sluttspill' || m.round !== correctRoundName)
-                
-                if (matchesToUpdate.length === 0) {
-                  alert('Alle kamper har allerede riktig rundenavn!')
-                  return
-                }
-                
-                // Update each match
-                let updated = 0
-                for (const match of matchesToUpdate) {
-                  const response = await fetch('/api/matches', {
-                    method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                      id: match.id,
-                      round: correctRoundName
-                    })
-                  })
-                  
-                  if (response.ok) {
-                    updated++
-                  }
-                }
-                
-                if (updated > 0) {
-                  alert(`Oppdaterte ${updated} kamper med rundenavn: ${correctRoundName}`)
-                  await loadData()
-                } else {
-                  alert('Kunne ikke oppdatere kamper. Prøv igjen.')
-                }
-              } catch (error) {
-                console.error('Error updating round names:', error)
-                alert('Noe gikk galt ved oppdatering av rundenavn.')
-              }
-            }}
-            className="pro11-button-secondary flex items-center space-x-2"
-          >
-            <RefreshCw className="w-4 h-4" />
-            <span>Oppdater rundenavn</span>
-          </button>
             <button onClick={loadData} className="pro11-button-secondary flex items-center space-x-2">
               <RefreshCw className="w-4 h-4" />
-              <span>Oppdater</span>
+              <span>Refresh</span>
             </button>
           </div>
         </div>
