@@ -650,22 +650,20 @@ export default function CaptainDashboardPage() {
                       <div className="space-y-2">
                         {pendingMatches.length > 0 ? (
                           pendingMatches.map(match => (
-                            <div key={match.id} className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 p-3 md:p-4 bg-slate-700/30 rounded">
-                              <div className="flex-1">
+                            <div key={match.id} className="p-3 md:p-4 bg-slate-700/30 rounded">
+                              <div className="flex flex-col gap-2 md:grid md:grid-cols-[1.6fr_0.7fr_1.4fr_auto] md:items-center md:gap-4">
                                 <div className="text-sm font-medium">
                                   {match.team1} vs {match.team2}
                                 </div>
-                                <div className="text-xs text-slate-400">{match.round}</div>
-                                {match.canConfirmResult && match.opponentSubmittedScore1 !== null && match.opponentSubmittedScore2 !== null && (
-                                  <div className="mt-2 inline-flex items-center gap-2 px-2.5 py-1.5 rounded-md bg-amber-900/30 border border-amber-500/30 text-amber-200 text-xs md:text-sm">
-                                    <span className="font-semibold">Innsendt resultat</span>
-                                    <span>
-                                      {match.team1} {match.opponentSubmittedScore1} - {match.opponentSubmittedScore2} {match.team2}
-                                    </span>
-                                  </div>
-                                )}
-                              </div>
-                              <div className="flex flex-wrap gap-2">
+                                <div className="text-xs text-slate-400 md:text-sm">
+                                  {match.round}
+                                </div>
+                                <div className="text-xs md:text-sm text-slate-300">
+                                  {match.canConfirmResult && match.opponentSubmittedScore1 !== null && match.opponentSubmittedScore2 !== null
+                                    ? `Innsendt: ${match.opponentSubmittedScore1} - ${match.opponentSubmittedScore2}`
+                                    : ''}
+                                </div>
+                                <div className="flex flex-wrap gap-2 md:justify-end">
                                 {match.canSubmitResult && (
                                   <button
                                     onClick={() => openResultModal(match)}
