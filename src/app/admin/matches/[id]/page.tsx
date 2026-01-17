@@ -215,9 +215,9 @@ export default function TournamentMatchesPage() {
           setGroupStandings(standings)
 
           // Auto-generate knockout when all group matches are completed
-          const groupMatches = loadedMatches.filter(m => m.round === 'Gruppespill')
-          const knockoutMatches = loadedMatches.filter(m => m.round !== 'Gruppespill')
-          const allGroupMatchesCompleted = groupMatches.length > 0 && groupMatches.every(m =>
+          const groupMatches = loadedMatches.filter((m: Match) => m.round === 'Gruppespill')
+          const knockoutMatches = loadedMatches.filter((m: Match) => m.round !== 'Gruppespill')
+          const allGroupMatchesCompleted = groupMatches.length > 0 && groupMatches.every((m: Match) =>
             m.status === 'completed' &&
             m.score1 !== undefined &&
             m.score1 !== null &&
