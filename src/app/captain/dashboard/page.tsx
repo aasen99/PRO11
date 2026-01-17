@@ -659,38 +659,40 @@ export default function CaptainDashboardPage() {
                                   {match.round}
                                 </div>
                                 <div className="text-xs md:text-sm text-slate-300">
-                                  {match.canConfirmResult && match.opponentSubmittedScore1 !== null && match.opponentSubmittedScore2 !== null
-                                    ? `Innsendt: ${match.opponentSubmittedScore1} - ${match.opponentSubmittedScore2}`
-                                    : ''}
+                                  {match.canConfirmResult &&
+                                    match.opponentSubmittedScore1 !== null &&
+                                    match.opponentSubmittedScore2 !== null && (
+                                      <>Innsendt: {match.opponentSubmittedScore1} - {match.opponentSubmittedScore2}</>
+                                    )}
                                 </div>
                                 <div className="flex flex-wrap gap-2 md:justify-end">
-                                {match.canSubmitResult && (
-                                  <button
-                                    onClick={() => openResultModal(match)}
-                                    className="pro11-button-secondary text-xs px-3 py-1"
-                                  >
-                                    <Edit className="w-3 h-3 mr-1" />
-                                    Legg inn
-                                  </button>
-                                )}
-                                {match.canConfirmResult && (
-                                  <>
+                                  {match.canSubmitResult && (
                                     <button
-                                      onClick={() => confirmResult(match)}
-                                      className="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded text-xs font-medium transition-colors"
+                                      onClick={() => openResultModal(match)}
+                                      className="pro11-button-secondary text-xs px-3 py-1"
                                     >
-                                      Bekreft
+                                      <Edit className="w-3 h-3 mr-1" />
+                                      Legg inn
                                     </button>
-                                    {match.submittedBy && match.submittedBy !== team.teamName && (
-                                    <button
-                                      onClick={() => rejectResult(match)}
-                                      className="bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded text-xs font-medium transition-colors"
-                                    >
-                                      Avvis
-                                    </button>
-                                    )}
-                                  </>
-                                )}
+                                  )}
+                                  {match.canConfirmResult && (
+                                    <>
+                                      <button
+                                        onClick={() => confirmResult(match)}
+                                        className="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded text-xs font-medium transition-colors"
+                                      >
+                                        Bekreft
+                                      </button>
+                                      {match.submittedBy && match.submittedBy !== team.teamName && (
+                                        <button
+                                          onClick={() => rejectResult(match)}
+                                          className="bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded text-xs font-medium transition-colors"
+                                        >
+                                          Avvis
+                                        </button>
+                                      )}
+                                    </>
+                                  )}
                               </div>
                             </div>
                           ))
