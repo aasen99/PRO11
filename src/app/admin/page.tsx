@@ -1430,8 +1430,8 @@ PRO11 Team`)
       knockoutTeams = combinedTeams.filter((team, index) => combinedTeams.indexOf(team) === index)
     }
 
-    if (knockoutTeams.length < 4) {
-      alert('Du trenger minst 4 lag for sluttspill!')
+    if (knockoutTeams.length < 2) {
+      alert('Du trenger minst 2 lag for sluttspill!')
       return
     }
 
