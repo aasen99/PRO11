@@ -615,7 +615,7 @@ export default function CaptainDashboardPage() {
 
       <main className="container mx-auto px-4 py-6 flex flex-col items-center">
         <ToastContainer toasts={toasts} onRemove={removeToast} />
-        <div className="max-w-4xl w-full">
+        <div className="max-w-6xl w-full">
           {/* Welcome Section */}
           <div className="pro11-card p-6 mb-6">
             <h1 className="text-2xl font-bold mb-2">Velkommen, {team.captainName}!</h1>
@@ -626,9 +626,9 @@ export default function CaptainDashboardPage() {
 
           {/* Quick Actions for Active Tournaments */}
           {tournaments.filter(t => t.status === 'live').length > 0 && (
-            <div className="pro11-card p-6 mb-6">
+            <div className="pro11-card p-6 md:p-8 mb-6">
               <h2 className="text-xl font-bold mb-4">Hurtig-handlinger</h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 {tournaments.filter(t => t.status === 'live').map(tournament => {
                   // Filter out knockout matches if group stage is not completed
                   const groupMatches = tournament.matches.filter(m => m.round === 'Gruppespill')
@@ -645,24 +645,27 @@ export default function CaptainDashboardPage() {
                     m.canSubmitResult || m.canConfirmResult
                   )
                   return (
-                    <div key={tournament.id} className="p-4 bg-slate-800/50 rounded-lg">
+                    <div key={tournament.id} className="p-4 md:p-5 bg-slate-800/50 rounded-lg">
                       <h3 className="font-semibold mb-3">{tournament.title}</h3>
                       <div className="space-y-2">
                         {pendingMatches.length > 0 ? (
                           pendingMatches.map(match => (
-                            <div key={match.id} className="flex items-center justify-between p-2 bg-slate-700/30 rounded">
+                            <div key={match.id} className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 p-3 md:p-4 bg-slate-700/30 rounded">
                               <div className="flex-1">
                                 <div className="text-sm font-medium">
                                   {match.team1} vs {match.team2}
                                 </div>
                                 <div className="text-xs text-slate-400">{match.round}</div>
                                 {match.canConfirmResult && match.opponentSubmittedScore1 !== null && match.opponentSubmittedScore2 !== null && (
-                                  <div className="text-xs text-slate-300 mt-1">
-                                    Innsendt: {match.team1} {match.opponentSubmittedScore1} - {match.opponentSubmittedScore2} {match.team2}
+                                  <div className="mt-2 inline-flex items-center gap-2 px-2.5 py-1.5 rounded-md bg-amber-900/30 border border-amber-500/30 text-amber-200 text-xs md:text-sm">
+                                    <span className="font-semibold">Innsendt resultat</span>
+                                    <span>
+                                      {match.team1} {match.opponentSubmittedScore1} - {match.opponentSubmittedScore2} {match.team2}
+                                    </span>
                                   </div>
                                 )}
                               </div>
-                              <div className="flex space-x-2">
+                              <div className="flex flex-wrap gap-2">
                                 {match.canSubmitResult && (
                                   <button
                                     onClick={() => openResultModal(match)}
