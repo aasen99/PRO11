@@ -426,6 +426,125 @@ export default function TournamentMatchesPage() {
     return result
   }
 
+  const getGroupCompletionMap = (): Record<string, boolean> => {
+    const map: Record<string, boolean> = {}
+    const groupMatches = matches.filter(m => m.group_name && m.round === 'Gruppespill')
+    groupMatches.forEach(match => {
+      const groupName = match.group_name as string
+      if (map[groupName] === undefined) {
+        map[groupName] = true
+      }
+      const isComplete = match.status === 'completed' &&
+        match.score1 !== undefined &&
+        match.score1 !== null &&
+        match.score2 !== undefined &&
+        match.score2 !== null
+      if (!isComplete) {
+        map[groupName] = false
+      }
+    })
+    return map
+  }
+
+  const buildSeedingPreview = () => {
+    const config = getStoredMatchConfig()
+    const teamsToKnockout = Math.max(1, config.teamsToKnockout || 2)
+    const completionMap = getGroupCompletionMap()
+    const groupNames = Object.keys(groupStandings).length > 0
+      ? Object.keys(groupStandings).sort()
+      : Array.from(new Set(matches.map(m => m.group_name).filter(Boolean))) as string[]
+    const allGroupsComplete = groupNames.length > 0 && groupNames.every(name => completionMap[name])
+
+    type SeedEntry = {
+      label: string
+      groupName?: string
+      position: number
+      points?: number
+      goalsFor?: number
+      goalsAgainst?: number
+      placeholder?: boolean
+    }
+
+    const entries: SeedEntry[] = []
+
+    for (let position = 1; position <= teamsToKnockout; position += 1) {
+      const positionEntries: SeedEntry[] = groupNames.map(groupName => {
+        const group = groupStandings[groupName] || []
+        if (completionMap[groupName] && group[position - 1]) {
+          const team = group[position - 1]
+          return {
+            label: team.team,
+            groupName,
+            position,
+            points: team.points,
+            goalsFor: team.goalsFor,
+            goalsAgainst: team.goalsAgainst
+          }
+        }
+        return {
+          label: `Venter: ${groupName} #${position}`,
+          groupName,
+          position,
+          placeholder: true
+        }
+      })
+
+      positionEntries.sort((a, b) => {
+        if (a.placeholder && !b.placeholder) return 1
+        if (!a.placeholder && b.placeholder) return -1
+        if ((b.points ?? 0) !== (a.points ?? 0)) return (b.points ?? 0) - (a.points ?? 0)
+        const aDiff = (a.goalsFor ?? 0) - (a.goalsAgainst ?? 0)
+        const bDiff = (b.goalsFor ?? 0) - (b.goalsAgainst ?? 0)
+        if (bDiff !== aDiff) return bDiff - aDiff
+        return (b.goalsFor ?? 0) - (a.goalsFor ?? 0)
+      })
+
+      entries.push(...positionEntries)
+    }
+
+    if (config.useBestRunnersUp && config.numBestRunnersUp > 0) {
+      if (allGroupsComplete) {
+        const runnersUp = groupNames
+          .map(name => groupStandings[name]?.[1])
+          .filter(Boolean) as GroupStanding[]
+        runnersUp
+          .sort((a, b) => {
+            if (b.points !== a.points) return b.points - a.points
+            const aDiff = a.goalsFor - a.goalsAgainst
+            const bDiff = b.goalsFor - b.goalsAgainst
+            if (bDiff !== aDiff) return bDiff - aDiff
+            return b.goalsFor - a.goalsFor
+          })
+          .slice(0, config.numBestRunnersUp)
+          .forEach((team, index) => {
+            entries.push({
+              label: team.team,
+              position: 2,
+              points: team.points,
+              goalsFor: team.goalsFor,
+              goalsAgainst: team.goalsAgainst
+            })
+          })
+      } else {
+        for (let i = 1; i <= config.numBestRunnersUp; i += 1) {
+          entries.push({
+            label: `Venter: Beste 2.-plass #${i}`,
+            position: 2,
+            placeholder: true
+          })
+        }
+      }
+    }
+
+    const roundName = getRoundNameForTeams(entries.filter(entry => !entry.placeholder).length || entries.length)
+    const pairings = []
+    for (let i = 0; i < Math.floor(entries.length / 2); i += 1) {
+      pairings.push([entries[i], entries[entries.length - 1 - i]])
+    }
+
+    return { entries, pairings, roundName, allGroupsComplete }
+  }
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'completed':
@@ -591,6 +710,66 @@ export default function TournamentMatchesPage() {
       </header>
 
       <main className="container mx-auto px-4 py-6">
+        {Object.keys(groupStandings).length > 0 && (() => {
+          const preview = buildSeedingPreview()
+          return (
+            <div className="pro11-card p-6 mb-8">
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <h2 className="text-xl font-bold">Seeding (foreløpig)</h2>
+                  <p className="text-slate-400 text-sm">
+                    {preview.allGroupsComplete
+                      ? `Klar for sluttspill: ${preview.roundName}`
+                      : 'Oppdateres fortløpende når gruppene ferdigspilles.'}
+                  </p>
+                </div>
+              </div>
+
+              <div className="grid lg:grid-cols-2 gap-6">
+                <div>
+                  <h3 className="text-sm font-semibold text-slate-300 mb-3">Seeds</h3>
+                  <div className="space-y-2">
+                    {preview.entries.map((entry, index) => (
+                      <div
+                        key={`${entry.label}-${index}`}
+                        className={`flex items-center justify-between rounded-md px-3 py-2 text-sm ${
+                          entry.placeholder ? 'bg-slate-800/40 text-slate-400' : 'bg-slate-800/70 text-slate-200'
+                        }`}
+                      >
+                        <span className="font-semibold w-10">#{index + 1}</span>
+                        <span className="flex-1">{entry.label}</span>
+                        {!entry.placeholder && entry.points !== undefined && (
+                          <span className="text-xs text-slate-400">
+                            {entry.points}p
+                          </span>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div>
+                  <h3 className="text-sm font-semibold text-slate-300 mb-3">Matchups (seedet)</h3>
+                  <div className="space-y-2">
+                    {preview.pairings.length > 0 ? (
+                      preview.pairings.map((pair, index) => (
+                        <div key={`pair-${index}`} className="rounded-md border border-slate-800/80 bg-slate-900/60 px-3 py-2 text-sm text-slate-300">
+                          <div className="flex items-center justify-between">
+                            <span>{pair[0].label}</span>
+                            <span className="text-slate-500">vs</span>
+                            <span>{pair[1].label}</span>
+                          </div>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="text-sm text-slate-400">Ingen matchups ennå.</div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )
+        })()}
         {/* Group Stage Standings */}
         {Object.keys(groupStandings).length > 0 && (
           <div className="mb-8">
