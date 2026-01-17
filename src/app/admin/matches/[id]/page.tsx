@@ -713,7 +713,7 @@ export default function TournamentMatchesPage() {
         {Object.keys(groupStandings).length > 0 && (() => {
           const preview = buildSeedingPreview()
           return (
-            <div className="pro11-card p-4 mb-6 max-w-3xl mx-auto">
+            <div className="pro11-card p-4 mb-6 max-w-2xl w-full mx-auto">
               <div className="flex items-center justify-between mb-4">
                 <div>
                   <h2 className="text-xl font-bold">Seeding (foreløpig)</h2>
