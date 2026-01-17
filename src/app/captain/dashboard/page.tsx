@@ -693,6 +693,7 @@ export default function CaptainDashboardPage() {
                                       )}
                                     </>
                                   )}
+                                </div>
                               </div>
                             </div>
                           ))
