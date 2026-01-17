@@ -51,6 +51,12 @@ interface GroupStanding {
   points: number
 }
 
+interface StoredMatchConfig {
+  teamsToKnockout: number
+  useBestRunnersUp: boolean
+  numBestRunnersUp: number
+}
+
 export default function TournamentMatchesPage() {
   const params = useParams()
   const tournamentId = params.id as string
@@ -68,6 +74,7 @@ export default function TournamentMatchesPage() {
   }>({})
   const [toasts, setToasts] = useState<ToastMessage[]>([])
   const previousMatchesRef = useRef<Match[]>([])
+  const autoKnockoutInProgressRef = useRef(false)
 
   const addToast = (toast: Omit<ToastMessage, 'id'>) => {
     const id = Date.now().toString() + Math.random().toString(36).substr(2, 9)
@@ -76,6 +83,51 @@ export default function TournamentMatchesPage() {
 
   const removeToast = (id: string) => {
     setToasts(prev => prev.filter(t => t.id !== id))
+  }
+
+  const getStoredMatchConfig = (): StoredMatchConfig => {
+    try {
+      const raw = localStorage.getItem(`matchConfig:${tournamentId}`)
+      if (!raw) {
+        return { teamsToKnockout: 2, useBestRunnersUp: false, numBestRunnersUp: 0 }
+      }
+      const parsed = JSON.parse(raw)
+      return {
+        teamsToKnockout: Number(parsed.teamsToKnockout) || 2,
+        useBestRunnersUp: Boolean(parsed.useBestRunnersUp),
+        numBestRunnersUp: Number(parsed.numBestRunnersUp) || 0
+      }
+    } catch (error) {
+      console.warn('Could not read match config, using defaults:', error)
+      return { teamsToKnockout: 2, useBestRunnersUp: false, numBestRunnersUp: 0 }
+    }
+  }
+
+  const getRoundNameForTeams = (numTeams: number): string => {
+    if (numTeams === 2) return 'Finale'
+    if (numTeams === 4) return 'Semifinaler'
+    if (numTeams === 8) return 'Kvartfinaler'
+    if (numTeams > 8) return 'Kvartfinaler'
+    if (numTeams > 4) return 'Semifinaler'
+    return 'Sluttspill'
+  }
+
+  const generateSeededBracket = (teams: string[], roundName: string) => {
+    const matchesToCreate: any[] = []
+    for (let i = 0; i < Math.floor(teams.length / 2); i++) {
+      const highSeed = teams[i]
+      const lowSeed = teams[teams.length - 1 - i]
+      if (highSeed && lowSeed && highSeed !== lowSeed) {
+        matchesToCreate.push({
+          tournament_id: tournamentId,
+          team1_name: highSeed,
+          team2_name: lowSeed,
+          round: roundName,
+          status: 'scheduled'
+        })
+      }
+    }
+    return matchesToCreate
   }
 
   const loadData = useCallback(async () => {
@@ -161,6 +213,100 @@ export default function TournamentMatchesPage() {
           // Calculate group standings
           const standings = calculateGroupStandings(loadedMatches)
           setGroupStandings(standings)
+
+          // Auto-generate knockout when all group matches are completed
+          const groupMatches = loadedMatches.filter(m => m.round === 'Gruppespill')
+          const knockoutMatches = loadedMatches.filter(m => m.round !== 'Gruppespill')
+          const allGroupMatchesCompleted = groupMatches.length > 0 && groupMatches.every(m =>
+            m.status === 'completed' &&
+            m.score1 !== undefined &&
+            m.score1 !== null &&
+            m.score2 !== undefined &&
+            m.score2 !== null
+          )
+
+          if (
+            allGroupMatchesCompleted &&
+            knockoutMatches.length === 0 &&
+            !autoKnockoutInProgressRef.current
+          ) {
+            autoKnockoutInProgressRef.current = true
+            try {
+              const config = getStoredMatchConfig()
+              const teamsToKnockout = Math.max(1, config.teamsToKnockout || 2)
+
+              const qualifiers: Array<GroupStanding & { position: number }> = []
+              Object.values(standings).forEach(groupStandings => {
+                groupStandings.slice(0, teamsToKnockout).forEach((team, index) => {
+                  qualifiers.push({ ...team, position: index + 1 })
+                })
+              })
+
+              if (config.useBestRunnersUp && config.numBestRunnersUp > 0) {
+                const runnersUp = Object.values(standings)
+                  .map(group => group[1])
+                  .filter(Boolean)
+                  .sort((a, b) => {
+                    if (b.points !== a.points) return b.points - a.points
+                    const aDiff = a.goalsFor - a.goalsAgainst
+                    const bDiff = b.goalsFor - b.goalsAgainst
+                    if (bDiff !== aDiff) return bDiff - aDiff
+                    return b.goalsFor - a.goalsFor
+                  })
+
+                const extraTeams = runnersUp.slice(0, config.numBestRunnersUp)
+                extraTeams.forEach(team => {
+                  if (!qualifiers.some(q => q.team === team.team)) {
+                    qualifiers.push({ ...team, position: 2 })
+                  }
+                })
+              }
+
+              if (qualifiers.length >= 2) {
+                const rankedTeams = [...qualifiers].sort((a, b) => {
+                  if (a.position !== b.position) return a.position - b.position
+                  if (b.points !== a.points) return b.points - a.points
+                  const aDiff = a.goalsFor - a.goalsAgainst
+                  const bDiff = b.goalsFor - b.goalsAgainst
+                  if (bDiff !== aDiff) return bDiff - aDiff
+                  return b.goalsFor - a.goalsFor
+                })
+
+                const teamNames = rankedTeams.map(team => team.team)
+                const roundName = getRoundNameForTeams(teamNames.length)
+                const matchesToCreate = generateSeededBracket(teamNames, roundName)
+
+                if (matchesToCreate.length > 0) {
+                  const insertPromises = matchesToCreate.map(async (match) => {
+                    const response = await fetch('/api/matches', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify(match)
+                    })
+                    if (!response.ok) {
+                      const errorData = await response.json()
+                      throw new Error(errorData.error || 'Kunne ikke opprette kamp')
+                    }
+                    return response.json()
+                  })
+
+                  await Promise.all(insertPromises)
+                  addToast({
+                    message: `Sluttspill generert automatisk: ${roundName} (${matchesToCreate.length} kamper).`,
+                    type: 'success'
+                  })
+                }
+              }
+            } catch (error) {
+              console.error('Error auto-generating knockout:', error)
+              addToast({
+                message: 'Kunne ikke generere sluttspill automatisk. Prøv å oppdatere.',
+                type: 'error'
+              })
+            } finally {
+              autoKnockoutInProgressRef.current = false
+            }
+          }
         } else {
           const errorData = await matchesResponse.json().catch(() => ({}))
           console.error('Error loading matches:', {

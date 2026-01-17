@@ -1090,6 +1090,11 @@ PRO11 Team`)
 
     // Use provided config or default
     const useConfig = config || matchConfig
+    try {
+      localStorage.setItem(`matchConfig:${tournamentId}`, JSON.stringify(useConfig))
+    } catch (error) {
+      console.warn('Could not persist match config:', error)
+    }
     const totalTeams = approvedTeams.length
 
     let matches: Match[] = []
