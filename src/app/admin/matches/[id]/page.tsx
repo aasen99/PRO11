@@ -710,66 +710,6 @@ export default function TournamentMatchesPage() {
       </header>
 
       <main className="container mx-auto px-4 py-6">
-        {Object.keys(groupStandings).length > 0 && (() => {
-          const preview = buildSeedingPreview()
-          return (
-            <div className="pro11-card p-4 mb-6 max-w-2xl w-full mx-auto">
-              <div className="flex items-center justify-between mb-4">
-                <div>
-                  <h2 className="text-xl font-bold">Seeding (foreløpig)</h2>
-                  <p className="text-slate-400 text-sm">
-                    {preview.allGroupsComplete
-                      ? `Klar for sluttspill: ${preview.roundName}`
-                      : 'Oppdateres fortløpende når gruppene ferdigspilles.'}
-                  </p>
-                </div>
-              </div>
-
-              <div className="grid lg:grid-cols-2 gap-6">
-                <div>
-                  <h3 className="text-sm font-semibold text-slate-300 mb-3">Seeds</h3>
-                  <div className="space-y-2">
-                    {preview.entries.map((entry, index) => (
-                      <div
-                        key={`${entry.label}-${index}`}
-                        className={`flex items-center justify-between rounded-md px-3 py-2 text-sm ${
-                          entry.placeholder ? 'bg-slate-800/40 text-slate-400' : 'bg-slate-800/70 text-slate-200'
-                        }`}
-                      >
-                        <span className="font-semibold w-10">#{index + 1}</span>
-                        <span className="flex-1">{entry.label}</span>
-                        {!entry.placeholder && entry.points !== undefined && (
-                          <span className="text-xs text-slate-400">
-                            {entry.points}p
-                          </span>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                <div>
-                  <h3 className="text-sm font-semibold text-slate-300 mb-3">Matchups (seedet)</h3>
-                  <div className="space-y-2">
-                    {preview.pairings.length > 0 ? (
-                      preview.pairings.map((pair, index) => (
-                        <div key={`pair-${index}`} className="rounded-md border border-slate-800/80 bg-slate-900/60 px-3 py-2 text-sm text-slate-300">
-                          <div className="flex items-center justify-between">
-                            <span>{pair[0].label}</span>
-                            <span className="text-slate-500">vs</span>
-                            <span>{pair[1].label}</span>
-                          </div>
-                        </div>
-                      ))
-                    ) : (
-                      <div className="text-sm text-slate-400">Ingen matchups ennå.</div>
-                    )}
-                  </div>
-                </div>
-              </div>
-            </div>
-          )
-        })()}
         {/* Group Stage Standings */}
         {Object.keys(groupStandings).length > 0 && (
           <div className="mb-8">
@@ -1167,6 +1107,66 @@ export default function TournamentMatchesPage() {
             </div>
           </div>
         )}
+        {Object.keys(groupStandings).length > 0 && (() => {
+          const preview = buildSeedingPreview()
+          return (
+            <div className="pro11-card p-4 mt-8 max-w-2xl w-full mx-auto">
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <h2 className="text-xl font-bold">Seeding (foreløpig)</h2>
+                  <p className="text-slate-400 text-sm">
+                    {preview.allGroupsComplete
+                      ? `Klar for sluttspill: ${preview.roundName}`
+                      : 'Oppdateres fortløpende når gruppene ferdigspilles.'}
+                  </p>
+                </div>
+              </div>
+
+              <div className="grid lg:grid-cols-2 gap-6">
+                <div>
+                  <h3 className="text-sm font-semibold text-slate-300 mb-3">Seeds</h3>
+                  <div className="space-y-2">
+                    {preview.entries.map((entry, index) => (
+                      <div
+                        key={`${entry.label}-${index}`}
+                        className={`flex items-center justify-between rounded-md px-3 py-2 text-sm ${
+                          entry.placeholder ? 'bg-slate-800/40 text-slate-400' : 'bg-slate-800/70 text-slate-200'
+                        }`}
+                      >
+                        <span className="font-semibold w-10">#{index + 1}</span>
+                        <span className="flex-1">{entry.label}</span>
+                        {!entry.placeholder && entry.points !== undefined && (
+                          <span className="text-xs text-slate-400">
+                            {entry.points}p
+                          </span>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div>
+                  <h3 className="text-sm font-semibold text-slate-300 mb-3">Matchups (seedet)</h3>
+                  <div className="space-y-2">
+                    {preview.pairings.length > 0 ? (
+                      preview.pairings.map((pair, index) => (
+                        <div key={`pair-${index}`} className="rounded-md border border-slate-800/80 bg-slate-900/60 px-3 py-2 text-sm text-slate-300">
+                          <div className="flex items-center justify-between">
+                            <span>{pair[0].label}</span>
+                            <span className="text-slate-500">vs</span>
+                            <span>{pair[1].label}</span>
+                          </div>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="text-sm text-slate-400">Ingen matchups ennå.</div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )
+        })()}
       </main>
     </div>
   )
