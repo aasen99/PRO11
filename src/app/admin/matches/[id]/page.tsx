@@ -426,6 +426,55 @@ export default function TournamentMatchesPage() {
     return result
   }
 
+  const buildGroupRoundMap = (groupMatchesList: Match[]): Record<string, number> => {
+    const teamSet = new Set<string>()
+    groupMatchesList.forEach(match => {
+      teamSet.add(match.team1_name)
+      teamSet.add(match.team2_name)
+    })
+    const teams = Array.from(teamSet).sort()
+    if (teams.length < 2) return {}
+
+    const buildKey = (teamA: string, teamB: string) => {
+      return [teamA, teamB].sort().join('|')
+    }
+
+    const scheduleTeams = [...teams]
+    if (scheduleTeams.length % 2 === 1) {
+      scheduleTeams.push('__BYE__')
+    }
+
+    const rounds: Array<Array<[string, string]>> = []
+    const totalRounds = scheduleTeams.length - 1
+    const half = scheduleTeams.length / 2
+    let rotation = [...scheduleTeams]
+
+    for (let round = 0; round < totalRounds; round += 1) {
+      const pairs: Array<[string, string]> = []
+      for (let i = 0; i < half; i += 1) {
+        const home = rotation[i]
+        const away = rotation[rotation.length - 1 - i]
+        if (home !== '__BYE__' && away !== '__BYE__') {
+          pairs.push([home, away])
+        }
+      }
+      rounds.push(pairs)
+      const fixed = rotation[0]
+      const rest = rotation.slice(1)
+      rest.unshift(rest.pop() as string)
+      rotation = [fixed, ...rest]
+    }
+
+    const roundMap: Record<string, number> = {}
+    rounds.forEach((pairs, index) => {
+      pairs.forEach(([home, away]) => {
+        roundMap[buildKey(home, away)] = index + 1
+      })
+    })
+
+    return roundMap
+  }
+
   const getGroupCompletionMap = (): Record<string, boolean> => {
     const map: Record<string, boolean> = {}
     const groupMatches = matches.filter(m => m.group_name && m.round === 'Gruppespill')
@@ -778,7 +827,10 @@ export default function TournamentMatchesPage() {
                     acc[group].push(match)
                     return acc
                   }, {} as Record<string, Match[]>)
-                ).map(([groupName, groupMatchesList]) => (
+                ).map(([groupName, groupMatchesList]) => {
+                  const roundMap = buildGroupRoundMap(groupMatchesList)
+                  const buildKey = (teamA: string, teamB: string) => [teamA, teamB].sort().join('|')
+                  return (
                   <div key={groupName} className="mb-6">
                     <h3 className="font-semibold mb-3 text-lg">{groupName}</h3>
                     <div className="space-y-2">
@@ -850,19 +902,15 @@ export default function TournamentMatchesPage() {
                                   <span className="text-lg font-bold px-4">
                                     {match.score1} - {match.score2}
                                   </span>
-                                ) : match.status === 'pending_confirmation' && (match.team1_submitted_score1 !== null || match.team2_submitted_score1 !== null) ? (
+                                ) : (match.team1_submitted_score1 !== null || match.team2_submitted_score1 !== null) ? (
                                   <div className="flex flex-col items-center px-4">
-                                    <div className="text-sm text-orange-400 mb-1">Venter bekreftelse</div>
-                                    {match.team1_submitted_score1 !== null && (
-                                      <div className="text-xs text-slate-400">
-                                        {match.team1_name}: {match.team1_submitted_score1} - {match.team1_submitted_score2}
-                                      </div>
-                                    )}
-                                    {match.team2_submitted_score1 !== null && (
-                                      <div className="text-xs text-slate-400">
-                                        {match.team2_name}: {match.team2_submitted_score1} - {match.team2_submitted_score2}
-                                      </div>
-                                    )}
+                                    <div className="text-xs text-orange-400 mb-1">Innsendte resultater</div>
+                                    <div className="text-xs text-slate-400 text-center">
+                                      {match.team1_name}: {match.team1_submitted_score1 ?? '-'} - {match.team1_submitted_score2 ?? '-'}
+                                    </div>
+                                    <div className="text-xs text-slate-400 text-center">
+                                      {match.team2_name}: {match.team2_submitted_score1 ?? '-'} - {match.team2_submitted_score2 ?? '-'}
+                                    </div>
                                     {match.team1_submitted_score1 !== null && match.team2_submitted_score1 !== null && 
                                      (match.team1_submitted_score1 !== match.team2_submitted_score2 || match.team1_submitted_score2 !== match.team2_submitted_score1) && (
                                       <div className="text-xs text-red-400 mt-1 font-semibold">
@@ -876,6 +924,11 @@ export default function TournamentMatchesPage() {
                                 <span className="font-medium w-32">{match.team2_name}</span>
                               </div>
                               <div className="flex items-center space-x-3">
+                                {roundMap[buildKey(match.team1_name, match.team2_name)] && (
+                                  <span className="text-xs text-slate-400">
+                                    Runde {roundMap[buildKey(match.team1_name, match.team2_name)]}
+                                  </span>
+                                )}
                                 {match.scheduled_time && (
                                   <span className="text-xs text-slate-400">
                                     {new Date(match.scheduled_time).toLocaleTimeString('nb-NO', { 
@@ -887,11 +940,6 @@ export default function TournamentMatchesPage() {
                                 <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(match.status)}`}>
                                   {getStatusText(match.status, match)}
                                 </span>
-                                {match.status === 'pending_confirmation' && match.submitted_by && (
-                                  <span className="text-xs text-orange-400 ml-2">
-                                    ({match.submitted_by} har sendt inn: {match.submitted_score1 || match.team1_submitted_score1} - {match.submitted_score2 || match.team1_submitted_score2})
-                                  </span>
-                                )}
                                 <button
                                   onClick={() => startEditing(match)}
                                   className="text-blue-400 hover:text-blue-300"
@@ -906,7 +954,7 @@ export default function TournamentMatchesPage() {
                       ))}
                     </div>
                   </div>
-                ))}
+                )})}
               </div>
             </div>
           </div>
@@ -1010,19 +1058,15 @@ export default function TournamentMatchesPage() {
                                   <span className="text-lg font-bold px-4">
                                     {match.score1} - {match.score2}
                                   </span>
-                                ) : match.status === 'pending_confirmation' && (match.team1_submitted_score1 !== null || match.team2_submitted_score1 !== null) ? (
+                                ) : (match.team1_submitted_score1 !== null || match.team2_submitted_score1 !== null) ? (
                                   <div className="flex flex-col items-center px-4">
-                                    <div className="text-sm text-orange-400 mb-1">Venter bekreftelse</div>
-                                    {match.team1_submitted_score1 !== null && (
-                                      <div className="text-xs text-slate-400">
-                                        {match.team1_name}: {match.team1_submitted_score1} - {match.team1_submitted_score2}
-                                      </div>
-                                    )}
-                                    {match.team2_submitted_score1 !== null && (
-                                      <div className="text-xs text-slate-400">
-                                        {match.team2_name}: {match.team2_submitted_score1} - {match.team2_submitted_score2}
-                                      </div>
-                                    )}
+                                    <div className="text-xs text-orange-400 mb-1">Innsendte resultater</div>
+                                    <div className="text-xs text-slate-400 text-center">
+                                      {match.team1_name}: {match.team1_submitted_score1 ?? '-'} - {match.team1_submitted_score2 ?? '-'}
+                                    </div>
+                                    <div className="text-xs text-slate-400 text-center">
+                                      {match.team2_name}: {match.team2_submitted_score1 ?? '-'} - {match.team2_submitted_score2 ?? '-'}
+                                    </div>
                                     {match.team1_submitted_score1 !== null && match.team2_submitted_score1 !== null && 
                                      (match.team1_submitted_score1 !== match.team2_submitted_score2 || match.team1_submitted_score2 !== match.team2_submitted_score1) && (
                                       <div className="text-xs text-red-400 mt-1 font-semibold">
@@ -1047,11 +1091,6 @@ export default function TournamentMatchesPage() {
                                 <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(match.status)}`}>
                                   {getStatusText(match.status, match)}
                                 </span>
-                                {match.status === 'pending_confirmation' && match.submitted_by && (
-                                  <span className="text-xs text-orange-400 ml-2">
-                                    ({match.submitted_by} har sendt inn: {match.submitted_score1 || match.team1_submitted_score1} - {match.submitted_score2 || match.team1_submitted_score2})
-                                  </span>
-                                )}
                                 <button
                                   onClick={() => startEditing(match)}
                                   className="text-blue-400 hover:text-blue-300"
