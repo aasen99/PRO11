@@ -979,121 +979,131 @@ export default function TournamentMatchesPage() {
                   return (
                   <div key={groupName} className="mb-6">
                     <h3 className="font-semibold mb-3 text-lg">{groupName}</h3>
-                    <div className="space-y-2 overflow-x-auto">
-                      <div className="min-w-[920px] grid grid-cols-[minmax(140px,1fr)_48px_32px_48px_minmax(140px,1fr)_minmax(200px,1.2fr)_minmax(120px,auto)_auto_auto] items-center gap-3 px-3 text-xs text-slate-400">
-                        <span className="text-right">Lag 1</span>
-                        <span className="text-center">Score</span>
-                        <span className="text-center">vs</span>
-                        <span className="text-center">Score</span>
-                        <span>Lag 2</span>
-                        <span>Innsendt</span>
-                        <span>Info</span>
-                        <span>Status</span>
-                        <span></span>
-                      </div>
-                      {sortedGroupMatches.map(match => {
-                        const showFinalScore = match.status === 'completed' && match.score1 !== undefined && match.score2 !== undefined
-                        const hasSubmittedScores = match.team1_submitted_score1 !== null || match.team2_submitted_score1 !== null
-                        const submittedMismatch = match.team1_submitted_score1 !== null && match.team2_submitted_score1 !== null && 
-                          (match.team1_submitted_score1 !== match.team2_submitted_score2 || match.team1_submitted_score2 !== match.team2_submitted_score1)
-                        const submittedText = hasSubmittedScores
-                          ? `${match.team1_name}: ${match.team1_submitted_score1 ?? '-'}-${match.team1_submitted_score2 ?? '-'} | ${match.team2_name}: ${match.team2_submitted_score1 ?? '-'}-${match.team2_submitted_score2 ?? '-'}${submittedMismatch ? ' ⚠' : ''}`
-                          : '-'
-                        const infoText = [
-                          (match.group_round || roundMap[buildKey(match.team1_name, match.team2_name)]) ? `Runde ${match.group_round || roundMap[buildKey(match.team1_name, match.team2_name)]}` : null,
-                          match.scheduled_time ? new Date(match.scheduled_time).toLocaleTimeString('nb-NO', { hour: '2-digit', minute: '2-digit' }) : null
-                        ].filter(Boolean).join(' • ')
+                    <div className="overflow-x-auto">
+                      <table className="w-full min-w-[980px] text-sm table-fixed">
+                        <thead className="text-xs text-slate-400">
+                          <tr>
+                            <th className="py-2 pr-3 text-right w-48">Lag 1</th>
+                            <th className="py-2 px-2 text-center w-12">Score</th>
+                            <th className="py-2 px-2 text-center w-10">vs</th>
+                            <th className="py-2 px-2 text-center w-12">Score</th>
+                            <th className="py-2 pl-3 text-left w-48">Lag 2</th>
+                            <th className="py-2 px-2 text-left w-64">Innsendt</th>
+                            <th className="py-2 px-2 text-left w-32">Info</th>
+                            <th className="py-2 px-2 text-left w-28">Status</th>
+                            <th className="py-2 px-2 text-left w-10"></th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {sortedGroupMatches.map(match => {
+                            const showFinalScore = match.status === 'completed' && match.score1 !== undefined && match.score2 !== undefined
+                            const hasSubmittedScores = match.team1_submitted_score1 !== null || match.team2_submitted_score1 !== null
+                            const submittedMismatch = match.team1_submitted_score1 !== null && match.team2_submitted_score1 !== null && 
+                              (match.team1_submitted_score1 !== match.team2_submitted_score2 || match.team1_submitted_score2 !== match.team2_submitted_score1)
+                            const submittedText = hasSubmittedScores
+                              ? `${match.team1_name}: ${match.team1_submitted_score1 ?? '-'}-${match.team1_submitted_score2 ?? '-'} | ${match.team2_name}: ${match.team2_submitted_score1 ?? '-'}-${match.team2_submitted_score2 ?? '-'}${submittedMismatch ? ' ⚠' : ''}`
+                              : '-'
+                            const infoText = [
+                              (match.group_round || roundMap[buildKey(match.team1_name, match.team2_name)]) ? `Runde ${match.group_round || roundMap[buildKey(match.team1_name, match.team2_name)]}` : null,
+                              match.scheduled_time ? new Date(match.scheduled_time).toLocaleTimeString('nb-NO', { hour: '2-digit', minute: '2-digit' }) : null
+                            ].filter(Boolean).join(' • ')
 
-                        return (
-                          <div 
-                            key={match.id} 
-                            className="flex items-center justify-between p-3 bg-slate-800/50 rounded-lg"
-                          >
-                            {editingMatch === match.id ? (
-                              <div className="flex-1 flex items-center space-x-4">
-                                <span className="font-medium w-32 text-right">{match.team1_name}</span>
-                                <div className="flex items-center space-x-2">
-                                  <input
-                                    type="number"
-                                    min="0"
-                                    value={editForm.score1 ?? ''}
-                                    onChange={(e) => setEditForm({ ...editForm, score1: parseInt(e.target.value) || 0 })}
-                                    className="w-16 px-2 py-1 bg-slate-700 rounded text-center"
-                                    placeholder="0"
-                                  />
-                                  <span className="px-2">-</span>
-                                  <input
-                                    type="number"
-                                    min="0"
-                                    value={editForm.score2 ?? ''}
-                                    onChange={(e) => setEditForm({ ...editForm, score2: parseInt(e.target.value) || 0 })}
-                                    className="w-16 px-2 py-1 bg-slate-700 rounded text-center"
-                                    placeholder="0"
-                                  />
-                                </div>
-                                <span className="font-medium w-32">{match.team2_name}</span>
-                                <div className="flex items-center space-x-2">
-                                  <input
-                                    type="datetime-local"
-                                    value={editForm.scheduled_time || ''}
-                                    onChange={(e) => setEditForm({ ...editForm, scheduled_time: e.target.value })}
-                                    className="px-2 py-1 bg-slate-700 rounded text-sm"
-                                  />
-                                  <select
-                                    value={editForm.status || 'scheduled'}
-                                    onChange={(e) => setEditForm({ ...editForm, status: e.target.value })}
-                                    className="px-2 py-1 bg-slate-700 rounded text-sm"
-                                  >
-                                    <option value="scheduled">Planlagt</option>
-                                    <option value="live">LIVE</option>
-                                    <option value="completed">Ferdig</option>
-                                  </select>
-                                  <button
-                                    onClick={() => saveMatch(match.id)}
-                                    className="text-green-400 hover:text-green-300"
-                                    title="Lagre"
-                                  >
-                                    <Save className="w-4 h-4" />
-                                  </button>
-                                  <button
-                                    onClick={cancelEditing}
-                                    className="text-red-400 hover:text-red-300"
-                                    title="Avbryt"
-                                  >
-                                    <X className="w-4 h-4" />
-                                  </button>
-                                </div>
-                              </div>
-                            ) : (
-                              <div className="flex-1">
-                                <div className="min-w-[920px] grid grid-cols-[minmax(140px,1fr)_48px_32px_48px_minmax(140px,1fr)_minmax(200px,1.2fr)_minmax(120px,auto)_auto_auto] items-center gap-3">
-                                  <span className="font-medium text-right">{match.team1_name}</span>
-                                  <span className="text-lg font-bold text-center">
-                                    {showFinalScore ? match.score1 : '-'}
-                                  </span>
-                                  <span className="text-slate-500 text-center">vs</span>
-                                  <span className="text-lg font-bold text-center">
-                                    {showFinalScore ? match.score2 : '-'}
-                                  </span>
-                                  <span className="font-medium">{match.team2_name}</span>
-                                  <span className="text-xs text-slate-400">{submittedText}</span>
-                                  <span className="text-xs text-slate-400">{infoText || '-'}</span>
-                                  <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(match.status)}`}>
-                                    {getStatusText(match.status, match)}
-                                  </span>
-                                  <button
-                                    onClick={() => startEditing(match)}
-                                    className="text-blue-400 hover:text-blue-300"
-                                    title="Rediger kamp"
-                                  >
-                                    <Edit className="w-4 h-4" />
-                                  </button>
-                                </div>
-                              </div>
-                            )}
-                          </div>
-                        )
-                      })}
+                            return (
+                              <tr key={match.id} className="border-b border-slate-700/50 bg-slate-800/50">
+                                {editingMatch === match.id ? (
+                                  <>
+                                    <td className="py-3 pr-3 text-right font-medium">{match.team1_name}</td>
+                                    <td className="py-3 px-2">
+                                      <input
+                                        type="number"
+                                        min="0"
+                                        value={editForm.score1 ?? ''}
+                                        onChange={(e) => setEditForm({ ...editForm, score1: parseInt(e.target.value) || 0 })}
+                                        className="w-12 px-2 py-1 bg-slate-700 rounded text-center"
+                                        placeholder="0"
+                                      />
+                                    </td>
+                                    <td className="py-3 px-2 text-center text-slate-500">vs</td>
+                                    <td className="py-3 px-2">
+                                      <input
+                                        type="number"
+                                        min="0"
+                                        value={editForm.score2 ?? ''}
+                                        onChange={(e) => setEditForm({ ...editForm, score2: parseInt(e.target.value) || 0 })}
+                                        className="w-12 px-2 py-1 bg-slate-700 rounded text-center"
+                                        placeholder="0"
+                                      />
+                                    </td>
+                                    <td className="py-3 pl-3 font-medium">{match.team2_name}</td>
+                                    <td className="py-3 px-2 text-xs text-slate-400">-</td>
+                                    <td className="py-3 px-2">
+                                      <input
+                                        type="datetime-local"
+                                        value={editForm.scheduled_time || ''}
+                                        onChange={(e) => setEditForm({ ...editForm, scheduled_time: e.target.value })}
+                                        className="px-2 py-1 bg-slate-700 rounded text-sm w-full"
+                                      />
+                                    </td>
+                                    <td className="py-3 px-2">
+                                      <select
+                                        value={editForm.status || 'scheduled'}
+                                        onChange={(e) => setEditForm({ ...editForm, status: e.target.value })}
+                                        className="px-2 py-1 bg-slate-700 rounded text-sm w-full"
+                                      >
+                                        <option value="scheduled">Planlagt</option>
+                                        <option value="live">LIVE</option>
+                                        <option value="completed">Ferdig</option>
+                                      </select>
+                                    </td>
+                                    <td className="py-3 px-2">
+                                      <div className="flex items-center gap-2">
+                                        <button
+                                          onClick={() => saveMatch(match.id)}
+                                          className="text-green-400 hover:text-green-300"
+                                          title="Lagre"
+                                        >
+                                          <Save className="w-4 h-4" />
+                                        </button>
+                                        <button
+                                          onClick={cancelEditing}
+                                          className="text-red-400 hover:text-red-300"
+                                          title="Avbryt"
+                                        >
+                                          <X className="w-4 h-4" />
+                                        </button>
+                                      </div>
+                                    </td>
+                                  </>
+                                ) : (
+                                  <>
+                                    <td className="py-3 pr-3 text-right font-medium">{match.team1_name}</td>
+                                    <td className="py-3 px-2 text-center text-lg font-bold">{showFinalScore ? match.score1 : '-'}</td>
+                                    <td className="py-3 px-2 text-center text-slate-500">vs</td>
+                                    <td className="py-3 px-2 text-center text-lg font-bold">{showFinalScore ? match.score2 : '-'}</td>
+                                    <td className="py-3 pl-3 font-medium">{match.team2_name}</td>
+                                    <td className="py-3 px-2 text-xs text-slate-400 truncate" title={submittedText}>{submittedText}</td>
+                                    <td className="py-3 px-2 text-xs text-slate-400 truncate" title={infoText || '-'}>{infoText || '-'}</td>
+                                    <td className="py-3 px-2">
+                                      <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(match.status)}`}>
+                                        {getStatusText(match.status, match)}
+                                      </span>
+                                    </td>
+                                    <td className="py-3 px-2">
+                                      <button
+                                        onClick={() => startEditing(match)}
+                                        className="text-blue-400 hover:text-blue-300"
+                                        title="Rediger kamp"
+                                      >
+                                        <Edit className="w-4 h-4" />
+                                      </button>
+                                    </td>
+                                  </>
+                                )}
+                              </tr>
+                            )
+                          })}
+                        </tbody>
+                      </table>
                     </div>
                   </div>
                 )})}
@@ -1131,120 +1141,130 @@ export default function TournamentMatchesPage() {
                 ).map(([roundName, roundMatches]) => (
                   <div key={roundName} className="mb-6">
                     <h3 className="font-semibold mb-3 text-lg">{roundName}</h3>
-                    <div className="space-y-2 overflow-x-auto">
-                      <div className="min-w-[920px] grid grid-cols-[minmax(140px,1fr)_48px_32px_48px_minmax(140px,1fr)_minmax(200px,1.2fr)_minmax(120px,auto)_auto_auto] items-center gap-3 px-3 text-xs text-slate-400">
-                        <span className="text-right">Lag 1</span>
-                        <span className="text-center">Score</span>
-                        <span className="text-center">vs</span>
-                        <span className="text-center">Score</span>
-                        <span>Lag 2</span>
-                        <span>Innsendt</span>
-                        <span>Info</span>
-                        <span>Status</span>
-                        <span></span>
-                      </div>
-                      {roundMatches.map(match => {
-                        const showFinalScore = match.status === 'completed' && match.score1 !== undefined && match.score2 !== undefined
-                        const hasSubmittedScores = match.team1_submitted_score1 !== null || match.team2_submitted_score1 !== null
-                        const submittedMismatch = match.team1_submitted_score1 !== null && match.team2_submitted_score1 !== null && 
-                          (match.team1_submitted_score1 !== match.team2_submitted_score2 || match.team1_submitted_score2 !== match.team2_submitted_score1)
-                        const submittedText = hasSubmittedScores
-                          ? `${match.team1_name}: ${match.team1_submitted_score1 ?? '-'}-${match.team1_submitted_score2 ?? '-'} | ${match.team2_name}: ${match.team2_submitted_score1 ?? '-'}-${match.team2_submitted_score2 ?? '-'}${submittedMismatch ? ' ⚠' : ''}`
-                          : '-'
-                        const infoText = match.scheduled_time
-                          ? new Date(match.scheduled_time).toLocaleTimeString('nb-NO', { hour: '2-digit', minute: '2-digit' })
-                          : null
+                    <div className="overflow-x-auto">
+                      <table className="w-full min-w-[980px] text-sm table-fixed">
+                        <thead className="text-xs text-slate-400">
+                          <tr>
+                            <th className="py-2 pr-3 text-right w-48">Lag 1</th>
+                            <th className="py-2 px-2 text-center w-12">Score</th>
+                            <th className="py-2 px-2 text-center w-10">vs</th>
+                            <th className="py-2 px-2 text-center w-12">Score</th>
+                            <th className="py-2 pl-3 text-left w-48">Lag 2</th>
+                            <th className="py-2 px-2 text-left w-64">Innsendt</th>
+                            <th className="py-2 px-2 text-left w-32">Info</th>
+                            <th className="py-2 px-2 text-left w-28">Status</th>
+                            <th className="py-2 px-2 text-left w-10"></th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {roundMatches.map(match => {
+                            const showFinalScore = match.status === 'completed' && match.score1 !== undefined && match.score2 !== undefined
+                            const hasSubmittedScores = match.team1_submitted_score1 !== null || match.team2_submitted_score1 !== null
+                            const submittedMismatch = match.team1_submitted_score1 !== null && match.team2_submitted_score1 !== null && 
+                              (match.team1_submitted_score1 !== match.team2_submitted_score2 || match.team1_submitted_score2 !== match.team2_submitted_score1)
+                            const submittedText = hasSubmittedScores
+                              ? `${match.team1_name}: ${match.team1_submitted_score1 ?? '-'}-${match.team1_submitted_score2 ?? '-'} | ${match.team2_name}: ${match.team2_submitted_score1 ?? '-'}-${match.team2_submitted_score2 ?? '-'}${submittedMismatch ? ' ⚠' : ''}`
+                              : '-'
+                            const infoText = match.scheduled_time
+                              ? new Date(match.scheduled_time).toLocaleTimeString('nb-NO', { hour: '2-digit', minute: '2-digit' })
+                              : null
 
-                        return (
-                          <div 
-                            key={match.id} 
-                            className="flex items-center justify-between p-3 bg-slate-800/50 rounded-lg"
-                          >
-                            {editingMatch === match.id ? (
-                              <div className="flex-1 flex items-center space-x-4">
-                                <span className="font-medium w-32 text-right">{match.team1_name}</span>
-                                <div className="flex items-center space-x-2">
-                                  <input
-                                    type="number"
-                                    min="0"
-                                    value={editForm.score1 ?? ''}
-                                    onChange={(e) => setEditForm({ ...editForm, score1: parseInt(e.target.value) || 0 })}
-                                    className="w-16 px-2 py-1 bg-slate-700 rounded text-center"
-                                    placeholder="0"
-                                  />
-                                  <span className="px-2">-</span>
-                                  <input
-                                    type="number"
-                                    min="0"
-                                    value={editForm.score2 ?? ''}
-                                    onChange={(e) => setEditForm({ ...editForm, score2: parseInt(e.target.value) || 0 })}
-                                    className="w-16 px-2 py-1 bg-slate-700 rounded text-center"
-                                    placeholder="0"
-                                  />
-                                </div>
-                                <span className="font-medium w-32">{match.team2_name}</span>
-                                <div className="flex items-center space-x-2">
-                                  <input
-                                    type="datetime-local"
-                                    value={editForm.scheduled_time || ''}
-                                    onChange={(e) => setEditForm({ ...editForm, scheduled_time: e.target.value })}
-                                    className="px-2 py-1 bg-slate-700 rounded text-sm"
-                                  />
-                                  <select
-                                    value={editForm.status || 'scheduled'}
-                                    onChange={(e) => setEditForm({ ...editForm, status: e.target.value })}
-                                    className="px-2 py-1 bg-slate-700 rounded text-sm"
-                                  >
-                                    <option value="scheduled">Planlagt</option>
-                                    <option value="live">LIVE</option>
-                                    <option value="completed">Ferdig</option>
-                                  </select>
-                                  <button
-                                    onClick={() => saveMatch(match.id)}
-                                    className="text-green-400 hover:text-green-300"
-                                    title="Lagre"
-                                  >
-                                    <Save className="w-4 h-4" />
-                                  </button>
-                                  <button
-                                    onClick={cancelEditing}
-                                    className="text-red-400 hover:text-red-300"
-                                    title="Avbryt"
-                                  >
-                                    <X className="w-4 h-4" />
-                                  </button>
-                                </div>
-                              </div>
-                            ) : (
-                              <div className="flex-1">
-                                <div className="min-w-[920px] grid grid-cols-[minmax(140px,1fr)_48px_32px_48px_minmax(140px,1fr)_minmax(200px,1.2fr)_minmax(120px,auto)_auto_auto] items-center gap-3">
-                                  <span className="font-medium text-right">{match.team1_name}</span>
-                                  <span className="text-lg font-bold text-center">
-                                    {showFinalScore ? match.score1 : '-'}
-                                  </span>
-                                  <span className="text-slate-500 text-center">vs</span>
-                                  <span className="text-lg font-bold text-center">
-                                    {showFinalScore ? match.score2 : '-'}
-                                  </span>
-                                  <span className="font-medium">{match.team2_name}</span>
-                                  <span className="text-xs text-slate-400">{submittedText}</span>
-                                  <span className="text-xs text-slate-400">{infoText || '-'}</span>
-                                  <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(match.status)}`}>
-                                    {getStatusText(match.status, match)}
-                                  </span>
-                                  <button
-                                    onClick={() => startEditing(match)}
-                                    className="text-blue-400 hover:text-blue-300"
-                                    title="Rediger kamp"
-                                  >
-                                    <Edit className="w-4 h-4" />
-                                  </button>
-                                </div>
-                              </div>
-                            )}
-                          </div>
-                        )
-                      })}
+                            return (
+                              <tr key={match.id} className="border-b border-slate-700/50 bg-slate-800/50">
+                                {editingMatch === match.id ? (
+                                  <>
+                                    <td className="py-3 pr-3 text-right font-medium">{match.team1_name}</td>
+                                    <td className="py-3 px-2">
+                                      <input
+                                        type="number"
+                                        min="0"
+                                        value={editForm.score1 ?? ''}
+                                        onChange={(e) => setEditForm({ ...editForm, score1: parseInt(e.target.value) || 0 })}
+                                        className="w-12 px-2 py-1 bg-slate-700 rounded text-center"
+                                        placeholder="0"
+                                      />
+                                    </td>
+                                    <td className="py-3 px-2 text-center text-slate-500">vs</td>
+                                    <td className="py-3 px-2">
+                                      <input
+                                        type="number"
+                                        min="0"
+                                        value={editForm.score2 ?? ''}
+                                        onChange={(e) => setEditForm({ ...editForm, score2: parseInt(e.target.value) || 0 })}
+                                        className="w-12 px-2 py-1 bg-slate-700 rounded text-center"
+                                        placeholder="0"
+                                      />
+                                    </td>
+                                    <td className="py-3 pl-3 font-medium">{match.team2_name}</td>
+                                    <td className="py-3 px-2 text-xs text-slate-400">-</td>
+                                    <td className="py-3 px-2">
+                                      <input
+                                        type="datetime-local"
+                                        value={editForm.scheduled_time || ''}
+                                        onChange={(e) => setEditForm({ ...editForm, scheduled_time: e.target.value })}
+                                        className="px-2 py-1 bg-slate-700 rounded text-sm w-full"
+                                      />
+                                    </td>
+                                    <td className="py-3 px-2">
+                                      <select
+                                        value={editForm.status || 'scheduled'}
+                                        onChange={(e) => setEditForm({ ...editForm, status: e.target.value })}
+                                        className="px-2 py-1 bg-slate-700 rounded text-sm w-full"
+                                      >
+                                        <option value="scheduled">Planlagt</option>
+                                        <option value="live">LIVE</option>
+                                        <option value="completed">Ferdig</option>
+                                      </select>
+                                    </td>
+                                    <td className="py-3 px-2">
+                                      <div className="flex items-center gap-2">
+                                        <button
+                                          onClick={() => saveMatch(match.id)}
+                                          className="text-green-400 hover:text-green-300"
+                                          title="Lagre"
+                                        >
+                                          <Save className="w-4 h-4" />
+                                        </button>
+                                        <button
+                                          onClick={cancelEditing}
+                                          className="text-red-400 hover:text-red-300"
+                                          title="Avbryt"
+                                        >
+                                          <X className="w-4 h-4" />
+                                        </button>
+                                      </div>
+                                    </td>
+                                  </>
+                                ) : (
+                                  <>
+                                    <td className="py-3 pr-3 text-right font-medium">{match.team1_name}</td>
+                                    <td className="py-3 px-2 text-center text-lg font-bold">{showFinalScore ? match.score1 : '-'}</td>
+                                    <td className="py-3 px-2 text-center text-slate-500">vs</td>
+                                    <td className="py-3 px-2 text-center text-lg font-bold">{showFinalScore ? match.score2 : '-'}</td>
+                                    <td className="py-3 pl-3 font-medium">{match.team2_name}</td>
+                                    <td className="py-3 px-2 text-xs text-slate-400 truncate" title={submittedText}>{submittedText}</td>
+                                    <td className="py-3 px-2 text-xs text-slate-400 truncate" title={infoText || '-'}>{infoText || '-'}</td>
+                                    <td className="py-3 px-2">
+                                      <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(match.status)}`}>
+                                        {getStatusText(match.status, match)}
+                                      </span>
+                                    </td>
+                                    <td className="py-3 px-2">
+                                      <button
+                                        onClick={() => startEditing(match)}
+                                        className="text-blue-400 hover:text-blue-300"
+                                        title="Rediger kamp"
+                                      >
+                                        <Edit className="w-4 h-4" />
+                                      </button>
+                                    </td>
+                                  </>
+                                )}
+                              </tr>
+                            )
+                          })}
+                        </tbody>
+                      </table>
                     </div>
                   </div>
                 ))}
