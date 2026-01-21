@@ -830,11 +830,20 @@ export default function TournamentMatchesPage() {
                 ).map(([groupName, groupMatchesList]) => {
                   const roundMap = buildGroupRoundMap(groupMatchesList)
                   const buildKey = (teamA: string, teamB: string) => [teamA, teamB].sort().join('|')
+                  const sortedGroupMatches = [...groupMatchesList].sort((a, b) => {
+                    const roundA = roundMap[buildKey(a.team1_name, a.team2_name)] || 999
+                    const roundB = roundMap[buildKey(b.team1_name, b.team2_name)] || 999
+                    if (roundA !== roundB) return roundA - roundB
+                    const timeA = a.scheduled_time ? new Date(a.scheduled_time).getTime() : 0
+                    const timeB = b.scheduled_time ? new Date(b.scheduled_time).getTime() : 0
+                    if (timeA !== timeB) return timeA - timeB
+                    return a.team1_name.localeCompare(b.team1_name)
+                  })
                   return (
                   <div key={groupName} className="mb-6">
                     <h3 className="font-semibold mb-3 text-lg">{groupName}</h3>
                     <div className="space-y-2">
-                      {groupMatchesList.map(match => (
+                      {sortedGroupMatches.map(match => (
                         <div 
                           key={match.id} 
                           className="flex items-center justify-between p-3 bg-slate-800/50 rounded-lg"
