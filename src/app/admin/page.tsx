@@ -18,6 +18,8 @@ interface Team {
   captain_name?: string
   captainEmail?: string
   captain_email?: string
+  discordUsername?: string
+  discord_username?: string
   players?: Player[]
   status: 'pending' | 'approved' | 'rejected' | 'paid'
   registeredAt?: string
@@ -2050,6 +2052,10 @@ PRO11 Team`)
                   <div>
                     <p className="text-slate-400">E-post</p>
                     <p className="font-medium">{selectedTeam.captainEmail || selectedTeam.captain_email}</p>
+                  </div>
+                  <div>
+                    <p className="text-slate-400">Discord</p>
+                    <p className="font-medium">{selectedTeam.discordUsername || selectedTeam.discord_username || '-'}</p>
                   </div>
                   <div>
                     <p className="text-slate-400">Status</p>
