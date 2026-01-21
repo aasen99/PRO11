@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react'
 import Link from 'next/link'
 import { useParams } from 'next/navigation'
-import { ArrowLeft, Trophy, Users, Calendar, Edit, Save, X, RefreshCw } from 'lucide-react'
+import { ArrowLeft, Trophy, Users, Calendar, Edit, Save, X, RefreshCw, Wrench } from 'lucide-react'
 import { ToastContainer } from '@/components/Toast'
 import type { ToastType } from '@/components/Toast'
 
@@ -163,16 +163,44 @@ export default function TournamentMatchesPage() {
 
       if (updates.length === 0) return
 
+      let hasError = false
       await Promise.all(updates.map(async update => {
-        await fetch('/api/matches', {
+        const response = await fetch('/api/matches', {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(update)
         })
+        if (!response.ok) {
+          hasError = true
+          const errorData = await response.json().catch(() => ({ error: 'Ukjent feil' }))
+          console.error('Failed to backfill group_round:', update, errorData)
+          if (String(errorData.error || '').includes('group_round')) {
+            addToast({
+              message: 'Klarte ikke oppdatere group_round. Kjør SQL: alter table public.matches add column if not exists group_round integer;',
+              type: 'warning'
+            })
+          }
+        }
       }))
+
+      if (hasError) {
+        groupRoundBackfillRef.current = false
+      } else {
+        addToast({
+          message: `Oppdaterte group_round for ${updates.length} kamper.`,
+          type: 'success'
+        })
+      }
     } catch (error) {
+      groupRoundBackfillRef.current = false
       console.error('Error backfilling group rounds:', error)
     }
+  }
+
+  const runGroupRoundBackfill = async () => {
+    groupRoundBackfillRef.current = false
+    await backfillGroupRounds(matches)
+    await loadData()
   }
 
   const loadData = useCallback(async () => {
@@ -836,6 +864,14 @@ export default function TournamentMatchesPage() {
               <RefreshCw className="w-4 h-4" />
               <span>Refresh</span>
             </button>
+            <button
+              onClick={runGroupRoundBackfill}
+              className="pro11-button-secondary flex items-center space-x-2"
+              title="Oppdater manglende runder for gruppespill"
+            >
+              <Wrench className="w-4 h-4" />
+              <span>Fiks runder</span>
+            </button>
           </div>
         </div>
       </header>
@@ -1320,4 +1356,5 @@ export default function TournamentMatchesPage() {
     </div>
   )
 }
+
 
