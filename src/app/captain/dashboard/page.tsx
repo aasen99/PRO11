@@ -716,7 +716,7 @@ export default function CaptainDashboardPage() {
                 <button
                   type="button"
                   onClick={() => setShowDiscordEditor(true)}
-                  className="flex items-center space-x-2 text-slate-400 text-sm hover:text-slate-200 transition-colors"
+                  className="flex items-center space-x-2 text-slate-400 text-sm hover:text-slate-200 transition-colors rounded-full px-3 py-1 border border-slate-700/60 bg-slate-800/40"
                   title="Rediger Discord-brukernavn"
                 >
                   <svg className="w-4 h-4" viewBox="0 0 127.14 96.36" aria-hidden="true">
