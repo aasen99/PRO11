@@ -774,62 +774,73 @@ export default function CaptainDashboardPage() {
                     ? tournament.matches 
                     : tournament.matches.filter(m => m.round === 'Gruppespill')
                   
-                  const pendingMatches = visibleMatches.filter(m => 
+                  const groupRoundMap = buildGroupRoundMap(groupMatches)
+                  const buildKey = (teamA: string, teamB: string) => [teamA, teamB].sort().join('|')
+                  const sortedMatches = [...visibleMatches].sort((a, b) => {
+                    const aIsGroup = a.round === 'Gruppespill'
+                    const bIsGroup = b.round === 'Gruppespill'
+                    if (aIsGroup && bIsGroup) {
+                      const roundA = a.groupRound || groupRoundMap[buildKey(a.team1, a.team2)] || 999
+                      const roundB = b.groupRound || groupRoundMap[buildKey(b.team1, b.team2)] || 999
+                      if (roundA !== roundB) return roundA - roundB
+                    }
+                    return a.time.localeCompare(b.time)
+                  })
+                  const pendingMatches = sortedMatches.filter(m => 
                     m.canSubmitResult || m.canConfirmResult
                   )
+                  const nextMatch = pendingMatches[0] || null
                   return (
                     <div key={tournament.id} className="p-4 md:p-5 bg-slate-800/50 rounded-lg">
                       <h3 className="font-semibold mb-3">{tournament.title}</h3>
                       <div className="space-y-2">
-                        {pendingMatches.length > 0 ? (
-                          pendingMatches.map(match => (
-                            <div key={match.id} className="p-3 md:p-4 bg-slate-700/30 rounded">
-                              <div className="flex flex-col gap-2 md:grid md:grid-cols-[1.6fr_0.7fr_1.4fr_auto] md:items-center md:gap-4">
-                                <div className="text-sm font-medium">
-                                  {match.team1} vs {match.team2}
-                                </div>
-                                <div className="text-xs text-slate-400 md:text-sm">
-                                  {match.round}
-                                </div>
-                                <div className="text-xs md:text-sm text-slate-300">
-                                  {match.canConfirmResult &&
-                                    match.opponentSubmittedScore1 !== null &&
-                                    match.opponentSubmittedScore2 !== null && (
-                                      <>Innsendt: {match.opponentSubmittedScore1} - {match.opponentSubmittedScore2}</>
-                                    )}
-                                </div>
-                                <div className="flex flex-wrap gap-2 md:justify-end">
-                                  {match.canSubmitResult && (
+                        {nextMatch ? (
+                          <div key={nextMatch.id} className="p-3 md:p-4 bg-slate-700/30 rounded">
+                            <div className="flex flex-col gap-2 md:grid md:grid-cols-[1.6fr_0.7fr_1.4fr_auto] md:items-center md:gap-4">
+                              <div className="text-sm font-medium">
+                                {nextMatch.team1} vs {nextMatch.team2}
+                              </div>
+                              <div className="text-xs text-slate-400 md:text-sm">
+                                {nextMatch.round}
+                              </div>
+                              <div className="text-xs md:text-sm text-slate-300">
+                                {nextMatch.canConfirmResult &&
+                                  nextMatch.opponentSubmittedScore1 !== null &&
+                                  nextMatch.opponentSubmittedScore2 !== null && (
+                                    <>Innsendt: {nextMatch.opponentSubmittedScore1} - {nextMatch.opponentSubmittedScore2}</>
+                                  )}
+                              </div>
+                              <div className="flex flex-wrap gap-2 md:justify-end">
+                                {nextMatch.canSubmitResult && (
+                                  <button
+                                    onClick={() => openResultModal(nextMatch)}
+                                    className="pro11-button-secondary text-xs px-3 py-1"
+                                  >
+                                    <Edit className="w-3 h-3 mr-1" />
+                                    Legg inn
+                                  </button>
+                                )}
+                                {nextMatch.canConfirmResult && (
+                                  <>
                                     <button
-                                      onClick={() => openResultModal(match)}
-                                      className="pro11-button-secondary text-xs px-3 py-1"
+                                      onClick={() => confirmResult(nextMatch)}
+                                      className="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded text-xs font-medium transition-colors"
                                     >
-                                      <Edit className="w-3 h-3 mr-1" />
-                                      Legg inn
+                                      Bekreft
                                     </button>
-                                  )}
-                                  {match.canConfirmResult && (
-                                    <>
+                                    {nextMatch.submittedBy && nextMatch.submittedBy !== team.teamName && (
                                       <button
-                                        onClick={() => confirmResult(match)}
-                                        className="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded text-xs font-medium transition-colors"
+                                        onClick={() => rejectResult(nextMatch)}
+                                        className="bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded text-xs font-medium transition-colors"
                                       >
-                                        Bekreft
+                                        Avvis
                                       </button>
-                                      {match.submittedBy && match.submittedBy !== team.teamName && (
-                                        <button
-                                          onClick={() => rejectResult(match)}
-                                          className="bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded text-xs font-medium transition-colors"
-                                        >
-                                          Avvis
-                                        </button>
-                                      )}
-                                    </>
-                                  )}
-                                </div>
+                                    )}
+                                  </>
+                                )}
                               </div>
                             </div>
-                          ))
+                          </div>
                         ) : (
                           <div className="text-sm text-slate-400 text-center py-2">
                             Ingen ventende handlinger
