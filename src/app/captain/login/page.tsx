@@ -9,6 +9,7 @@ interface Team {
   teamName: string
   captainEmail: string
   captainName: string
+  discordUsername?: string
   tournaments: string[]
 }
 
@@ -56,6 +57,7 @@ export default function CaptainLoginPage() {
           teamName: team.teamName || team.team_name,
           captainEmail: team.captainEmail || team.captain_email,
           captainName: team.captainName || team.captain_name,
+          discordUsername: team.discordUsername || team.discord_username || '',
           tournaments: team.tournamentId || team.tournament_id ? [team.tournamentId || team.tournament_id] : []
         }
         localStorage.setItem('captainTeam', JSON.stringify(teamData))

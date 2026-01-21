@@ -25,6 +25,7 @@ CREATE TABLE teams (
   captain_name VARCHAR(255) NOT NULL,
   captain_email VARCHAR(255) NOT NULL,
   captain_phone VARCHAR(50),
+  discord_username VARCHAR(100),
   expected_players INTEGER NOT NULL DEFAULT 11,
   status VARCHAR(50) NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'approved', 'rejected', 'paid')),
   payment_status VARCHAR(50) NOT NULL DEFAULT 'pending' CHECK (payment_status IN ('pending', 'completed', 'failed')),
@@ -88,6 +89,7 @@ CREATE TABLE admin_users (
 -- Create indexes for better performance
 CREATE INDEX idx_teams_tournament_id ON teams(tournament_id);
 CREATE INDEX idx_teams_captain_email ON teams(captain_email);
+CREATE UNIQUE INDEX idx_teams_tournament_team_name ON teams(tournament_id, lower(team_name));
 CREATE INDEX idx_players_team_id ON players(team_id);
 CREATE INDEX idx_payments_team_id ON payments(team_id);
 CREATE INDEX idx_payments_stripe_id ON payments(stripe_payment_intent_id);

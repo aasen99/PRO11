@@ -11,6 +11,7 @@ interface Team {
   teamName: string
   captainEmail: string
   captainName: string
+  discordUsername?: string
   tournaments: string[]
 }
 
@@ -69,6 +70,8 @@ export default function CaptainDashboardPage() {
   const [showResultModal, setShowResultModal] = useState(false)
   const [resultScore1, setResultScore1] = useState(0)
   const [resultScore2, setResultScore2] = useState(0)
+  const [discordUsername, setDiscordUsername] = useState('')
+  const [isSavingDiscord, setIsSavingDiscord] = useState(false)
   const [toasts, setToasts] = useState<ToastMessage[]>([])
   const previousMatchesRef = useRef<Match[]>([])
 
@@ -87,6 +90,7 @@ export default function CaptainDashboardPage() {
     if (teamData) {
       const parsedTeam = JSON.parse(teamData)
       setTeam(parsedTeam)
+      setDiscordUsername(parsedTeam.discordUsername || '')
       
       // Hent faktiske turneringer fra databasen
       const loadTournaments = async () => {
@@ -405,6 +409,38 @@ export default function CaptainDashboardPage() {
     }
   }
 
+  const saveDiscordUsername = async () => {
+    if (!team) return
+    setIsSavingDiscord(true)
+    try {
+      const response = await fetch('/api/teams', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: team.id,
+          discordUsername: discordUsername.trim()
+        })
+      })
+
+      if (!response.ok) {
+        const error = await response.json()
+        alert(`Kunne ikke oppdatere Discord: ${error.error || 'Ukjent feil'}`)
+        return
+      }
+
+      const result = await response.json()
+      const updatedTeam = { ...team, discordUsername: result.team?.discordUsername || discordUsername.trim() }
+      setTeam(updatedTeam)
+      localStorage.setItem('captainTeam', JSON.stringify(updatedTeam))
+      addToast({ message: 'Discord-brukernavn oppdatert.', type: 'success' })
+    } catch (error) {
+      console.error('Error updating discord username:', error)
+      alert('Noe gikk galt ved oppdatering av Discord-brukernavn.')
+    } finally {
+      setIsSavingDiscord(false)
+    }
+  }
+
   const confirmResult = async (match: Match) => {
     if (!team) return
 
@@ -622,6 +658,29 @@ export default function CaptainDashboardPage() {
             <p className="text-slate-300">
               Her kan du administrere {team.teamName} og legge inn resultater for dine kamper.
             </p>
+          </div>
+
+          <div className="pro11-card p-6 mb-6">
+            <h2 className="text-xl font-bold mb-4">Lagleder</h2>
+            <div className="grid md:grid-cols-[1fr_auto] gap-4 items-end">
+              <div>
+                <label className="block text-sm font-medium text-slate-300 mb-2">Discord brukernavn</label>
+                <input
+                  type="text"
+                  value={discordUsername}
+                  onChange={(e) => setDiscordUsername(e.target.value)}
+                  className="pro11-input w-full"
+                  placeholder="f.eks. brukernavn#1234"
+                />
+              </div>
+              <button
+                onClick={saveDiscordUsername}
+                disabled={isSavingDiscord}
+                className="pro11-button-secondary"
+              >
+                {isSavingDiscord ? 'Lagrer...' : 'Lagre'}
+              </button>
+            </div>
           </div>
 
           {/* Quick Actions for Active Tournaments */}

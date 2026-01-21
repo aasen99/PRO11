@@ -10,6 +10,7 @@ interface TeamRegistration {
   teamName: string
   captainName: string
   captainEmail: string
+  discordUsername: string
   expectedPlayers: number
   clubLogo: File | null
   tournamentId: string
@@ -20,6 +21,7 @@ export default function RegisterPage() {
     teamName: '',
     captainName: '',
     captainEmail: '',
+    discordUsername: '',
     expectedPlayers: 11,
     clubLogo: null,
     tournamentId: ''
@@ -90,6 +92,7 @@ export default function RegisterPage() {
           teamName: formData.teamName,
           captainName: formData.captainName,
           captainEmail: formData.captainEmail,
+          discordUsername: formData.discordUsername,
           captainPhone: '', // Ikke implementert i skjemaet ennå
           expectedPlayers: formData.expectedPlayers,
           tournamentId: formData.tournamentId
@@ -195,6 +198,17 @@ export default function RegisterPage() {
                   className="pro11-input w-full"
                   placeholder="din@email.com"
                   required
+                />
+              </div>
+
+              <div className="mt-6">
+                <label className="block text-sm font-medium mb-2">Discord brukernavn</label>
+                <input
+                  type="text"
+                  value={formData.discordUsername}
+                  onChange={(e) => setFormData({...formData, discordUsername: e.target.value})}
+                  className="pro11-input w-full"
+                  placeholder="f.eks. brukernavn#1234"
                 />
               </div>
             </div>

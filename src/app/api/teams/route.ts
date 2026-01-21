@@ -5,7 +5,7 @@ import { generatePassword } from '@/lib/utils'
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { teamName, captainName, captainEmail, captainPhone, expectedPlayers, tournamentId } = body
+    const { teamName, captainName, captainEmail, captainPhone, expectedPlayers, tournamentId, discordUsername } = body
 
     console.log('Team registration request:', body)
 
@@ -49,6 +49,30 @@ export async function POST(request: NextRequest) {
       }, { status: 400 })
     }
 
+    const normalizedTeamName = typeof teamName === 'string' ? teamName.trim() : teamName
+
+    if (!normalizedTeamName) {
+      return NextResponse.json({ error: 'Team name is required' }, { status: 400 })
+    }
+
+    // Check for duplicate team name in the same tournament (case-insensitive)
+    const { data: existingTeams, error: existingError } = await supabase
+      .from('teams')
+      .select('id, team_name')
+      .eq('tournament_id', tournamentUuid)
+      .ilike('team_name', normalizedTeamName)
+
+    if (existingError) {
+      console.error('Error checking existing teams:', existingError)
+      return NextResponse.json({ error: 'Failed to validate team name' }, { status: 400 })
+    }
+
+    if (existingTeams && existingTeams.length > 0) {
+      return NextResponse.json({ 
+        error: 'Et lag med dette navnet er allerede registrert i turneringen.' 
+      }, { status: 400 })
+    }
+
     // Generate password for captain
     const password = generatePassword()
 
@@ -57,10 +81,11 @@ export async function POST(request: NextRequest) {
       .from('teams')
       .insert({
         tournament_id: tournamentUuid,
-        team_name: teamName,
+        team_name: normalizedTeamName,
         captain_name: captainName,
         captain_email: captainEmail,
         captain_phone: captainPhone || null,
+        discord_username: discordUsername || null,
         expected_players: expectedPlayers,
         status: 'pending',
         payment_status: 'pending',
@@ -124,6 +149,8 @@ export async function POST(request: NextRequest) {
       captain_email: team.captain_email,
       captainPhone: team.captain_phone || '',
       captain_phone: team.captain_phone || '',
+      discordUsername: team.discord_username || '',
+      discord_username: team.discord_username || '',
       expectedPlayers: team.expected_players,
       expected_players: team.expected_players,
       status: team.status,
@@ -197,6 +224,8 @@ export async function GET(request: NextRequest) {
       captain_email: team.captain_email,
       captainPhone: team.captain_phone || '',
       captain_phone: team.captain_phone || '',
+      discordUsername: team.discord_username || '',
+      discord_username: team.discord_username || '',
       expectedPlayers: team.expected_players,
       expected_players: team.expected_players,
       status: team.status,
@@ -219,7 +248,7 @@ export async function GET(request: NextRequest) {
 export async function PUT(request: NextRequest) {
   try {
     const body = await request.json()
-    const { id, status } = body
+    const { id, status, discordUsername } = body
 
     if (!id) {
       return NextResponse.json({ error: 'Team ID is required' }, { status: 400 })
@@ -233,6 +262,7 @@ export async function PUT(request: NextRequest) {
 
     const updateData: any = {}
     if (status) updateData.status = status
+    if (discordUsername !== undefined) updateData.discord_username = discordUsername || null
 
     const { data: team, error } = await supabase
       .from('teams')
@@ -257,6 +287,8 @@ export async function PUT(request: NextRequest) {
       captain_name: team.captain_name,
       captainEmail: team.captain_email,
       captain_email: team.captain_email,
+      discordUsername: team.discord_username || '',
+      discord_username: team.discord_username || '',
       status: team.status,
       paymentStatus: team.payment_status,
       payment_status: team.payment_status
