@@ -73,6 +73,7 @@ export default function CaptainDashboardPage() {
   const [resultScore2, setResultScore2] = useState(0)
   const [discordUsername, setDiscordUsername] = useState('')
   const [isSavingDiscord, setIsSavingDiscord] = useState(false)
+  const [showDiscordEditor, setShowDiscordEditor] = useState(false)
   const [toasts, setToasts] = useState<ToastMessage[]>([])
   const previousMatchesRef = useRef<Match[]>([])
 
@@ -138,6 +139,7 @@ export default function CaptainDashboardPage() {
       const parsedTeam = JSON.parse(teamData)
       setTeam(parsedTeam)
       setDiscordUsername(parsedTeam.discordUsername || '')
+      setShowDiscordEditor(!parsedTeam.discordUsername)
       
       // Hent faktiske turneringer fra databasen
       const loadTournaments = async () => {
@@ -481,6 +483,7 @@ export default function CaptainDashboardPage() {
       setTeam(updatedTeam)
       localStorage.setItem('captainTeam', JSON.stringify(updatedTeam))
       addToast({ message: 'Discord-brukernavn oppdatert.', type: 'success' })
+      setShowDiscordEditor(false)
     } catch (error) {
       console.error('Error updating discord username:', error)
       alert('Noe gikk galt ved oppdatering av Discord-brukernavn.')
@@ -712,11 +715,7 @@ export default function CaptainDashboardPage() {
               {team.discordUsername && (
                 <button
                   type="button"
-                  onClick={() => {
-                    setDiscordUsername(team.discordUsername || '')
-                    setDiscordUsername('') 
-                    setTimeout(() => setDiscordUsername(team.discordUsername || ''), 0)
-                  }}
+                  onClick={() => setShowDiscordEditor(true)}
                   className="flex items-center space-x-2 text-slate-400 text-sm hover:text-slate-200 transition-colors"
                   title="Rediger Discord-brukernavn"
                 >
@@ -732,7 +731,7 @@ export default function CaptainDashboardPage() {
             </div>
           </div>
 
-          {(!team.discordUsername || discordUsername !== team.discordUsername) && (
+          {(showDiscordEditor || !team.discordUsername) && (
             <div className="pro11-card p-6 mb-6">
               <h2 className="text-xl font-bold mb-4">Lagleder</h2>
               <div className="grid md:grid-cols-[1fr_auto] gap-4 items-end">
