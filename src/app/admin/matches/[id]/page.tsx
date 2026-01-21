@@ -979,8 +979,8 @@ export default function TournamentMatchesPage() {
                   return (
                   <div key={groupName} className="mb-6">
                     <h3 className="font-semibold mb-3 text-lg">{groupName}</h3>
-                    <div className="space-y-2">
-                      <div className="grid grid-cols-[minmax(140px,1fr)_48px_32px_48px_minmax(140px,1fr)_minmax(200px,1.2fr)_minmax(120px,auto)_auto_auto] items-center gap-3 px-3 text-xs text-slate-400">
+                    <div className="space-y-2 overflow-x-auto">
+                      <div className="min-w-[920px] grid grid-cols-[minmax(140px,1fr)_48px_32px_48px_minmax(140px,1fr)_minmax(200px,1.2fr)_minmax(120px,auto)_auto_auto] items-center gap-3 px-3 text-xs text-slate-400">
                         <span className="text-right">Lag 1</span>
                         <span className="text-center">Score</span>
                         <span className="text-center">vs</span>
@@ -1066,7 +1066,7 @@ export default function TournamentMatchesPage() {
                               </div>
                             ) : (
                               <div className="flex-1">
-                                <div className="grid grid-cols-[minmax(140px,1fr)_48px_32px_48px_minmax(140px,1fr)_minmax(200px,1.2fr)_minmax(120px,auto)_auto_auto] items-center gap-3">
+                                <div className="min-w-[920px] grid grid-cols-[minmax(140px,1fr)_48px_32px_48px_minmax(140px,1fr)_minmax(200px,1.2fr)_minmax(120px,auto)_auto_auto] items-center gap-3">
                                   <span className="font-medium text-right">{match.team1_name}</span>
                                   <span className="text-lg font-bold text-center">
                                     {showFinalScore ? match.score1 : '-'}
@@ -1131,8 +1131,8 @@ export default function TournamentMatchesPage() {
                 ).map(([roundName, roundMatches]) => (
                   <div key={roundName} className="mb-6">
                     <h3 className="font-semibold mb-3 text-lg">{roundName}</h3>
-                    <div className="space-y-2">
-                      <div className="grid grid-cols-[minmax(140px,1fr)_48px_32px_48px_minmax(140px,1fr)_minmax(200px,1.2fr)_minmax(120px,auto)_auto_auto] items-center gap-3 px-3 text-xs text-slate-400">
+                    <div className="space-y-2 overflow-x-auto">
+                      <div className="min-w-[920px] grid grid-cols-[minmax(140px,1fr)_48px_32px_48px_minmax(140px,1fr)_minmax(200px,1.2fr)_minmax(120px,auto)_auto_auto] items-center gap-3 px-3 text-xs text-slate-400">
                         <span className="text-right">Lag 1</span>
                         <span className="text-center">Score</span>
                         <span className="text-center">vs</span>
@@ -1217,7 +1217,7 @@ export default function TournamentMatchesPage() {
                               </div>
                             ) : (
                               <div className="flex-1">
-                                <div className="grid grid-cols-[minmax(140px,1fr)_48px_32px_48px_minmax(140px,1fr)_minmax(200px,1.2fr)_minmax(120px,auto)_auto_auto] items-center gap-3">
+                                <div className="min-w-[920px] grid grid-cols-[minmax(140px,1fr)_48px_32px_48px_minmax(140px,1fr)_minmax(200px,1.2fr)_minmax(120px,auto)_auto_auto] items-center gap-3">
                                   <span className="font-medium text-right">{match.team1_name}</span>
                                   <span className="text-lg font-bold text-center">
                                     {showFinalScore ? match.score1 : '-'}
