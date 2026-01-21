@@ -953,6 +953,10 @@ export default function CaptainDashboardPage() {
             const allGroupMatchesCompleted = groupMatches.length > 0 && 
               groupMatches.every(m => m.status === 'completed')
             const shouldShowKnockout = groupMatches.length === 0 || allGroupMatchesCompleted
+            const teamKnockoutMatches = tournament.matches.filter(m => 
+              m.round !== 'Gruppespill' && (m.team1 === team.teamName || m.team2 === team.teamName)
+            )
+            const didNotAdvance = shouldShowKnockout && groupMatches.length > 0 && teamKnockoutMatches.length === 0
             
             // Filter matches based on knockout visibility
             const visibleMatches = shouldShowKnockout 
@@ -992,6 +996,13 @@ export default function CaptainDashboardPage() {
 
               {/* Matches */}
               <div className="space-y-3">
+                {didNotAdvance && (
+                  <div className="p-4 mb-2 bg-slate-800/50 border border-slate-700/60 rounded-lg">
+                    <p className="text-slate-300 text-sm">
+                      Takk for innsatsen! Gruppen er ferdigspilt, og dere gikk ikke videre til sluttspill denne gangen.
+                    </p>
+                  </div>
+                )}
                 {!shouldShowKnockout && groupMatches.length > 0 && (
                   <div className="p-4 mb-4 bg-yellow-900/20 border border-yellow-600/30 rounded-lg">
                     <p className="text-yellow-400 text-sm">
