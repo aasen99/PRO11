@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
-import { Shield, Trophy, Users, Calendar, Edit, CheckCircle, XCircle, ArrowRight, LogOut, MessageCircle } from 'lucide-react'
+import { Shield, Trophy, Users, Calendar, Edit, CheckCircle, XCircle, ArrowRight, LogOut } from 'lucide-react'
 import Toast, { ToastContainer } from '@/components/Toast'
 import type { ToastType } from '@/components/Toast'
 
@@ -710,15 +710,25 @@ export default function CaptainDashboardPage() {
                 </p>
               </div>
               {team.discordUsername && (
-                <div className="flex items-center space-x-2 text-slate-400 text-sm">
-                  <MessageCircle className="w-4 h-4" />
+                <button
+                  type="button"
+                  onClick={() => setDiscordUsername(team.discordUsername || '')}
+                  className="flex items-center space-x-2 text-slate-400 text-sm hover:text-slate-200 transition-colors"
+                  title="Rediger Discord-brukernavn"
+                >
+                  <svg className="w-4 h-4" viewBox="0 0 127.14 96.36" aria-hidden="true">
+                    <path
+                      fill="currentColor"
+                      d="M107.7,8.07A105.15,105.15,0,0,0,81.47,0a72.06,72.06,0,0,0-3.36,6.83A97.68,97.68,0,0,0,49,6.83,72.37,72.37,0,0,0,45.64,0,105.89,105.89,0,0,0,19.39,8.09C2.79,32.65-1.71,56.6,.54,80.21a105.73,105.73,0,0,0,32.1,16.15,77.7,77.7,0,0,0,6.89-11.13,68.42,68.42,0,0,1-10.85-5.18c.91-.66,1.8-1.35,2.66-2.07a75.57,75.57,0,0,0,64.32,0c.87.72,1.76,1.41,2.66,2.07a68.68,68.68,0,0,1-10.87,5.19,77,77,0,0,0,6.89,11.12,105.25,105.25,0,0,0,32.12-16.16C130.49,56.9,126.18,32.94,107.7,8.07ZM42.45,65.69C36.18,65.69,31,60,31,52.91S36,40.13,42.45,40.13c6.48,0,11.66,5.8,11.56,12.78C54,60,48.93,65.69,42.45,65.69Zm42.24,0C78.41,65.69,73.27,60,73.27,52.91S78.41,40.13,84.69,40.13c6.49,0,11.67,5.8,11.56,12.78C96.25,60,91.18,65.69,84.69,65.69Z"
+                    />
+                  </svg>
                   <span>{team.discordUsername}</span>
-                </div>
+                </button>
               )}
             </div>
           </div>
 
-          {!team.discordUsername && (
+          {(!team.discordUsername || discordUsername !== team.discordUsername) && (
             <div className="pro11-card p-6 mb-6">
               <h2 className="text-xl font-bold mb-4">Lagleder</h2>
               <div className="grid md:grid-cols-[1fr_auto] gap-4 items-end">
