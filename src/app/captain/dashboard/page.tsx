@@ -1025,12 +1025,12 @@ export default function CaptainDashboardPage() {
                   </div>
                 )}
                 {sortedMatches.map(match => (
-                  <div key={match.id} className="flex items-center justify-between p-3 bg-slate-800/50 rounded-lg">
+                  <div key={match.id} className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between p-3 bg-slate-800/50 rounded-lg">
                     <div className="flex-1">
-                      <div className="flex items-center space-x-4">
-                        <span className="font-medium">{match.team1}</span>
+                      <div className="flex flex-wrap items-center gap-3">
+                        <span className="font-medium break-words">{match.team1}</span>
                         <span className="text-slate-400">vs</span>
-                        <span className="font-medium">{match.team2}</span>
+                        <span className="font-medium break-words">{match.team2}</span>
                       </div>
                       <div className="text-sm text-slate-400 mt-1">
                         {match.time} • {match.round}
@@ -1040,52 +1040,52 @@ export default function CaptainDashboardPage() {
                       </div>
                     </div>
                     
-                                         <div className="flex items-center space-x-4">
-                       <span className={`inline-flex items-center px-4 py-2 rounded-full text-xs font-medium ${getMatchStatusColor(match.status)}`}>
-                         {getMatchStatusText(match.status)}
-                       </span>
-                       
-                       {match.status === 'completed' && (
-                         <div className="text-sm font-medium px-4 py-2 bg-slate-700/50 rounded">
-                           {match.score1} - {match.score2}
-                         </div>
-                       )}
-                       
+                    <div className="flex flex-wrap items-center gap-3 md:justify-end md:gap-4">
+                      <span className={`inline-flex items-center px-4 py-2 rounded-full text-xs font-medium ${getMatchStatusColor(match.status)}`}>
+                        {getMatchStatusText(match.status)}
+                      </span>
+                      
+                      {match.status === 'completed' && (
+                        <div className="text-sm font-medium px-4 py-2 bg-slate-700/50 rounded">
+                          {match.score1} - {match.score2}
+                        </div>
+                      )}
+                      
                       {match.status === 'pending_confirmation' && match.opponentSubmittedScore1 !== null && match.opponentSubmittedScore2 !== null && (
-                         <div className="text-sm font-medium px-4 py-2 bg-orange-700/50 rounded">
+                        <div className="text-sm font-medium px-4 py-2 bg-orange-700/50 rounded">
                           {match.opponentSubmittedScore1} - {match.opponentSubmittedScore2}
-                         </div>
-                       )}
-                       
-                       <div className="flex items-center space-x-3">
-                         {match.canSubmitResult && (
-                           <button
-                             onClick={() => openResultModal(match)}
-                             className="pro11-button-secondary flex items-center space-x-1 text-xs px-3 py-1.5"
-                           >
-                             <Edit className="w-3 h-3" />
-                             <span>Legg inn resultat</span>
-                           </button>
-                         )}
-                         
-                         {match.canConfirmResult && match.submittedBy && match.submittedBy !== team.teamName && (
-                           <div className="flex space-x-2">
-                             <button
-                               onClick={() => confirmResult(match)}
-                               className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded text-sm font-medium transition-colors"
-                             >
-                               Bekreft
-                             </button>
-                             <button
-                               onClick={() => rejectResult(match)}
-                               className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded text-sm font-medium transition-colors"
-                             >
-                               Avvis
-                             </button>
-                           </div>
-                         )}
-                       </div>
-                     </div>
+                        </div>
+                      )}
+                      
+                      <div className="flex flex-wrap items-center gap-2">
+                        {match.canSubmitResult && (
+                          <button
+                            onClick={() => openResultModal(match)}
+                            className="pro11-button-secondary flex items-center space-x-1 text-xs px-3 py-1.5"
+                          >
+                            <Edit className="w-3 h-3" />
+                            <span>Legg inn resultat</span>
+                          </button>
+                        )}
+                        
+                        {match.canConfirmResult && match.submittedBy && match.submittedBy !== team.teamName && (
+                          <>
+                            <button
+                              onClick={() => confirmResult(match)}
+                              className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded text-sm font-medium transition-colors"
+                            >
+                              Bekreft
+                            </button>
+                            <button
+                              onClick={() => rejectResult(match)}
+                              className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded text-sm font-medium transition-colors"
+                            >
+                              Avvis
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -1135,7 +1135,7 @@ export default function CaptainDashboardPage() {
                 <p className="text-sm text-slate-400">{selectedMatch.round} • {selectedMatch.time}</p>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-slate-300 mb-2">
                     {selectedMatch.team1} mål
@@ -1162,7 +1162,7 @@ export default function CaptainDashboardPage() {
                 </div>
               </div>
 
-              <div className="flex space-x-3">
+              <div className="flex flex-col sm:flex-row gap-3">
                 <button
                   onClick={submitResult}
                   className="pro11-button flex items-center space-x-2 flex-1"
