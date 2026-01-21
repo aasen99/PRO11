@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect, useCallback, useRef } from 'react'
 import Link from 'next/link'
 import { useParams } from 'next/navigation'
 import { ArrowLeft, Trophy, Users, Calendar, Clock, CheckCircle, XCircle, ExternalLink } from 'lucide-react'
@@ -57,6 +57,7 @@ export default function TournamentDetailPage() {
   const [matches, setMatches] = useState<any[]>([])
   const [groupStandings, setGroupStandings] = useState<Record<string, Team[]>>({})
   const [isLoading, setIsLoading] = useState(true)
+  const matchesSignatureRef = useRef<string | null>(null)
 
   useEffect(() => {
     const loadTournament = async () => {
@@ -88,11 +89,28 @@ export default function TournamentDetailPage() {
       if (response.ok) {
         const data = await response.json()
         const loadedMatches = data.matches || []
-        setMatches(loadedMatches)
-        
-        // Calculate group standings from actual match results
-        const standings = calculateGroupStandings(loadedMatches)
-        setGroupStandings(standings)
+        const signature = loadedMatches
+          .map((m: any) => [
+            m.id,
+            m.status,
+            m.score1 ?? '',
+            m.score2 ?? '',
+            m.scheduled_time ?? '',
+            m.round ?? '',
+            m.group_name ?? '',
+            m.group_round ?? ''
+          ].join('|'))
+          .sort()
+          .join('||')
+
+        if (signature !== matchesSignatureRef.current) {
+          matchesSignatureRef.current = signature
+          setMatches(loadedMatches)
+          
+          // Calculate group standings from actual match results
+          const standings = calculateGroupStandings(loadedMatches)
+          setGroupStandings(standings)
+        }
       }
     } catch (error) {
       console.warn('Error loading matches:', error)
@@ -103,7 +121,7 @@ export default function TournamentDetailPage() {
     if (!tournamentId) return
     loadTeams()
     loadMatches()
-    const interval = setInterval(loadMatches, 15000)
+    const interval = setInterval(loadMatches, 30000)
     return () => clearInterval(interval)
   }, [tournamentId, loadTeams, loadMatches])
 
