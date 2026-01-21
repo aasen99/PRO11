@@ -75,6 +75,52 @@ export default function CaptainDashboardPage() {
   const [toasts, setToasts] = useState<ToastMessage[]>([])
   const previousMatchesRef = useRef<Match[]>([])
 
+  const buildGroupRoundMap = (groupMatches: Match[]) => {
+    const teamSet = new Set<string>()
+    groupMatches.forEach(match => {
+      teamSet.add(match.team1)
+      teamSet.add(match.team2)
+    })
+    const teams = Array.from(teamSet).sort()
+    if (teams.length < 2) return {}
+
+    const buildKey = (teamA: string, teamB: string) => [teamA, teamB].sort().join('|')
+    const scheduleTeams = [...teams]
+    if (scheduleTeams.length % 2 === 1) {
+      scheduleTeams.push('__BYE__')
+    }
+
+    const rounds: Array<Array<[string, string]>> = []
+    const totalRounds = scheduleTeams.length - 1
+    const half = scheduleTeams.length / 2
+    let rotation = [...scheduleTeams]
+
+    for (let round = 0; round < totalRounds; round += 1) {
+      const pairs: Array<[string, string]> = []
+      for (let i = 0; i < half; i += 1) {
+        const home = rotation[i]
+        const away = rotation[rotation.length - 1 - i]
+        if (home !== '__BYE__' && away !== '__BYE__') {
+          pairs.push([home, away])
+        }
+      }
+      rounds.push(pairs)
+      const fixed = rotation[0]
+      const rest = rotation.slice(1)
+      rest.unshift(rest.pop() as string)
+      rotation = [fixed, ...rest]
+    }
+
+    const roundMap: Record<string, number> = {}
+    rounds.forEach((pairs, index) => {
+      pairs.forEach(([home, away]) => {
+        roundMap[buildKey(home, away)] = index + 1
+      })
+    })
+
+    return roundMap
+  }
+
   const addToast = (toast: Omit<ToastMessage, 'id'>) => {
     const id = Date.now().toString() + Math.random().toString(36).substr(2, 9)
     setToasts(prev => [...prev, { ...toast, id }])
@@ -885,6 +931,19 @@ export default function CaptainDashboardPage() {
               ? tournament.matches 
               : tournament.matches.filter(m => m.round === 'Gruppespill')
             
+            const groupRoundMap = buildGroupRoundMap(groupMatches)
+            const buildKey = (teamA: string, teamB: string) => [teamA, teamB].sort().join('|')
+            const sortedMatches = [...visibleMatches].sort((a, b) => {
+              const aIsGroup = a.round === 'Gruppespill'
+              const bIsGroup = b.round === 'Gruppespill'
+              if (aIsGroup && bIsGroup) {
+                const roundA = groupRoundMap[buildKey(a.team1, a.team2)] || 999
+                const roundB = groupRoundMap[buildKey(b.team1, b.team2)] || 999
+                if (roundA !== roundB) return roundA - roundB
+              }
+              return a.time.localeCompare(b.time)
+            })
+            
             return (
             <div key={tournament.id} className="pro11-card p-6 mb-6">
               <div className="flex items-center justify-between mb-4">
@@ -915,7 +974,7 @@ export default function CaptainDashboardPage() {
                     </p>
                   </div>
                 )}
-                {visibleMatches.map(match => (
+                {sortedMatches.map(match => (
                   <div key={match.id} className="flex items-center justify-between p-3 bg-slate-800/50 rounded-lg">
                     <div className="flex-1">
                       <div className="flex items-center space-x-4">
@@ -925,6 +984,9 @@ export default function CaptainDashboardPage() {
                       </div>
                       <div className="text-sm text-slate-400 mt-1">
                         {match.time} • {match.round}
+                        {match.round === 'Gruppespill' && groupRoundMap[buildKey(match.team1, match.team2)] && (
+                          <> • Runde {groupRoundMap[buildKey(match.team1, match.team2)]}</>
+                        )}
                       </div>
                     </div>
                     
