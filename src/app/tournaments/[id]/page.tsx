@@ -684,8 +684,8 @@ export default function TournamentDetailPage() {
                     <h3 className="text-lg font-semibold">Sluttspill</h3>
                     <span className="text-xs text-slate-500">Oppdateres automatisk</span>
                   </div>
-                  <div className="overflow-x-auto">
-                    <div className="grid grid-flow-col auto-cols-[minmax(220px,1fr)] gap-6 pb-2">
+                  <div className="overflow-x-auto -mx-4 sm:mx-0">
+                    <div className="w-max min-w-full grid grid-flow-col auto-cols-[minmax(220px,1fr)] gap-6 pb-2">
                       {sortedRounds.map(([roundName, roundMatches]) => {
                         const typedRoundMatches = roundMatches as any[]
                         
