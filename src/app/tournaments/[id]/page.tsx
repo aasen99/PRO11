@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
 import { useParams } from 'next/navigation'
 import { ArrowLeft, Trophy, Users, Calendar, Clock, CheckCircle, XCircle, ExternalLink } from 'lucide-react'
@@ -67,44 +67,45 @@ export default function TournamentDetailPage() {
     loadTournament()
   }, [tournamentId])
 
-  useEffect(() => {
-    const loadTeams = async () => {
-      try {
-        const response = await fetch(`/api/teams?tournamentId=${tournamentId}`)
-        if (response.ok) {
-          const data = await response.json()
-          const teams = (data.teams || []).filter((team: any) => 
-            team.status === 'approved' || team.payment_status === 'completed'
-          )
-          setRegisteredTeams(teams)
-        }
-      } catch (error) {
-        console.warn('Error loading teams:', error)
+  const loadTeams = useCallback(async () => {
+    try {
+      const response = await fetch(`/api/teams?tournamentId=${tournamentId}`)
+      if (response.ok) {
+        const data = await response.json()
+        const teams = (data.teams || []).filter((team: any) =>
+          team.status === 'approved' || team.payment_status === 'completed'
+        )
+        setRegisteredTeams(teams)
       }
-    }
-    
-    const loadMatches = async () => {
-      try {
-        const response = await fetch(`/api/matches?tournament_id=${tournamentId}`)
-        if (response.ok) {
-          const data = await response.json()
-          const loadedMatches = data.matches || []
-          setMatches(loadedMatches)
-          
-          // Calculate group standings from actual match results
-          const standings = calculateGroupStandings(loadedMatches)
-          setGroupStandings(standings)
-        }
-      } catch (error) {
-        console.warn('Error loading matches:', error)
-      }
-    }
-    
-    if (tournamentId) {
-      loadTeams()
-      loadMatches()
+    } catch (error) {
+      console.warn('Error loading teams:', error)
     }
   }, [tournamentId])
+
+  const loadMatches = useCallback(async () => {
+    try {
+      const response = await fetch(`/api/matches?tournament_id=${tournamentId}`)
+      if (response.ok) {
+        const data = await response.json()
+        const loadedMatches = data.matches || []
+        setMatches(loadedMatches)
+        
+        // Calculate group standings from actual match results
+        const standings = calculateGroupStandings(loadedMatches)
+        setGroupStandings(standings)
+      }
+    } catch (error) {
+      console.warn('Error loading matches:', error)
+    }
+  }, [tournamentId])
+
+  useEffect(() => {
+    if (!tournamentId) return
+    loadTeams()
+    loadMatches()
+    const interval = setInterval(loadMatches, 15000)
+    return () => clearInterval(interval)
+  }, [tournamentId, loadTeams, loadMatches])
 
   // Calculate group standings from actual match results (same logic as admin)
   const calculateGroupStandings = (allMatches: any[]): Record<string, Team[]> => {
@@ -659,118 +660,105 @@ export default function TournamentDetailPage() {
                  return orderA - orderB
                })
                
-               return (
-                 <div className="space-y-8">
-                   {sortedRounds.map(([roundName, roundMatches]) => {
-                     const typedRoundMatches = roundMatches as any[]
-                     
-                     // Get color based on round
-                     const getRoundColor = (round: string) => {
-                       if (round.includes('Kvartfinal')) return 'text-blue-400 border-blue-500'
-                       if (round.includes('Semifinal')) return 'text-green-400 border-green-500'
-                       if (round.includes('Finale')) return 'text-yellow-400 border-yellow-500'
-                       return 'text-purple-400 border-purple-500'
-                     }
-                     
-                     const roundColor = getRoundColor(roundName)
-                     
-                     return (
-                     <div key={roundName} className="pro11-card p-6">
-                       <div className={`border-l-4 ${roundColor.split(' ')[1]} pl-4 mb-6`}>
-                         <h3 className={`text-2xl font-bold mb-2 flex items-center space-x-3 ${roundColor.split(' ')[0]}`}>
-                           <Trophy className="w-6 h-6" />
-                           <span>{roundName}</span>
-                         </h3>
-                         <p className="text-slate-400 text-sm">
-                           {typedRoundMatches.length} {typedRoundMatches.length === 1 ? 'kamp' : 'kamper'}
-                         </p>
-                       </div>
-                       <div className="space-y-3">
-                         {typedRoundMatches.map((match: any, index: number) => {
-                           const matchDate = match.scheduled_time 
-                             ? new Date(match.scheduled_time).toLocaleDateString('nb-NO', { day: 'numeric', month: 'numeric', year: 'numeric' })
-                             : ''
-                           const matchTime = match.scheduled_time 
-                             ? new Date(match.scheduled_time).toLocaleTimeString('nb-NO', { hour: '2-digit', minute: '2-digit' })
-                             : ''
-                           
-                           const isPlaceholder = match.isPlaceholder || false
-                           
-                           return (
-                             <div 
-                               key={match.id} 
-                               className={`flex items-center justify-between p-4 rounded-lg border ${
-                                 isPlaceholder 
-                                   ? 'bg-yellow-900/20 border-yellow-600/50 border-dashed' 
-                                   : 'bg-slate-800/50 border-slate-700/50'
-                               }`}
-                             >
-                               <div className="flex-1 flex items-center space-x-4">
-                                 <div className="text-xs text-slate-500 font-medium w-8 text-center">
-                                   {index + 1}
-                                 </div>
-                                 <span className={`font-medium w-32 text-right ${isPlaceholder ? 'text-yellow-300' : ''}`}>
-                                   {match.team1_name}
-                                 </span>
-                                 {match.status === 'completed' && match.score1 !== undefined && match.score2 !== undefined ? (
-                                   <span className="text-2xl font-bold px-4">
-                                     {match.score1} - {match.score2}
-                                   </span>
-                                 ) : match.status === 'live' && match.score1 !== undefined && match.score2 !== undefined ? (
-                                   <span className="text-2xl font-bold text-red-400 px-4">
-                                     {match.score1} - {match.score2}
-                                   </span>
-                                 ) : isPlaceholder ? (
-                                   <span className="text-yellow-400 px-4 font-semibold">TBD</span>
-                                 ) : (
-                                   <span className="text-slate-500 px-4">vs</span>
-                                 )}
-                                 <span className={`font-medium w-32 ${isPlaceholder ? 'text-yellow-300' : ''}`}>
-                                   {match.team2_name}
-                                 </span>
-                               </div>
-                               <div className="flex items-center space-x-3">
-                                 <span className={`inline-flex items-center px-2 py-1 rounded text-xs font-semibold ${
-                                   roundName.includes('Kvartfinal') ? 'bg-blue-600/20 text-blue-400 border border-blue-500/50' :
-                                   roundName.includes('Semifinal') ? 'bg-green-600/20 text-green-400 border border-green-500/50' :
-                                   roundName.includes('Finale') ? 'bg-yellow-600/20 text-yellow-400 border border-yellow-500/50' :
-                                   'bg-purple-600/20 text-purple-400 border border-purple-500/50'
-                                 }`}>
-                                   {roundName}
-                                 </span>
-                                 {isPlaceholder ? (
-                                   <span className="text-xs text-yellow-400 italic">
-                                     Venter på generering
-                                   </span>
-                                 ) : (
-                                   <>
-                                     {matchDate && matchTime && (
-                                       <div className="text-right">
-                                         <div className="text-xs text-slate-400">{matchDate}</div>
-                                         <div className="text-xs text-slate-500">{matchTime}</div>
-                                       </div>
-                                     )}
-                                     <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${
-                                       match.status === 'completed' ? 'bg-green-600' :
-                                       match.status === 'live' ? 'bg-red-600' :
-                                       'bg-slate-600'
-                                     }`}>
-                                       {match.status === 'completed' ? 'Ferdig' :
-                                        match.status === 'live' ? 'LIVE' :
-                                        'Planlagt'}
-                                     </span>
-                                   </>
-                                 )}
-                               </div>
-                             </div>
-                           )
-                         })}
-                       </div>
-                     </div>
-                     )
-                   })}
-                 </div>
-               )
+              return (
+                <div className="pro11-card p-6">
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-lg font-semibold">Sluttspill</h3>
+                    <span className="text-xs text-slate-500">Oppdateres automatisk</span>
+                  </div>
+                  <div className="overflow-x-auto">
+                    <div className="grid grid-flow-col auto-cols-[minmax(220px,1fr)] gap-6 pb-2">
+                      {sortedRounds.map(([roundName, roundMatches]) => {
+                        const typedRoundMatches = roundMatches as any[]
+                        
+                        const getRoundColor = (round: string) => {
+                          if (round.includes('Kvartfinal')) return 'text-blue-400 border-blue-500'
+                          if (round.includes('Semifinal')) return 'text-green-400 border-green-500'
+                          if (round.includes('Finale')) return 'text-yellow-400 border-yellow-500'
+                          return 'text-purple-400 border-purple-500'
+                        }
+                        
+                        const roundColor = getRoundColor(roundName)
+                        
+                        return (
+                          <div key={roundName} className="min-w-[220px] pro11-card p-4 bg-slate-900/40">
+                            <div className={`border-l-4 ${roundColor.split(' ')[1]} pl-3 mb-4`}>
+                              <h4 className={`text-lg font-bold ${roundColor.split(' ')[0]}`}>{roundName}</h4>
+                              <p className="text-slate-400 text-xs">
+                                {typedRoundMatches.length} {typedRoundMatches.length === 1 ? 'kamp' : 'kamper'}
+                              </p>
+                            </div>
+                            <div className="space-y-3">
+                              {typedRoundMatches.map((match: any, index: number) => {
+                                const matchDate = match.scheduled_time 
+                                  ? new Date(match.scheduled_time).toLocaleDateString('nb-NO', { day: 'numeric', month: 'numeric', year: 'numeric' })
+                                  : ''
+                                const matchTime = match.scheduled_time 
+                                  ? new Date(match.scheduled_time).toLocaleTimeString('nb-NO', { hour: '2-digit', minute: '2-digit' })
+                                  : ''
+                                
+                                const isPlaceholder = match.isPlaceholder || false
+                                
+                                return (
+                                  <div 
+                                    key={match.id} 
+                                    className={`p-3 rounded-lg border ${
+                                      isPlaceholder 
+                                        ? 'bg-yellow-900/20 border-yellow-600/50 border-dashed' 
+                                        : 'bg-slate-800/50 border-slate-700/50'
+                                    }`}
+                                  >
+                                    <div className="flex items-center justify-between mb-2">
+                                      <div className="text-xs text-slate-500 font-medium">
+                                        Kamp {index + 1}
+                                      </div>
+                                      <span className={`text-xs px-2 py-0.5 rounded-full ${
+                                        match.status === 'completed' ? 'bg-green-700/50 text-green-300' :
+                                        match.status === 'live' ? 'bg-red-700/50 text-red-300' :
+                                        isPlaceholder ? 'bg-yellow-700/50 text-yellow-200' : 'bg-slate-700/50 text-slate-300'
+                                      }`}>
+                                        {match.status === 'completed' ? 'Ferdig' :
+                                         match.status === 'live' ? 'LIVE' :
+                                         isPlaceholder ? 'Venter' : 'Planlagt'}
+                                      </span>
+                                    </div>
+                                    <div className="flex items-center justify-between text-sm">
+                                      <span className={`font-medium ${isPlaceholder ? 'text-yellow-300' : ''}`}>
+                                        {match.team1_name}
+                                      </span>
+                                      {match.status === 'completed' && match.score1 !== undefined && match.score2 !== undefined ? (
+                                        <span className="text-base font-bold">
+                                          {match.score1} - {match.score2}
+                                        </span>
+                                      ) : match.status === 'live' && match.score1 !== undefined && match.score2 !== undefined ? (
+                                        <span className="text-base font-bold text-red-400">
+                                          {match.score1} - {match.score2}
+                                        </span>
+                                      ) : isPlaceholder ? (
+                                        <span className="text-yellow-400 font-semibold">TBD</span>
+                                      ) : (
+                                        <span className="text-slate-500">vs</span>
+                                      )}
+                                      <span className={`font-medium ${isPlaceholder ? 'text-yellow-300' : ''}`}>
+                                        {match.team2_name}
+                                      </span>
+                                    </div>
+                                    {matchTime && (
+                                      <div className="text-xs text-slate-400 mt-2">
+                                        {matchDate} {matchTime}
+                                      </div>
+                                    )}
+                                  </div>
+                                )
+                              })}
+                            </div>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </div>
+                </div>
+              )
              })()}
 
              {activeTab === 'info' && (

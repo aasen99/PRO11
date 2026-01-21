@@ -102,17 +102,20 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Database connection failed' }, { status: 500 })
     }
 
+    const team1Name = String(team1_name).trim()
+    const team2Name = String(team2_name).trim()
+
     const insertData: any = {
       tournament_id,
-      team1_name,
-      team2_name,
+      team1_name: team1Name,
+      team2_name: team2Name,
       round,
       status: status || 'scheduled'
     }
 
     // Only include group_name if it's a non-empty string
     if (group_name && group_name !== 'undefined' && group_name.trim() !== '') {
-      insertData.group_name = group_name
+      insertData.group_name = group_name.trim()
     }
 
     if (group_round !== undefined && group_round !== null) {
@@ -122,6 +125,40 @@ export async function POST(request: NextRequest) {
     // Only include scheduled_time if it's provided
     if (scheduled_time && scheduled_time !== 'null' && scheduled_time !== 'undefined') {
       insertData.scheduled_time = scheduled_time
+    }
+
+    const shouldValidateGroupRound = round === 'Gruppespill' && insertData.group_name && insertData.group_round !== undefined
+    if (shouldValidateGroupRound || round !== 'Gruppespill') {
+      let conflictQuery = supabase
+        .from('matches')
+        .select('id, team1_name, team2_name')
+        .eq('tournament_id', tournament_id)
+        .eq('round', round)
+
+      if (shouldValidateGroupRound) {
+        conflictQuery = conflictQuery
+          .eq('group_name', insertData.group_name)
+          .eq('group_round', insertData.group_round)
+      }
+
+      const { data: conflictMatches, error: conflictError } = await conflictQuery
+      if (conflictError) {
+        console.error('Database error checking match conflicts:', conflictError)
+        return NextResponse.json({ error: 'Failed to validate match round' }, { status: 400 })
+      }
+
+      const hasConflict = (conflictMatches || []).some(m =>
+        m.team1_name === team1Name ||
+        m.team2_name === team1Name ||
+        m.team1_name === team2Name ||
+        m.team2_name === team2Name
+      )
+
+      if (hasConflict) {
+        return NextResponse.json({
+          error: 'Et lag kan ikke ha to kamper i samme runde.'
+        }, { status: 409 })
+      }
     }
 
     console.log('Inserting match with data:', insertData)
@@ -169,7 +206,8 @@ export async function PUT(request: NextRequest) {
       team_name, // The team submitting the result
       team_score1, // Score for team_name
       team_score2, // Score for opponent
-      group_round
+      group_round,
+      group_name
     } = body
 
     if (!id) {
@@ -305,6 +343,46 @@ export async function PUT(request: NextRequest) {
       if (body.submitted_by === null) updateData.submitted_by = null
       if (body.submitted_score1 === null) updateData.submitted_score1 = null
       if (body.submitted_score2 === null) updateData.submitted_score2 = null
+    }
+
+    const shouldValidateRoundChange = body.round !== undefined || group_round !== undefined
+    if (shouldValidateRoundChange) {
+      const nextRound = body.round ?? currentMatch.round
+      const nextGroupName = body.group_name ?? currentMatch.group_name
+      const nextGroupRound = group_round !== undefined && group_round !== null ? Number(group_round) : currentMatch.group_round
+      const isGroupRound = nextRound === 'Gruppespill' && nextGroupName && nextGroupRound !== undefined && nextGroupRound !== null
+
+      let conflictQuery = supabase
+        .from('matches')
+        .select('id, team1_name, team2_name')
+        .eq('tournament_id', currentMatch.tournament_id)
+        .eq('round', nextRound)
+        .neq('id', id)
+
+      if (isGroupRound) {
+        conflictQuery = conflictQuery
+          .eq('group_name', nextGroupName)
+          .eq('group_round', nextGroupRound)
+      }
+
+      const { data: conflictMatches, error: conflictError } = await conflictQuery
+      if (conflictError) {
+        console.error('Database error checking match conflicts:', conflictError)
+        return NextResponse.json({ error: 'Failed to validate match round' }, { status: 400 })
+      }
+
+      const hasConflict = (conflictMatches || []).some(m =>
+        m.team1_name === currentMatch.team1_name ||
+        m.team2_name === currentMatch.team1_name ||
+        m.team1_name === currentMatch.team2_name ||
+        m.team2_name === currentMatch.team2_name
+      )
+
+      if (hasConflict) {
+        return NextResponse.json({
+          error: 'Et lag kan ikke ha to kamper i samme runde.'
+        }, { status: 409 })
+      }
     }
 
     const { data: match, error } = await supabase
