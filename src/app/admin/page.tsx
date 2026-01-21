@@ -70,6 +70,7 @@ interface DatabaseMatch {
   score1?: number
   score2?: number
   scheduled_time?: string
+  created_at?: string
 }
 
 function NextMatchQuickAction({ tournaments }: { tournaments: Tournament[] }) {
@@ -82,56 +83,69 @@ function NextMatchQuickAction({ tournaments }: { tournaments: Tournament[] }) {
     status: 'scheduled'
   })
 
-  useEffect(() => {
-    const findNextMatch = async () => {
-      // Find active/ongoing tournaments
-      const activeTournaments = tournaments.filter(t => t.status === 'ongoing')
-      
-      if (activeTournaments.length === 0) return
+  const getMatchSortTime = (match: DatabaseMatch) => {
+    if (match.scheduled_time) return new Date(match.scheduled_time).getTime()
+    if (match.created_at) return new Date(match.created_at).getTime()
+    return Number.MAX_SAFE_INTEGER
+  }
 
-      // Find next scheduled match across all active tournaments
-      let earliestMatch: DatabaseMatch | null = null
-      let earliestTime: Date | null = null
-      let matchTournament: Tournament | null = null
+  const loadNextMatch = async () => {
+    // Find active/ongoing tournaments
+    const activeTournaments = tournaments.filter(t => t.status === 'ongoing')
+    
+    if (activeTournaments.length === 0) {
+      setNextMatch(null)
+      setTournament(null)
+      return
+    }
 
-      for (const t of activeTournaments) {
-        try {
-          const response = await fetch(`/api/matches?tournament_id=${t.id}`)
-          if (response.ok) {
-            const data = await response.json()
-            const matches = (data.matches || []) as DatabaseMatch[]
-            
-            // Find next scheduled match
-            const scheduledMatches = matches.filter(m => 
-              m.status === 'scheduled' && m.scheduled_time
-            )
-            
-            for (const match of scheduledMatches) {
-              const matchTime = new Date(match.scheduled_time!)
-              if (!earliestTime || matchTime < earliestTime) {
-                earliestTime = matchTime
-                earliestMatch = match
-                matchTournament = t
-              }
+    // Find earliest match that is NOT completed across all active tournaments
+    let earliestMatch: DatabaseMatch | null = null
+    let earliestTime: number | null = null
+    let matchTournament: Tournament | null = null
+
+    for (const t of activeTournaments) {
+      try {
+        const response = await fetch(`/api/matches?tournament_id=${t.id}`)
+        if (response.ok) {
+          const data = await response.json()
+          const matches = (data.matches || []) as DatabaseMatch[]
+          
+          const pendingMatches = matches
+            .filter(m => m.status !== 'completed')
+            .sort((a, b) => getMatchSortTime(a) - getMatchSortTime(b))
+          
+          if (pendingMatches.length > 0) {
+            const candidate = pendingMatches[0]
+            const candidateTime = getMatchSortTime(candidate)
+            if (earliestTime === null || candidateTime < earliestTime) {
+              earliestTime = candidateTime
+              earliestMatch = candidate
+              matchTournament = t
             }
           }
-        } catch (error) {
-          console.error(`Error loading matches for tournament ${t.id}:`, error)
         }
-      }
-
-      if (earliestMatch && matchTournament) {
-        setNextMatch(earliestMatch)
-        setTournament(matchTournament)
-        setEditForm({
-          score1: earliestMatch.score1 || 0,
-          score2: earliestMatch.score2 || 0,
-          status: earliestMatch.status
-        })
+      } catch (error) {
+        console.error(`Error loading matches for tournament ${t.id}:`, error)
       }
     }
 
-    findNextMatch()
+    if (earliestMatch && matchTournament) {
+      setNextMatch(earliestMatch)
+      setTournament(matchTournament)
+      setEditForm({
+        score1: earliestMatch.score1 || 0,
+        score2: earliestMatch.score2 || 0,
+        status: earliestMatch.status
+      })
+    } else {
+      setNextMatch(null)
+      setTournament(null)
+    }
+  }
+
+  useEffect(() => {
+    loadNextMatch()
   }, [tournaments])
 
   const saveMatch = async () => {
@@ -151,30 +165,7 @@ function NextMatchQuickAction({ tournaments }: { tournaments: Tournament[] }) {
 
       if (response.ok) {
         // Reload next match
-        const activeTournaments = tournaments.filter(t => t.status === 'ongoing')
-        for (const t of activeTournaments) {
-          const matchesResponse = await fetch(`/api/matches?tournament_id=${t.id}`)
-          if (matchesResponse.ok) {
-            const matchesData = await matchesResponse.json()
-            const matches = (matchesData.matches || []) as DatabaseMatch[]
-            const scheduledMatches = matches.filter(m => 
-              m.status === 'scheduled' && m.scheduled_time
-            ).sort((a, b) => 
-              new Date(a.scheduled_time!).getTime() - new Date(b.scheduled_time!).getTime()
-            )
-            
-            if (scheduledMatches.length > 0) {
-              setNextMatch(scheduledMatches[0])
-              setEditForm({
-                score1: scheduledMatches[0].score1 || 0,
-                score2: scheduledMatches[0].score2 || 0,
-                status: scheduledMatches[0].status
-              })
-            } else {
-              setNextMatch(null)
-            }
-          }
-        }
+        await loadNextMatch()
         setIsEditing(false)
         alert('Kamp oppdatert!')
       } else {
