@@ -746,6 +746,42 @@ export default function TournamentMatchesPage() {
 
   const groupMatches = matches.filter(m => m.round === 'Gruppespill')
   const knockoutMatches = matches.filter(m => m.round !== 'Gruppespill')
+
+  const scheduleDiagnostics = (() => {
+    const missingGroupRound = groupMatches.filter(m => m.group_round === null || m.group_round === undefined)
+    const duplicates: Array<{ group: string; round: string; team: string; matchIds: string[] }> = []
+    const map: Record<string, Record<string, Record<string, string[]>>> = {}
+
+    groupMatches.forEach(match => {
+      const group = match.group_name || 'Ukjent gruppe'
+      const round = match.group_round !== null && match.group_round !== undefined
+        ? `Runde ${match.group_round}`
+        : 'Ukjent runde'
+
+      if (!map[group]) map[group] = {}
+      if (!map[group][round]) map[group][round] = {}
+
+      const addTeam = (team: string) => {
+        if (!map[group][round][team]) map[group][round][team] = []
+        map[group][round][team].push(match.id)
+      }
+
+      addTeam(match.team1_name)
+      addTeam(match.team2_name)
+    })
+
+    Object.entries(map).forEach(([group, rounds]) => {
+      Object.entries(rounds).forEach(([round, teams]) => {
+        Object.entries(teams).forEach(([team, matchIds]) => {
+          if (matchIds.length > 1) {
+            duplicates.push({ group, round, team, matchIds })
+          }
+        })
+      })
+    })
+
+    return { missingGroupRound, duplicates }
+  })()
   
   // Check if all group stage matches are completed
   const allGroupMatchesCompleted = groupMatches.length > 0 && 
@@ -805,6 +841,25 @@ export default function TournamentMatchesPage() {
       </header>
 
       <main className="container mx-auto px-4 py-6">
+        {(scheduleDiagnostics.missingGroupRound.length > 0 || scheduleDiagnostics.duplicates.length > 0) && (
+          <div className="pro11-card p-4 mb-6 border border-orange-500/40 bg-orange-900/10">
+            <h2 className="text-lg font-semibold text-orange-300 mb-2">Feilsøking: kampprogram</h2>
+            {scheduleDiagnostics.missingGroupRound.length > 0 && (
+              <p className="text-sm text-orange-200">
+                Mangler `group_round` på {scheduleDiagnostics.missingGroupRound.length} gruppespill‑kamper.
+              </p>
+            )}
+            {scheduleDiagnostics.duplicates.length > 0 && (
+              <div className="mt-2 text-sm text-orange-200 space-y-1">
+                {scheduleDiagnostics.duplicates.map(item => (
+                  <div key={`${item.group}-${item.round}-${item.team}`}>
+                    {item.group} • {item.round}: {item.team} har flere kamper (ID: {item.matchIds.join(', ')})
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
         {/* Group Stage Standings */}
         {Object.keys(groupStandings).length > 0 && (
           <div className="mb-8">
