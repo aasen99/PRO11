@@ -980,9 +980,29 @@ export default function TournamentMatchesPage() {
                   <div key={groupName} className="mb-6">
                     <h3 className="font-semibold mb-3 text-lg">{groupName}</h3>
                     <div className="space-y-2">
+                      <div className="grid grid-cols-[minmax(140px,1fr)_48px_32px_48px_minmax(140px,1fr)_minmax(200px,1.2fr)_minmax(120px,auto)_auto_auto] items-center gap-3 px-3 text-xs text-slate-400">
+                        <span className="text-right">Lag 1</span>
+                        <span className="text-center">Score</span>
+                        <span className="text-center">vs</span>
+                        <span className="text-center">Score</span>
+                        <span>Lag 2</span>
+                        <span>Innsendt</span>
+                        <span>Info</span>
+                        <span>Status</span>
+                        <span></span>
+                      </div>
                       {sortedGroupMatches.map(match => {
                         const showFinalScore = match.status === 'completed' && match.score1 !== undefined && match.score2 !== undefined
                         const hasSubmittedScores = match.team1_submitted_score1 !== null || match.team2_submitted_score1 !== null
+                        const submittedMismatch = match.team1_submitted_score1 !== null && match.team2_submitted_score1 !== null && 
+                          (match.team1_submitted_score1 !== match.team2_submitted_score2 || match.team1_submitted_score2 !== match.team2_submitted_score1)
+                        const submittedText = hasSubmittedScores
+                          ? `${match.team1_name}: ${match.team1_submitted_score1 ?? '-'}-${match.team1_submitted_score2 ?? '-'} | ${match.team2_name}: ${match.team2_submitted_score1 ?? '-'}-${match.team2_submitted_score2 ?? '-'}${submittedMismatch ? ' ⚠' : ''}`
+                          : '-'
+                        const infoText = [
+                          (match.group_round || roundMap[buildKey(match.team1_name, match.team2_name)]) ? `Runde ${match.group_round || roundMap[buildKey(match.team1_name, match.team2_name)]}` : null,
+                          match.scheduled_time ? new Date(match.scheduled_time).toLocaleTimeString('nb-NO', { hour: '2-digit', minute: '2-digit' }) : null
+                        ].filter(Boolean).join(' • ')
 
                         return (
                           <div 
@@ -1045,51 +1065,19 @@ export default function TournamentMatchesPage() {
                                 </div>
                               </div>
                             ) : (
-                              <>
-                                <div className="flex-1">
-                                  <div className="grid grid-cols-[1fr_auto_auto_auto_1fr] items-center gap-3">
-                                    <span className="font-medium text-right">{match.team1_name}</span>
-                                    <span className="text-lg font-bold w-8 text-center">
-                                      {showFinalScore ? match.score1 : '-'}
-                                    </span>
-                                    <span className="text-slate-500">vs</span>
-                                    <span className="text-lg font-bold w-8 text-center">
-                                      {showFinalScore ? match.score2 : '-'}
-                                    </span>
-                                    <span className="font-medium">{match.team2_name}</span>
-                                  </div>
-                                  {hasSubmittedScores && (
-                                    <div className="mt-2 text-xs text-slate-400">
-                                      <div className="text-orange-400 mb-1">Innsendte resultater</div>
-                                      <div>
-                                        {match.team1_name}: {match.team1_submitted_score1 ?? '-'} - {match.team1_submitted_score2 ?? '-'}
-                                      </div>
-                                      <div>
-                                        {match.team2_name}: {match.team2_submitted_score1 ?? '-'} - {match.team2_submitted_score2 ?? '-'}
-                                      </div>
-                                      {match.team1_submitted_score1 !== null && match.team2_submitted_score1 !== null && 
-                                       (match.team1_submitted_score1 !== match.team2_submitted_score2 || match.team1_submitted_score2 !== match.team2_submitted_score1) && (
-                                        <div className="text-xs text-red-400 mt-1 font-semibold">
-                                          ⚠️ Resultater matcher ikke!
-                                        </div>
-                                      )}
-                                    </div>
-                                  )}
-                                </div>
-                                <div className="flex items-center space-x-3">
-                                  {(match.group_round || roundMap[buildKey(match.team1_name, match.team2_name)]) && (
-                                    <span className="text-xs text-slate-400">
-                                      Runde {match.group_round || roundMap[buildKey(match.team1_name, match.team2_name)]}
-                                    </span>
-                                  )}
-                                  {match.scheduled_time && (
-                                    <span className="text-xs text-slate-400">
-                                      {new Date(match.scheduled_time).toLocaleTimeString('nb-NO', { 
-                                        hour: '2-digit', 
-                                        minute: '2-digit' 
-                                      })}
-                                    </span>
-                                  )}
+                              <div className="flex-1">
+                                <div className="grid grid-cols-[minmax(140px,1fr)_48px_32px_48px_minmax(140px,1fr)_minmax(200px,1.2fr)_minmax(120px,auto)_auto_auto] items-center gap-3">
+                                  <span className="font-medium text-right">{match.team1_name}</span>
+                                  <span className="text-lg font-bold text-center">
+                                    {showFinalScore ? match.score1 : '-'}
+                                  </span>
+                                  <span className="text-slate-500 text-center">vs</span>
+                                  <span className="text-lg font-bold text-center">
+                                    {showFinalScore ? match.score2 : '-'}
+                                  </span>
+                                  <span className="font-medium">{match.team2_name}</span>
+                                  <span className="text-xs text-slate-400">{submittedText}</span>
+                                  <span className="text-xs text-slate-400">{infoText || '-'}</span>
                                   <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(match.status)}`}>
                                     {getStatusText(match.status, match)}
                                   </span>
@@ -1101,7 +1089,7 @@ export default function TournamentMatchesPage() {
                                     <Edit className="w-4 h-4" />
                                   </button>
                                 </div>
-                              </>
+                              </div>
                             )}
                           </div>
                         )
@@ -1144,9 +1132,28 @@ export default function TournamentMatchesPage() {
                   <div key={roundName} className="mb-6">
                     <h3 className="font-semibold mb-3 text-lg">{roundName}</h3>
                     <div className="space-y-2">
+                      <div className="grid grid-cols-[minmax(140px,1fr)_48px_32px_48px_minmax(140px,1fr)_minmax(200px,1.2fr)_minmax(120px,auto)_auto_auto] items-center gap-3 px-3 text-xs text-slate-400">
+                        <span className="text-right">Lag 1</span>
+                        <span className="text-center">Score</span>
+                        <span className="text-center">vs</span>
+                        <span className="text-center">Score</span>
+                        <span>Lag 2</span>
+                        <span>Innsendt</span>
+                        <span>Info</span>
+                        <span>Status</span>
+                        <span></span>
+                      </div>
                       {roundMatches.map(match => {
                         const showFinalScore = match.status === 'completed' && match.score1 !== undefined && match.score2 !== undefined
                         const hasSubmittedScores = match.team1_submitted_score1 !== null || match.team2_submitted_score1 !== null
+                        const submittedMismatch = match.team1_submitted_score1 !== null && match.team2_submitted_score1 !== null && 
+                          (match.team1_submitted_score1 !== match.team2_submitted_score2 || match.team1_submitted_score2 !== match.team2_submitted_score1)
+                        const submittedText = hasSubmittedScores
+                          ? `${match.team1_name}: ${match.team1_submitted_score1 ?? '-'}-${match.team1_submitted_score2 ?? '-'} | ${match.team2_name}: ${match.team2_submitted_score1 ?? '-'}-${match.team2_submitted_score2 ?? '-'}${submittedMismatch ? ' ⚠' : ''}`
+                          : '-'
+                        const infoText = match.scheduled_time
+                          ? new Date(match.scheduled_time).toLocaleTimeString('nb-NO', { hour: '2-digit', minute: '2-digit' })
+                          : null
 
                         return (
                           <div 
@@ -1209,46 +1216,19 @@ export default function TournamentMatchesPage() {
                                 </div>
                               </div>
                             ) : (
-                              <>
-                                <div className="flex-1">
-                                  <div className="grid grid-cols-[1fr_auto_auto_auto_1fr] items-center gap-3">
-                                    <span className="font-medium text-right">{match.team1_name}</span>
-                                    <span className="text-lg font-bold w-8 text-center">
-                                      {showFinalScore ? match.score1 : '-'}
-                                    </span>
-                                    <span className="text-slate-500">vs</span>
-                                    <span className="text-lg font-bold w-8 text-center">
-                                      {showFinalScore ? match.score2 : '-'}
-                                    </span>
-                                    <span className="font-medium">{match.team2_name}</span>
-                                  </div>
-                                  {hasSubmittedScores && (
-                                    <div className="mt-2 text-xs text-slate-400">
-                                      <div className="text-orange-400 mb-1">Innsendte resultater</div>
-                                      <div>
-                                        {match.team1_name}: {match.team1_submitted_score1 ?? '-'} - {match.team1_submitted_score2 ?? '-'}
-                                      </div>
-                                      <div>
-                                        {match.team2_name}: {match.team2_submitted_score1 ?? '-'} - {match.team2_submitted_score2 ?? '-'}
-                                      </div>
-                                      {match.team1_submitted_score1 !== null && match.team2_submitted_score1 !== null && 
-                                       (match.team1_submitted_score1 !== match.team2_submitted_score2 || match.team1_submitted_score2 !== match.team2_submitted_score1) && (
-                                        <div className="text-xs text-red-400 mt-1 font-semibold">
-                                          ⚠️ Resultater matcher ikke!
-                                        </div>
-                                      )}
-                                    </div>
-                                  )}
-                                </div>
-                                <div className="flex items-center space-x-3">
-                                  {match.scheduled_time && (
-                                    <span className="text-xs text-slate-400">
-                                      {new Date(match.scheduled_time).toLocaleTimeString('nb-NO', { 
-                                        hour: '2-digit', 
-                                        minute: '2-digit' 
-                                      })}
-                                    </span>
-                                  )}
+                              <div className="flex-1">
+                                <div className="grid grid-cols-[minmax(140px,1fr)_48px_32px_48px_minmax(140px,1fr)_minmax(200px,1.2fr)_minmax(120px,auto)_auto_auto] items-center gap-3">
+                                  <span className="font-medium text-right">{match.team1_name}</span>
+                                  <span className="text-lg font-bold text-center">
+                                    {showFinalScore ? match.score1 : '-'}
+                                  </span>
+                                  <span className="text-slate-500 text-center">vs</span>
+                                  <span className="text-lg font-bold text-center">
+                                    {showFinalScore ? match.score2 : '-'}
+                                  </span>
+                                  <span className="font-medium">{match.team2_name}</span>
+                                  <span className="text-xs text-slate-400">{submittedText}</span>
+                                  <span className="text-xs text-slate-400">{infoText || '-'}</span>
                                   <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(match.status)}`}>
                                     {getStatusText(match.status, match)}
                                   </span>
@@ -1260,7 +1240,7 @@ export default function TournamentMatchesPage() {
                                     <Edit className="w-4 h-4" />
                                   </button>
                                 </div>
-                              </>
+                              </div>
                             )}
                           </div>
                         )
