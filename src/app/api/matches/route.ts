@@ -168,7 +168,8 @@ export async function PUT(request: NextRequest) {
       submitted_score2,
       team_name, // The team submitting the result
       team_score1, // Score for team_name
-      team_score2 // Score for opponent
+      team_score2, // Score for opponent
+      group_round
     } = body
 
     if (!id) {
@@ -282,6 +283,9 @@ export async function PUT(request: NextRequest) {
       }
       if (score2 !== undefined) {
         updateData.score2 = score2
+      }
+      if (group_round !== undefined && group_round !== null) {
+        updateData.group_round = Number(group_round)
       }
       
       // If both scores are set and status is not explicitly set, mark as completed

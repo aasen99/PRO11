@@ -76,6 +76,7 @@ export default function TournamentMatchesPage() {
   const [toasts, setToasts] = useState<ToastMessage[]>([])
   const previousMatchesRef = useRef<Match[]>([])
   const autoKnockoutInProgressRef = useRef(false)
+  const groupRoundBackfillRef = useRef(false)
 
   const addToast = (toast: Omit<ToastMessage, 'id'>) => {
     const id = Date.now().toString() + Math.random().toString(36).substr(2, 9)
@@ -129,6 +130,49 @@ export default function TournamentMatchesPage() {
       }
     }
     return matchesToCreate
+  }
+
+  const backfillGroupRounds = async (loadedMatches: Match[]) => {
+    const groupMatches = loadedMatches.filter(match => match.round === 'Gruppespill' && match.group_name)
+    if (groupMatches.length === 0) return
+    if (!groupMatches.some(match => match.group_round === undefined || match.group_round === null)) return
+    if (groupRoundBackfillRef.current) return
+
+    groupRoundBackfillRef.current = true
+    try {
+      const grouped = groupMatches.reduce((acc: Record<string, Match[]>, match) => {
+        const groupName = match.group_name as string
+        if (!acc[groupName]) acc[groupName] = []
+        acc[groupName].push(match)
+        return acc
+      }, {})
+
+      const updates: Array<{ id: string; group_round: number }> = []
+      Object.entries(grouped).forEach(([groupName, groupList]) => {
+        const roundMap = buildGroupRoundMap(groupList)
+        const buildKey = (teamA: string, teamB: string) => [teamA, teamB].sort().join('|')
+        groupList.forEach(match => {
+          if (match.group_round === undefined || match.group_round === null) {
+            const round = roundMap[buildKey(match.team1_name, match.team2_name)]
+            if (round) {
+              updates.push({ id: match.id, group_round: round })
+            }
+          }
+        })
+      })
+
+      if (updates.length === 0) return
+
+      await Promise.all(updates.map(async update => {
+        await fetch('/api/matches', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(update)
+        })
+      }))
+    } catch (error) {
+      console.error('Error backfilling group rounds:', error)
+    }
   }
 
   const loadData = useCallback(async () => {
@@ -205,6 +249,7 @@ export default function TournamentMatchesPage() {
           
           previousMatchesRef.current = loadedMatches
           
+          await backfillGroupRounds(loadedMatches)
           setMatches(loadedMatches)
           
           if (loadedMatches.length === 0) {
