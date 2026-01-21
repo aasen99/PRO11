@@ -220,15 +220,17 @@ export async function PUT(request: NextRequest) {
     }
 
     // First, get the current match to check existing submissions
-    const { data: currentMatch, error: fetchError } = await supabase
+    const { data: currentMatchRaw, error: fetchError } = await supabase
       .from('matches')
       .select('*')
       .eq('id', id)
       .single()
 
-    if (fetchError || !currentMatch) {
+    if (fetchError || !currentMatchRaw) {
       return NextResponse.json({ error: 'Match not found' }, { status: 404 })
     }
+
+    const currentMatch = currentMatchRaw as any
 
     const updateData: any = {}
     
