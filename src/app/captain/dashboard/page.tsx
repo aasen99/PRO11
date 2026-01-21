@@ -712,7 +712,11 @@ export default function CaptainDashboardPage() {
               {team.discordUsername && (
                 <button
                   type="button"
-                  onClick={() => setDiscordUsername(team.discordUsername || '')}
+                  onClick={() => {
+                    setDiscordUsername(team.discordUsername || '')
+                    setDiscordUsername('') 
+                    setTimeout(() => setDiscordUsername(team.discordUsername || ''), 0)
+                  }}
                   className="flex items-center space-x-2 text-slate-400 text-sm hover:text-slate-200 transition-colors"
                   title="Rediger Discord-brukernavn"
                 >
