@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
-import { Shield, Trophy, Users, Calendar, Edit, CheckCircle, XCircle, ArrowRight, LogOut } from 'lucide-react'
+import { Shield, Trophy, Users, Calendar, Edit, CheckCircle, XCircle, ArrowRight, LogOut, MessageCircle } from 'lucide-react'
 import Toast, { ToastContainer } from '@/components/Toast'
 import type { ToastType } from '@/components/Toast'
 
@@ -702,34 +702,46 @@ export default function CaptainDashboardPage() {
         <div className="max-w-6xl w-full">
           {/* Welcome Section */}
           <div className="pro11-card p-6 mb-6">
-            <h1 className="text-2xl font-bold mb-2">Velkommen, {team.captainName}!</h1>
-            <p className="text-slate-300">
-              Her kan du administrere {team.teamName} og legge inn resultater for dine kamper.
-            </p>
-          </div>
-
-          <div className="pro11-card p-6 mb-6">
-            <h2 className="text-xl font-bold mb-4">Lagleder</h2>
-            <div className="grid md:grid-cols-[1fr_auto] gap-4 items-end">
+            <div className="flex items-start justify-between gap-4">
               <div>
-                <label className="block text-sm font-medium text-slate-300 mb-2">Discord brukernavn</label>
-                <input
-                  type="text"
-                  value={discordUsername}
-                  onChange={(e) => setDiscordUsername(e.target.value)}
-                  className="pro11-input w-full"
-                  placeholder="f.eks. brukernavn#1234"
-                />
+                <h1 className="text-2xl font-bold mb-2">Velkommen, {team.captainName}!</h1>
+                <p className="text-slate-300">
+                  Her kan du administrere {team.teamName} og legge inn resultater for dine kamper.
+                </p>
               </div>
-              <button
-                onClick={saveDiscordUsername}
-                disabled={isSavingDiscord}
-                className="pro11-button-secondary"
-              >
-                {isSavingDiscord ? 'Lagrer...' : 'Lagre'}
-              </button>
+              {team.discordUsername && (
+                <div className="flex items-center space-x-2 text-slate-400 text-sm">
+                  <MessageCircle className="w-4 h-4" />
+                  <span>{team.discordUsername}</span>
+                </div>
+              )}
             </div>
           </div>
+
+          {!team.discordUsername && (
+            <div className="pro11-card p-6 mb-6">
+              <h2 className="text-xl font-bold mb-4">Lagleder</h2>
+              <div className="grid md:grid-cols-[1fr_auto] gap-4 items-end">
+                <div>
+                  <label className="block text-sm font-medium text-slate-300 mb-2">Discord brukernavn</label>
+                  <input
+                    type="text"
+                    value={discordUsername}
+                    onChange={(e) => setDiscordUsername(e.target.value)}
+                    className="pro11-input w-full"
+                    placeholder="f.eks. brukernavn#1234"
+                  />
+                </div>
+                <button
+                  onClick={saveDiscordUsername}
+                  disabled={isSavingDiscord}
+                  className="pro11-button-secondary"
+                >
+                  {isSavingDiscord ? 'Lagrer...' : 'Lagre'}
+                </button>
+              </div>
+            </div>
+          )}
 
           {/* Quick Actions for Active Tournaments */}
           {tournaments.filter(t => t.status === 'live').length > 0 && (
