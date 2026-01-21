@@ -19,6 +19,7 @@ interface Match {
   team2_name: string
   round: string
   group_name?: string
+  group_round?: number
   status: 'scheduled' | 'live' | 'completed' | 'pending_result' | 'pending_confirmation'
   score1?: number
   score2?: number
@@ -831,8 +832,8 @@ export default function TournamentMatchesPage() {
                   const roundMap = buildGroupRoundMap(groupMatchesList)
                   const buildKey = (teamA: string, teamB: string) => [teamA, teamB].sort().join('|')
                   const sortedGroupMatches = [...groupMatchesList].sort((a, b) => {
-                    const roundA = roundMap[buildKey(a.team1_name, a.team2_name)] || 999
-                    const roundB = roundMap[buildKey(b.team1_name, b.team2_name)] || 999
+                    const roundA = a.group_round || roundMap[buildKey(a.team1_name, a.team2_name)] || 999
+                    const roundB = b.group_round || roundMap[buildKey(b.team1_name, b.team2_name)] || 999
                     if (roundA !== roundB) return roundA - roundB
                     const timeA = a.scheduled_time ? new Date(a.scheduled_time).getTime() : 0
                     const timeB = b.scheduled_time ? new Date(b.scheduled_time).getTime() : 0
@@ -933,9 +934,9 @@ export default function TournamentMatchesPage() {
                                 <span className="font-medium w-32">{match.team2_name}</span>
                               </div>
                               <div className="flex items-center space-x-3">
-                                {roundMap[buildKey(match.team1_name, match.team2_name)] && (
+                                {(match.group_round || roundMap[buildKey(match.team1_name, match.team2_name)]) && (
                                   <span className="text-xs text-slate-400">
-                                    Runde {roundMap[buildKey(match.team1_name, match.team2_name)]}
+                                    Runde {match.group_round || roundMap[buildKey(match.team1_name, match.team2_name)]}
                                   </span>
                                 )}
                                 {match.scheduled_time && (

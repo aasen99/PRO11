@@ -79,7 +79,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { tournament_id, team1_name, team2_name, round, group_name, status, scheduled_time } = body
+    const { tournament_id, team1_name, team2_name, round, group_name, group_round, status, scheduled_time } = body
 
     console.log('POST /api/matches called with data:', {
       tournament_id,
@@ -113,6 +113,10 @@ export async function POST(request: NextRequest) {
     // Only include group_name if it's a non-empty string
     if (group_name && group_name !== 'undefined' && group_name.trim() !== '') {
       insertData.group_name = group_name
+    }
+
+    if (group_round !== undefined && group_round !== null) {
+      insertData.group_round = Number(group_round)
     }
     
     // Only include scheduled_time if it's provided

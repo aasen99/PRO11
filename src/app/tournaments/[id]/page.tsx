@@ -29,6 +29,7 @@ interface Match {
   status: 'scheduled' | 'live' | 'completed'
   group?: string
   round?: string
+  groupRound?: number
 }
 
 interface Tournament {
@@ -194,6 +195,53 @@ export default function TournamentDetailPage() {
     return result
   }
 
+  const buildGroupRoundMap = (groupMatches: any[]) => {
+    const teamSet = new Set<string>()
+    groupMatches.forEach(match => {
+      teamSet.add(match.team1_name)
+      teamSet.add(match.team2_name)
+    })
+    const teams = Array.from(teamSet).sort()
+    if (teams.length < 2) return {}
+
+    const buildKey = (teamA: string, teamB: string) => [teamA, teamB].sort().join('|')
+
+    const scheduleTeams = [...teams]
+    if (scheduleTeams.length % 2 === 1) {
+      scheduleTeams.push('__BYE__')
+    }
+
+    const rounds: Array<Array<[string, string]>> = []
+    const totalRounds = scheduleTeams.length - 1
+    const half = scheduleTeams.length / 2
+    let rotation = [...scheduleTeams]
+
+    for (let round = 0; round < totalRounds; round += 1) {
+      const pairs: Array<[string, string]> = []
+      for (let i = 0; i < half; i += 1) {
+        const home = rotation[i]
+        const away = rotation[rotation.length - 1 - i]
+        if (home !== '__BYE__' && away !== '__BYE__') {
+          pairs.push([home, away])
+        }
+      }
+      rounds.push(pairs)
+      const fixed = rotation[0]
+      const rest = rotation.slice(1)
+      rest.unshift(rest.pop() as string)
+      rotation = [fixed, ...rest]
+    }
+
+    const roundMap: Record<string, number> = {}
+    rounds.forEach((pairs, index) => {
+      pairs.forEach(([home, away]) => {
+        roundMap[buildKey(home, away)] = index + 1
+      })
+    })
+
+    return roundMap
+  }
+
   if (isLoading || !tournament) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -213,8 +261,34 @@ export default function TournamentDetailPage() {
     time: m.scheduled_time ? new Date(m.scheduled_time).toLocaleTimeString('nb-NO', { hour: '2-digit', minute: '2-digit' }) : '',
     status: m.status === 'completed' ? 'completed' : m.status === 'live' ? 'live' : 'scheduled',
     group: m.group_name || undefined,
-    round: m.round || undefined
+    round: m.round || undefined,
+    groupRound: m.group_round ?? undefined
   }))
+
+  const groupRoundMaps: Record<string, Record<string, number>> = {}
+  const groupedGroupMatches = matches
+    .filter((m: any) => m.round === 'Gruppespill')
+    .reduce((acc: Record<string, any[]>, match: any) => {
+      const groupName = match.group_name || 'Ukjent gruppe'
+      if (!acc[groupName]) acc[groupName] = []
+      acc[groupName].push(match)
+      return acc
+    }, {})
+  Object.entries(groupedGroupMatches).forEach(([groupName, groupMatches]) => {
+    groupRoundMaps[groupName] = buildGroupRoundMap(groupMatches)
+  })
+
+  const buildKey = (teamA: string, teamB: string) => [teamA, teamB].sort().join('|')
+  const sortedDisplayMatches = [...displayMatches].sort((a, b) => {
+    const aIsGroup = a.round === 'Gruppespill' && a.group
+    const bIsGroup = b.round === 'Gruppespill' && b.group
+    if (aIsGroup && bIsGroup) {
+      const roundA = a.groupRound || groupRoundMaps[a.group!]?.[buildKey(a.homeTeam, a.awayTeam)] || 999
+      const roundB = b.groupRound || groupRoundMaps[b.group!]?.[buildKey(b.homeTeam, b.awayTeam)] || 999
+      if (roundA !== roundB) return roundA - roundB
+    }
+    return a.date.localeCompare(b.date) || a.time.localeCompare(b.time)
+  })
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -404,9 +478,9 @@ export default function TournamentDetailPage() {
 
             {activeTab === 'matches' && (
               <div>
-                {displayMatches.length > 0 ? (
+                {sortedDisplayMatches.length > 0 ? (
                   <div className="space-y-4">
-                    {displayMatches.map(match => (
+                    {sortedDisplayMatches.map(match => (
                   <div key={match.id} className="pro11-card p-4">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center space-x-4 flex-1">
@@ -436,7 +510,14 @@ export default function TournamentDetailPage() {
                           {getStatusText(match.status)}
                         </div>
                         {match.group && <div className="text-xs text-slate-500 mt-1">Gruppe {match.group}</div>}
-                        {match.round && <div className="text-xs text-slate-500 mt-1">{match.round}</div>}
+                        {match.round && match.round !== 'Gruppespill' && (
+                          <div className="text-xs text-slate-500 mt-1">{match.round}</div>
+                        )}
+                        {match.round === 'Gruppespill' && match.group && (
+                          <div className="text-xs text-slate-500 mt-1">
+                            Runde {match.groupRound || groupRoundMaps[match.group]?.[buildKey(match.homeTeam, match.awayTeam)] || '?'}
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>

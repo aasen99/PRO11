@@ -24,6 +24,7 @@ interface Match {
   status: 'scheduled' | 'live' | 'completed' | 'pending_result' | 'pending_confirmation'
   time: string
   round: string
+  groupRound?: number
   tournamentId: string
   canSubmitResult: boolean
   submittedBy: string | null
@@ -223,6 +224,7 @@ export default function CaptainDashboardPage() {
                     status: m.status as 'scheduled' | 'live' | 'completed' | 'pending_result' | 'pending_confirmation',
                     time: m.scheduled_time ? new Date(m.scheduled_time).toLocaleTimeString('nb-NO', { hour: '2-digit', minute: '2-digit' }) : '',
                     round: m.round,
+                    groupRound: m.group_round ?? undefined,
                     tournamentId: m.tournament_id,
                     canSubmitResult: canSubmit,
                     submittedBy: m.submitted_by || null,
@@ -937,8 +939,8 @@ export default function CaptainDashboardPage() {
               const aIsGroup = a.round === 'Gruppespill'
               const bIsGroup = b.round === 'Gruppespill'
               if (aIsGroup && bIsGroup) {
-                const roundA = groupRoundMap[buildKey(a.team1, a.team2)] || 999
-                const roundB = groupRoundMap[buildKey(b.team1, b.team2)] || 999
+                const roundA = a.groupRound || groupRoundMap[buildKey(a.team1, a.team2)] || 999
+                const roundB = b.groupRound || groupRoundMap[buildKey(b.team1, b.team2)] || 999
                 if (roundA !== roundB) return roundA - roundB
               }
               return a.time.localeCompare(b.time)
@@ -984,8 +986,8 @@ export default function CaptainDashboardPage() {
                       </div>
                       <div className="text-sm text-slate-400 mt-1">
                         {match.time} • {match.round}
-                        {match.round === 'Gruppespill' && groupRoundMap[buildKey(match.team1, match.team2)] && (
-                          <> • Runde {groupRoundMap[buildKey(match.team1, match.team2)]}</>
+                        {match.round === 'Gruppespill' && (match.groupRound || groupRoundMap[buildKey(match.team1, match.team2)]) && (
+                          <> • Runde {match.groupRound || groupRoundMap[buildKey(match.team1, match.team2)]}</>
                         )}
                       </div>
                     </div>

@@ -36,6 +36,7 @@ interface Match {
   team2: string
   round: string
   group?: string
+  groupRound?: number
   status: 'scheduled' | 'live' | 'completed'
   score1?: number
   score2?: number
@@ -955,22 +956,46 @@ PRO11 Team`)
   const generateGroupMatches = (groups: string[][]): Match[] => {
     const matches: Match[] = []
     let matchId = 1
-    
+
+    const buildKey = (teamA: string, teamB: string) => [teamA, teamB].sort().join('|')
+
     groups.forEach((group, groupIndex) => {
       const groupName = `Gruppe ${String.fromCharCode(65 + groupIndex)}`
-      
-      // Generer alle mulige kamper i gruppen
-      for (let i = 0; i < group.length; i++) {
-        for (let j = i + 1; j < group.length; j++) {
+      const teams = [...group]
+      if (teams.length < 2) return
+
+      if (teams.length % 2 === 1) {
+        teams.push('__BYE__')
+      }
+
+      const totalRounds = teams.length - 1
+      const half = teams.length / 2
+      let rotation = [...teams]
+      const usedPairs = new Set<string>()
+
+      for (let roundIndex = 0; roundIndex < totalRounds; roundIndex += 1) {
+        for (let i = 0; i < half; i += 1) {
+          const home = rotation[i]
+          const away = rotation[rotation.length - 1 - i]
+          if (home === '__BYE__' || away === '__BYE__') continue
+          const key = buildKey(home, away)
+          if (usedPairs.has(key)) continue
+          usedPairs.add(key)
+
           matches.push({
             id: `match-${matchId++}`,
-            team1: group[i],
-            team2: group[j],
+            team1: home,
+            team2: away,
             round: 'Gruppespill',
             group: groupName,
+            groupRound: roundIndex + 1,
             status: 'scheduled'
           })
         }
+        const fixed = rotation[0]
+        const rest = rotation.slice(1)
+        rest.unshift(rest.pop() as string)
+        rotation = [fixed, ...rest]
       }
     })
     
@@ -1171,6 +1196,10 @@ PRO11 Team`)
           // Only include group_name if it exists
           if (match.group) {
             matchData.group_name = match.group
+          }
+
+          if (match.groupRound !== undefined) {
+            matchData.group_round = match.groupRound
           }
           
           // Only include scheduled_time if it exists

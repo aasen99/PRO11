@@ -66,6 +66,7 @@ CREATE TABLE matches (
   team2_name VARCHAR(255) NOT NULL,
   round VARCHAR(100) NOT NULL,
   group_name VARCHAR(50),
+  group_round INTEGER,
   status VARCHAR(50) NOT NULL DEFAULT 'scheduled' CHECK (status IN ('scheduled', 'live', 'completed', 'pending_result', 'pending_confirmation')),
   score1 INTEGER,
   score2 INTEGER,
