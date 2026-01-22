@@ -1119,7 +1119,7 @@ export default function CaptainDashboardPage() {
                       <div className="flex-1 min-w-0">
                         <div className="flex flex-wrap items-center">
                           <span className="font-medium break-words">{match.team1}</span>
-                          <span className="text-slate-400">{' vs '}</span>
+                          <span className="text-slate-400 mx-2">{'\u00a0vs\u00a0'}</span>
                           <span className="font-medium break-words">{match.team2}</span>
                         </div>
                         <div className="text-sm text-slate-400 mt-1">
