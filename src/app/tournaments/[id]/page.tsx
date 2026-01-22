@@ -528,7 +528,11 @@ export default function TournamentDetailPage() {
                         <div className={`inline-block px-2 py-1 rounded text-xs font-semibold ${getStatusColor(match.status)}`}>
                           {getStatusText(match.status)}
                         </div>
-                        {match.group && <div className="text-xs text-slate-500 mt-1">Gruppe {match.group}</div>}
+                        {match.group && (
+                          <div className="text-xs text-slate-500 mt-1">
+                            {match.group.startsWith('Gruppe') ? match.group : `Gruppe ${match.group}`}
+                          </div>
+                        )}
                         {match.round && match.round !== 'Gruppespill' && (
                           <div className="text-xs text-slate-500 mt-1">{match.round}</div>
                         )}

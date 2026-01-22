@@ -884,6 +884,13 @@ export default function CaptainDashboardPage() {
                               </div>
                               <div className="text-xs text-slate-400 md:text-sm">
                                 {nextMatch.round}
+                                {nextMatch.round === 'Gruppespill' && (
+                                  <>
+                                    {nextMatch.groupRound || groupRoundMap[buildKey(nextMatch.team1, nextMatch.team2)] ? (
+                                      <> • Runde {nextMatch.groupRound || groupRoundMap[buildKey(nextMatch.team1, nextMatch.team2)]}</>
+                                    ) : null}
+                                  </>
+                                )}
                               </div>
                               <div className="text-xs md:text-sm text-slate-300">
                                 {nextMatch.canConfirmResult &&
