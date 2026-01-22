@@ -1188,6 +1188,7 @@ export default function CaptainDashboardPage() {
                       <table className="w-full text-xs">
                         <thead>
                           <tr className="text-slate-500">
+                            <th className="text-center py-2 w-6">#</th>
                             <th className="text-left py-2">Lag</th>
                             <th className="text-center py-2">K</th>
                             <th className="text-center py-2">S</th>
@@ -1199,8 +1200,9 @@ export default function CaptainDashboardPage() {
                           </tr>
                         </thead>
                         <tbody>
-                          {activeStandings.map(row => (
+                          {activeStandings.map((row, index) => (
                             <tr key={row.team} className="border-t border-slate-700/50">
+                              <td className="py-2 text-center text-slate-400">{index + 1}</td>
                               <td className="py-2 text-slate-200">{row.team}</td>
                               <td className="py-2 text-center text-slate-300">{row.played}</td>
                               <td className="py-2 text-center text-green-400">{row.wins}</td>
