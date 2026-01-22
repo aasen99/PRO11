@@ -920,7 +920,7 @@ export default function CaptainDashboardPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
               <div className="pro11-card p-6 md:p-8 w-full text-center">
                 <h2 className="text-xl font-bold mb-4">Hurtig-handlinger</h2>
-                <div className="grid grid-cols-1 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   {liveTournaments.map(tournament => {
                     // Filter out knockout matches if group stage is not completed
                     const groupMatches = tournament.matches.filter(m => m.round === 'Gruppespill')
@@ -1064,18 +1064,9 @@ export default function CaptainDashboardPage() {
                     <Link href="/rules" className="pro11-button-secondary text-sm text-center w-full sm:w-auto">
                       Regler
                     </Link>
-                    <button
-                      onClick={() => {
-                        const messageBox = document.getElementById('contact-admin-box')
-                        messageBox?.scrollIntoView({ behavior: 'smooth', block: 'center' })
-                      }}
-                      className="pro11-button-secondary text-sm w-full sm:w-auto"
-                    >
-                      Kontakt admin
-                    </button>
                   </div>
 
-                  <div id="contact-admin-box" className="space-y-2">
+                  <div className="space-y-2">
                     <label className="block text-xs text-slate-400">Melding til admin</label>
                     <textarea
                       value={contactMessage}
