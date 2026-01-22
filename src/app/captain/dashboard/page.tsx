@@ -1190,6 +1190,9 @@ export default function CaptainDashboardPage() {
                           <tr className="text-slate-500">
                             <th className="text-left py-2">Lag</th>
                             <th className="text-center py-2">K</th>
+                            <th className="text-center py-2">S</th>
+                            <th className="text-center py-2">U</th>
+                            <th className="text-center py-2">T</th>
                             <th className="text-center py-2">M+</th>
                             <th className="text-center py-2">M-</th>
                             <th className="text-center py-2">P</th>
@@ -1200,6 +1203,9 @@ export default function CaptainDashboardPage() {
                             <tr key={row.team} className="border-t border-slate-700/50">
                               <td className="py-2 text-slate-200">{row.team}</td>
                               <td className="py-2 text-center text-slate-300">{row.played}</td>
+                              <td className="py-2 text-center text-green-400">{row.wins}</td>
+                              <td className="py-2 text-center text-yellow-400">{row.draws}</td>
+                              <td className="py-2 text-center text-red-400">{row.losses}</td>
                               <td className="py-2 text-center text-slate-300">{row.goalsFor}</td>
                               <td className="py-2 text-center text-slate-300">{row.goalsAgainst}</td>
                               <td className="py-2 text-center font-semibold text-blue-400">{row.points}</td>
