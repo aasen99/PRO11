@@ -1095,28 +1095,28 @@ export default function CaptainDashboardPage() {
                  </span>
               </div>
 
-              <div className="flex flex-col gap-6 md:flex-row md:items-start">
-                <div className="space-y-3 w-full md:flex-1 md:min-w-0">
-                  {didNotAdvance && (
-                    <div className="p-4 mb-2 bg-slate-800/50 border border-slate-700/60 rounded-lg">
-                      <p className="text-slate-300 text-sm">
-                        Takk for innsatsen! Gruppen er ferdigspilt, og dere gikk ikke videre til sluttspill denne gangen.
-                      </p>
-                    </div>
-                  )}
-                  {!shouldShowKnockout && groupMatches.length > 0 && (
-                    <div className="p-4 mb-4 bg-yellow-900/20 border border-yellow-600/30 rounded-lg">
-                      <p className="text-yellow-400 text-sm">
-                        ⚠️ Sluttspillkamper vil bli vist når alle gruppespillkamper er ferdig.
-                      </p>
-                      <p className="text-slate-400 text-xs mt-1">
-                        Ferdig: {groupMatches.filter(m => m.status === 'completed').length} / {groupMatches.length} kamper
-                      </p>
-                    </div>
-                  )}
+              <div className="space-y-6">
+                {didNotAdvance && (
+                  <div className="p-4 bg-slate-800/50 border border-slate-700/60 rounded-lg md:col-span-2">
+                    <p className="text-slate-300 text-sm">
+                      Takk for innsatsen! Gruppen er ferdigspilt, og dere gikk ikke videre til sluttspill denne gangen.
+                    </p>
+                  </div>
+                )}
+                {!shouldShowKnockout && groupMatches.length > 0 && (
+                  <div className="p-4 bg-yellow-900/20 border border-yellow-600/30 rounded-lg md:col-span-2">
+                    <p className="text-yellow-400 text-sm">
+                      ⚠️ Sluttspillkamper vil bli vist når alle gruppespillkamper er ferdig.
+                    </p>
+                    <p className="text-slate-400 text-xs mt-1">
+                      Ferdig: {groupMatches.filter(m => m.status === 'completed').length} / {groupMatches.length} kamper
+                    </p>
+                  </div>
+                )}
+                <div className="grid gap-3 md:grid-cols-2 md:gap-4 md:items-start">
                   {sortedMatches.map(match => (
-                    <div key={match.id} className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between p-4 md:p-3 bg-slate-800/50 rounded-lg">
-                      <div className="flex-1">
+                    <div key={match.id} className="min-w-0 flex flex-col gap-3 md:flex-row md:items-center md:justify-between p-4 md:p-3 bg-slate-800/50 rounded-lg">
+                      <div className="flex-1 min-w-0">
                         <div className="flex flex-wrap items-center gap-3">
                           <span className="font-medium break-words">{match.team1}</span>
                           <span className="text-slate-400">vs</span>
@@ -1130,7 +1130,7 @@ export default function CaptainDashboardPage() {
                         </div>
                       </div>
                       
-                      <div className="flex flex-row flex-wrap items-center gap-3 max-sm:flex-col max-sm:items-stretch md:grid md:grid-cols-[auto_auto] md:justify-end md:gap-4">
+                      <div className="flex flex-row flex-wrap items-center gap-3 max-sm:flex-col max-sm:items-stretch md:flex-wrap md:justify-end md:gap-4">
                         <span className={`inline-flex items-center px-4 py-2 rounded-full text-xs font-medium ${getMatchStatusColor(match.status)}`}>
                           {getMatchStatusText(match.status)}
                         </span>
@@ -1180,7 +1180,7 @@ export default function CaptainDashboardPage() {
                   ))}
                 </div>
                 {activeStandings.length > 0 && (
-                  <div className="pro11-card p-4 h-fit md:w-80 md:flex-none">
+                  <div className="pro11-card p-4">
                     <h3 className="text-sm font-semibold text-slate-300 mb-3">
                       Tabell {activeGroup ? `• ${activeGroup}` : ''}
                     </h3>
