@@ -1095,7 +1095,7 @@ export default function CaptainDashboardPage() {
                  </span>
               </div>
 
-              <div className="grid gap-6 md:grid-cols-[2fr_1fr]">
+              <div className="grid gap-6 md:grid-cols-[minmax(0,1fr)_320px] md:items-start">
                 <div className="space-y-3 w-full">
                   {didNotAdvance && (
                     <div className="p-4 mb-2 bg-slate-800/50 border border-slate-700/60 rounded-lg">
