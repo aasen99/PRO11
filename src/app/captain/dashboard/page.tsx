@@ -1096,7 +1096,7 @@ export default function CaptainDashboardPage() {
               </div>
 
               <div className="flex flex-col gap-6 md:flex-row md:items-start">
-                <div className="space-y-3 w-full">
+                <div className="space-y-3 w-full md:flex-1 md:min-w-0">
                   {didNotAdvance && (
                     <div className="p-4 mb-2 bg-slate-800/50 border border-slate-700/60 rounded-lg">
                       <p className="text-slate-300 text-sm">
@@ -1180,7 +1180,7 @@ export default function CaptainDashboardPage() {
                   ))}
                 </div>
                 {activeStandings.length > 0 && (
-                  <div className="pro11-card p-4 h-fit md:w-80 md:shrink-0">
+                  <div className="pro11-card p-4 h-fit md:w-80 md:flex-none">
                     <h3 className="text-sm font-semibold text-slate-300 mb-3">
                       Tabell {activeGroup ? `• ${activeGroup}` : ''}
                     </h3>
