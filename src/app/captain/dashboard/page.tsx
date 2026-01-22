@@ -841,7 +841,7 @@ export default function CaptainDashboardPage() {
 
           {/* Quick Actions for Active Tournaments */}
           {tournaments.filter(t => t.status === 'live').length > 0 && (
-            <div className="pro11-card p-6 md:p-8 mb-6">
+            <div className="pro11-card p-6 md:p-8 mb-6 max-w-3xl mx-auto">
               <h2 className="text-xl font-bold mb-4">Hurtig-handlinger</h2>
               <div className="grid grid-cols-1 gap-6">
                 {tournaments.filter(t => t.status === 'live').map(tournament => {
