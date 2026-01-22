@@ -841,7 +841,7 @@ export default function CaptainDashboardPage() {
 
           {/* Quick Actions for Active Tournaments */}
           {tournaments.filter(t => t.status === 'live').length > 0 && (
-            <div className="pro11-card p-6 md:p-8 mb-6 w-full mx-auto" style={{ maxWidth: '560px' }}>
+            <div className="pro11-card p-6 md:p-8 mb-6 w-full mx-auto text-center" style={{ maxWidth: '560px' }}>
               <h2 className="text-xl font-bold mb-4">Hurtig-handlinger</h2>
               <div className="grid grid-cols-1 gap-6">
                 {tournaments.filter(t => t.status === 'live').map(tournament => {
@@ -874,11 +874,11 @@ export default function CaptainDashboardPage() {
                   const nextMatch = pendingMatches[0] || null
                   return (
                     <div key={tournament.id} className="p-4 md:p-5 bg-slate-800/50 rounded-lg w-full">
-                      <h3 className="font-semibold mb-3">{tournament.title}</h3>
+                      <h3 className="font-semibold mb-3 text-center">{tournament.title}</h3>
                       <div className="space-y-2">
                         {nextMatch ? (
                           <div key={nextMatch.id} className="p-3 md:p-4 bg-slate-700/30 rounded w-full">
-                            <div className="flex flex-col gap-2 md:grid md:grid-cols-[minmax(0,1fr)_minmax(0,140px)_minmax(0,200px)_auto] md:items-center md:gap-4">
+                            <div className="flex flex-col gap-2 items-center">
                               <div className="text-sm font-medium">
                                 {nextMatch.team1} vs {nextMatch.team2}
                               </div>
@@ -892,7 +892,7 @@ export default function CaptainDashboardPage() {
                                     <>Innsendt: {nextMatch.opponentSubmittedScore1} - {nextMatch.opponentSubmittedScore2}</>
                                   )}
                               </div>
-                              <div className="flex flex-wrap gap-2 md:justify-end">
+                              <div className="flex flex-wrap gap-2 justify-center">
                                 {nextMatch.canSubmitResult && (
                                   <button
                                     onClick={() => openResultModal(nextMatch)}
