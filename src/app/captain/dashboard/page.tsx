@@ -1040,7 +1040,7 @@ export default function CaptainDashboardPage() {
                       </div>
                     </div>
                     
-                    <div className="flex flex-wrap items-center gap-3 md:justify-end md:gap-4">
+                    <div className="flex flex-col items-stretch gap-3 md:flex-row md:items-center md:justify-end md:gap-4">
                       <span className={`inline-flex items-center px-4 py-2 rounded-full text-xs font-medium ${getMatchStatusColor(match.status)}`}>
                         {getMatchStatusText(match.status)}
                       </span>
@@ -1057,11 +1057,11 @@ export default function CaptainDashboardPage() {
                         </div>
                       )}
                       
-                      <div className="flex flex-wrap items-center gap-2">
+                      <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
                         {match.canSubmitResult && (
                           <button
                             onClick={() => openResultModal(match)}
-                            className="pro11-button-secondary flex items-center space-x-1 text-xs px-3 py-1.5"
+                            className="pro11-button-secondary flex items-center space-x-1 text-xs px-3 py-1.5 w-full sm:w-auto justify-center"
                           >
                             <Edit className="w-3 h-3" />
                             <span>Legg inn resultat</span>
@@ -1072,13 +1072,13 @@ export default function CaptainDashboardPage() {
                           <>
                             <button
                               onClick={() => confirmResult(match)}
-                              className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded text-sm font-medium transition-colors"
+                              className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded text-sm font-medium transition-colors w-full sm:w-auto"
                             >
                               Bekreft
                             </button>
                             <button
                               onClick={() => rejectResult(match)}
-                              className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded text-sm font-medium transition-colors"
+                              className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded text-sm font-medium transition-colors w-full sm:w-auto"
                             >
                               Avvis
                             </button>
