@@ -23,6 +23,7 @@ interface Match {
   score2: number
   status: 'scheduled' | 'live' | 'completed' | 'pending_result' | 'pending_confirmation'
   time: string
+  scheduledTime?: string | null
   round: string
   group?: string
   groupRound?: number
@@ -87,6 +88,9 @@ export default function CaptainDashboardPage() {
   const [isSavingDiscord, setIsSavingDiscord] = useState(false)
   const [showDiscordEditor, setShowDiscordEditor] = useState(false)
   const [toasts, setToasts] = useState<ToastMessage[]>([])
+  const [contactMessage, setContactMessage] = useState('')
+  const [isSendingMessage, setIsSendingMessage] = useState(false)
+  const [selectedTournamentId, setSelectedTournamentId] = useState('')
   const previousMatchesRef = useRef<Match[]>([])
 
   const buildGroupRoundMap = (groupMatches: Match[]) => {
@@ -237,6 +241,7 @@ export default function CaptainDashboardPage() {
                     score2: m.score2 || 0,
                     status: m.status as 'scheduled' | 'live' | 'completed' | 'pending_result' | 'pending_confirmation',
                     time: m.scheduled_time ? new Date(m.scheduled_time).toLocaleTimeString('nb-NO', { hour: '2-digit', minute: '2-digit' }) : '',
+                    scheduledTime: m.scheduled_time ?? null,
                     round: m.round,
                     group: m.group_name || undefined,
                     groupRound: m.group_round ?? undefined,
@@ -298,6 +303,12 @@ export default function CaptainDashboardPage() {
           })
           
           setTournaments(transformedTournaments)
+          if (!selectedTournamentId) {
+            const liveTournament = transformedTournaments.find(t => t.status === 'live')
+            if (liveTournament) {
+              setSelectedTournamentId(liveTournament.id)
+            }
+          }
           
           // Check for new notifications (opponent submitted result)
           const allMatches = transformedTournaments.flatMap(t => t.matches)
@@ -470,6 +481,67 @@ export default function CaptainDashboardPage() {
         return [group, sorted]
       })
     )
+  }
+
+  const getFormSummary = (matches: Match[], teamName: string, limit = 5) => {
+    const completed = matches.filter(match =>
+      match.status === 'completed' &&
+      (match.team1 === teamName || match.team2 === teamName)
+    )
+
+    const sorted = completed.sort((a, b) => {
+      const timeA = a.scheduledTime ? new Date(a.scheduledTime).getTime() : 0
+      const timeB = b.scheduledTime ? new Date(b.scheduledTime).getTime() : 0
+      return timeA - timeB
+    })
+
+    return sorted.slice(-limit).map(match => {
+      const teamIsHome = match.team1 === teamName
+      const teamScore = teamIsHome ? match.score1 : match.score2
+      const oppScore = teamIsHome ? match.score2 : match.score1
+      if (teamScore > oppScore) return 'V'
+      if (teamScore < oppScore) return 'T'
+      return 'U'
+    })
+  }
+
+  const sendAdminMessage = async () => {
+    if (!team) return
+    const message = contactMessage.trim()
+    if (!message) {
+      addToast({ message: 'Skriv en melding før du sender.', type: 'warning' })
+      return
+    }
+
+    const liveTournament = tournaments.find(t => t.id === selectedTournamentId) || tournaments.find(t => t.status === 'live')
+    setIsSendingMessage(true)
+    try {
+      const response = await fetch('/api/messages', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          tournamentId: liveTournament?.id || null,
+          teamId: team.id,
+          teamName: team.teamName,
+          captainName: team.captainName,
+          captainEmail: team.captainEmail,
+          message
+        })
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: 'Ukjent feil' }))
+        addToast({ message: errorData.error || 'Kunne ikke sende meldingen.', type: 'error' })
+        return
+      }
+
+      setContactMessage('')
+      addToast({ message: 'Melding sendt til admin.', type: 'success' })
+    } catch (error: any) {
+      addToast({ message: error?.message || 'Kunne ikke sende meldingen.', type: 'error' })
+    } finally {
+      setIsSendingMessage(false)
+    }
   }
 
   const handleLogout = () => {
@@ -756,6 +828,10 @@ export default function CaptainDashboardPage() {
     )
   }
 
+  const liveTournaments = tournaments.filter(t => t.status === 'live')
+  const allMatchesForForm = tournaments.flatMap(t => t.matches)
+  const formResults = getFormSummary(allMatchesForForm, team.teamName)
+
   return (
     <div className="min-h-screen">
       {/* Header */}
@@ -840,105 +916,183 @@ export default function CaptainDashboardPage() {
           )}
 
           {/* Quick Actions for Active Tournaments */}
-          {tournaments.filter(t => t.status === 'live').length > 0 && (
-            <div className="pro11-card p-6 md:p-8 mb-6 w-full mx-auto text-center" style={{ maxWidth: '560px' }}>
-              <h2 className="text-xl font-bold mb-4">Hurtig-handlinger</h2>
-              <div className="grid grid-cols-1 gap-6">
-                {tournaments.filter(t => t.status === 'live').map(tournament => {
-                  // Filter out knockout matches if group stage is not completed
-                  const groupMatches = tournament.matches.filter(m => m.round === 'Gruppespill')
-                  const allGroupMatchesCompleted = groupMatches.length > 0 && 
-                    groupMatches.every(m => m.status === 'completed')
-                  const shouldShowKnockout = groupMatches.length === 0 || allGroupMatchesCompleted
-                  
-                  // Filter matches based on knockout visibility
-                  const visibleMatches = shouldShowKnockout 
-                    ? tournament.matches 
-                    : tournament.matches.filter(m => m.round === 'Gruppespill')
-                  
-                  const groupRoundMap = buildGroupRoundMap(groupMatches)
-                  const buildKey = (teamA: string, teamB: string) => [teamA, teamB].sort().join('|')
-                  const sortedMatches = [...visibleMatches].sort((a, b) => {
-                    const aIsGroup = a.round === 'Gruppespill'
-                    const bIsGroup = b.round === 'Gruppespill'
-                    if (aIsGroup && bIsGroup) {
-                      const roundA = a.groupRound || groupRoundMap[buildKey(a.team1, a.team2)] || 999
-                      const roundB = b.groupRound || groupRoundMap[buildKey(b.team1, b.team2)] || 999
-                      if (roundA !== roundB) return roundA - roundB
-                    }
-                    return a.time.localeCompare(b.time)
-                  })
-                  const pendingMatches = sortedMatches.filter(m => 
-                    m.canSubmitResult || m.canConfirmResult
-                  )
-                  const nextMatch = pendingMatches[0] || null
-                  return (
-                    <div key={tournament.id} className="p-4 md:p-5 bg-slate-800/50 rounded-lg w-full">
-                      <h3 className="font-semibold mb-3 text-center">{tournament.title}</h3>
-                      <div className="space-y-2">
-                        {nextMatch ? (
-                          <div key={nextMatch.id} className="p-3 md:p-4 bg-slate-700/30 rounded w-full">
-                            <div className="flex flex-col gap-2 items-center">
-                              <div className="text-sm font-medium">
-                                {nextMatch.team1} vs {nextMatch.team2}
-                              </div>
-                              <div className="text-xs text-slate-400 md:text-sm">
-                                {nextMatch.round}
-                                {nextMatch.round === 'Gruppespill' && (
-                                  <>
-                                    {nextMatch.groupRound || groupRoundMap[buildKey(nextMatch.team1, nextMatch.team2)] ? (
-                                      <> • Runde {nextMatch.groupRound || groupRoundMap[buildKey(nextMatch.team1, nextMatch.team2)]}</>
-                                    ) : null}
-                                  </>
-                                )}
-                              </div>
-                              <div className="text-xs md:text-sm text-slate-300">
-                                {nextMatch.canConfirmResult &&
-                                  nextMatch.opponentSubmittedScore1 !== null &&
-                                  nextMatch.opponentSubmittedScore2 !== null && (
-                                    <>Innsendt: {nextMatch.opponentSubmittedScore1} - {nextMatch.opponentSubmittedScore2}</>
+          {liveTournaments.length > 0 && (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+              <div className="pro11-card p-6 md:p-8 w-full text-center">
+                <h2 className="text-xl font-bold mb-4">Hurtig-handlinger</h2>
+                <div className="grid grid-cols-1 gap-6">
+                  {liveTournaments.map(tournament => {
+                    // Filter out knockout matches if group stage is not completed
+                    const groupMatches = tournament.matches.filter(m => m.round === 'Gruppespill')
+                    const allGroupMatchesCompleted = groupMatches.length > 0 && 
+                      groupMatches.every(m => m.status === 'completed')
+                    const shouldShowKnockout = groupMatches.length === 0 || allGroupMatchesCompleted
+                    
+                    // Filter matches based on knockout visibility
+                    const visibleMatches = shouldShowKnockout 
+                      ? tournament.matches 
+                      : tournament.matches.filter(m => m.round === 'Gruppespill')
+                    
+                    const groupRoundMap = buildGroupRoundMap(groupMatches)
+                    const buildKey = (teamA: string, teamB: string) => [teamA, teamB].sort().join('|')
+                    const sortedMatches = [...visibleMatches].sort((a, b) => {
+                      const aIsGroup = a.round === 'Gruppespill'
+                      const bIsGroup = b.round === 'Gruppespill'
+                      if (aIsGroup && bIsGroup) {
+                        const roundA = a.groupRound || groupRoundMap[buildKey(a.team1, a.team2)] || 999
+                        const roundB = b.groupRound || groupRoundMap[buildKey(b.team1, b.team2)] || 999
+                        if (roundA !== roundB) return roundA - roundB
+                      }
+                      return a.time.localeCompare(b.time)
+                    })
+                    const pendingMatches = sortedMatches.filter(m => 
+                      m.canSubmitResult || m.canConfirmResult
+                    )
+                    const nextMatch = pendingMatches[0] || null
+                    return (
+                      <div key={tournament.id} className="p-4 md:p-5 bg-slate-800/50 rounded-lg w-full">
+                        <h3 className="font-semibold mb-3 text-center">{tournament.title}</h3>
+                        <div className="space-y-2">
+                          {nextMatch ? (
+                            <div key={nextMatch.id} className="p-3 md:p-4 bg-slate-700/30 rounded w-full">
+                              <div className="flex flex-col gap-2 items-center">
+                                <div className="text-sm font-medium">
+                                  {nextMatch.team1} vs {nextMatch.team2}
+                                </div>
+                                <div className="text-xs text-slate-400 md:text-sm">
+                                  {nextMatch.round}
+                                  {nextMatch.round === 'Gruppespill' && (
+                                    <>
+                                      {nextMatch.groupRound || groupRoundMap[buildKey(nextMatch.team1, nextMatch.team2)] ? (
+                                        <> • Runde {nextMatch.groupRound || groupRoundMap[buildKey(nextMatch.team1, nextMatch.team2)]}</>
+                                      ) : null}
+                                    </>
                                   )}
-                              </div>
-                              <div className="flex flex-wrap gap-2 justify-center">
-                                {nextMatch.canSubmitResult && (
-                                  <button
-                                    onClick={() => openResultModal(nextMatch)}
-                                    className="pro11-button-secondary text-xs px-3 py-1"
-                                  >
-                                    <Edit className="w-3 h-3 mr-1" />
-                                    Legg inn
-                                  </button>
-                                )}
-                                {nextMatch.canConfirmResult && (
-                                  <>
-                                    <button
-                                      onClick={() => confirmResult(nextMatch)}
-                                      className="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded text-xs font-medium transition-colors"
-                                    >
-                                      Bekreft
-                                    </button>
-                                    {nextMatch.submittedBy && nextMatch.submittedBy !== team.teamName && (
-                                      <button
-                                        onClick={() => rejectResult(nextMatch)}
-                                        className="bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded text-xs font-medium transition-colors"
-                                      >
-                                        Avvis
-                                      </button>
+                                </div>
+                                <div className="text-xs md:text-sm text-slate-300">
+                                  {nextMatch.canConfirmResult &&
+                                    nextMatch.opponentSubmittedScore1 !== null &&
+                                    nextMatch.opponentSubmittedScore2 !== null && (
+                                      <>Innsendt: {nextMatch.opponentSubmittedScore1} - {nextMatch.opponentSubmittedScore2}</>
                                     )}
-                                  </>
-                                )}
+                                </div>
+                                <div className="flex flex-wrap gap-2 justify-center">
+                                  {nextMatch.canSubmitResult && (
+                                    <button
+                                      onClick={() => openResultModal(nextMatch)}
+                                      className="pro11-button-secondary text-xs px-3 py-1"
+                                    >
+                                      <Edit className="w-3 h-3 mr-1" />
+                                      Legg inn
+                                    </button>
+                                  )}
+                                  {nextMatch.canConfirmResult && (
+                                    <>
+                                      <button
+                                        onClick={() => confirmResult(nextMatch)}
+                                        className="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded text-xs font-medium transition-colors"
+                                      >
+                                        Bekreft
+                                      </button>
+                                      {nextMatch.submittedBy && nextMatch.submittedBy !== team.teamName && (
+                                        <button
+                                          onClick={() => rejectResult(nextMatch)}
+                                          className="bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded text-xs font-medium transition-colors"
+                                        >
+                                          Avvis
+                                        </button>
+                                      )}
+                                    </>
+                                  )}
+                                </div>
                               </div>
                             </div>
-                          </div>
-                        ) : (
-                          <div className="text-sm text-slate-400 text-center py-2">
-                            Ingen ventende handlinger
-                          </div>
-                        )}
+                          ) : (
+                            <div className="text-sm text-slate-400 text-center py-2">
+                              Ingen ventende handlinger
+                            </div>
+                          )}
+                        </div>
                       </div>
+                    )
+                  })}
+                </div>
+              </div>
+              <div className="pro11-card p-6 md:p-8 w-full">
+                <h2 className="text-xl font-bold mb-4">Lagleder verktøy</h2>
+                <div className="space-y-4">
+                  <div>
+                    <div className="text-sm text-slate-400 mb-2">Form (siste 5)</div>
+                    <div className="flex flex-wrap gap-2">
+                      {formResults.length > 0 ? (
+                        formResults.map((result, index) => (
+                          <span
+                            key={`${result}-${index}`}
+                            className={`px-2 py-1 rounded text-xs font-semibold ${
+                              result === 'V' ? 'bg-green-600/20 text-green-400' :
+                              result === 'U' ? 'bg-yellow-600/20 text-yellow-400' :
+                              'bg-red-600/20 text-red-400'
+                            }`}
+                          >
+                            {result}
+                          </span>
+                        ))
+                      ) : (
+                        <span className="text-xs text-slate-500">Ingen ferdige kamper</span>
+                      )}
                     </div>
-                  )
-                })}
+                  </div>
+
+                  {liveTournaments.length > 1 && (
+                    <div>
+                      <label className="block text-xs text-slate-400 mb-2">Turnering</label>
+                      <select
+                        value={selectedTournamentId}
+                        onChange={(e) => setSelectedTournamentId(e.target.value)}
+                        className="pro11-input w-full"
+                      >
+                        {liveTournaments.map(t => (
+                          <option key={t.id} value={t.id}>
+                            {t.title}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                    <Link href="/rules" className="pro11-button-secondary text-sm text-center w-full sm:w-auto">
+                      Regler
+                    </Link>
+                    <button
+                      onClick={() => {
+                        const messageBox = document.getElementById('contact-admin-box')
+                        messageBox?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+                      }}
+                      className="pro11-button-secondary text-sm w-full sm:w-auto"
+                    >
+                      Kontakt admin
+                    </button>
+                  </div>
+
+                  <div id="contact-admin-box" className="space-y-2">
+                    <label className="block text-xs text-slate-400">Melding til admin</label>
+                    <textarea
+                      value={contactMessage}
+                      onChange={(e) => setContactMessage(e.target.value)}
+                      rows={4}
+                      className="pro11-input w-full"
+                      placeholder="Skriv en melding til admin..."
+                    />
+                    <button
+                      onClick={sendAdminMessage}
+                      disabled={isSendingMessage}
+                      className="pro11-button w-full"
+                    >
+                      {isSendingMessage ? 'Sender...' : 'Send'}
+                    </button>
+                  </div>
+                </div>
               </div>
             </div>
           )}

@@ -73,6 +73,19 @@ interface DatabaseMatch {
   created_at?: string
 }
 
+interface AdminMessage {
+  id: string
+  tournament_id: string | null
+  team_id: string | null
+  team_name: string
+  captain_name: string
+  captain_email: string
+  message: string
+  status: 'open' | 'resolved'
+  read_at: string | null
+  created_at: string
+}
+
 function NextMatchQuickAction({ tournaments }: { tournaments: Tournament[] }) {
   const [nextMatch, setNextMatch] = useState<DatabaseMatch | null>(null)
   const [tournament, setTournament] = useState<Tournament | null>(null)
@@ -280,7 +293,7 @@ export default function AdminPage() {
   const [isAuthenticated, setIsAuthenticated] = useState(false)
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
-  const [activeTab, setActiveTab] = useState<'teams' | 'tournaments' | 'prizes' | 'statistics' | 'settings'>('teams')
+  const [activeTab, setActiveTab] = useState<'teams' | 'tournaments' | 'prizes' | 'statistics' | 'settings' | 'messages'>('teams')
   const [selectedTournament, setSelectedTournament] = useState('')
   
   // Modal states
@@ -293,6 +306,9 @@ export default function AdminPage() {
   const [editingTournament, setEditingTournament] = useState<Tournament | null>(null)
   const [isNewTournament, setIsNewTournament] = useState(false)
   const [tournamentForMatchGeneration, setTournamentForMatchGeneration] = useState<string | null>(null)
+
+  const [messages, setMessages] = useState<AdminMessage[]>([])
+  const [isLoadingMessages, setIsLoadingMessages] = useState(false)
   
   // Match generation config
   const [matchConfig, setMatchConfig] = useState({
@@ -452,6 +468,46 @@ export default function AdminPage() {
     }
   }, [isAuthenticated])
 
+  const loadMessages = async () => {
+    setIsLoadingMessages(true)
+    try {
+      const response = await fetch('/api/messages')
+      if (response.ok) {
+        const data = await response.json()
+        setMessages(data.messages || [])
+      }
+    } catch (error) {
+      console.warn('Error loading messages:', error)
+    } finally {
+      setIsLoadingMessages(false)
+    }
+  }
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      loadMessages()
+    }
+  }, [isAuthenticated])
+
+  const markMessageRead = async (id: string) => {
+    try {
+      const response = await fetch('/api/messages', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, status: 'resolved', readAt: new Date().toISOString() })
+      })
+      if (response.ok) {
+        setMessages(prev =>
+          prev.map(m =>
+            m.id === id ? { ...m, status: 'resolved', read_at: new Date().toISOString() } : m
+          )
+        )
+      }
+    } catch (error) {
+      console.warn('Error updating message:', error)
+    }
+  }
+
   // Show all teams if no tournament is selected, otherwise filter by tournament
   const filteredTeams = selectedTournament 
     ? teams.filter(team => 
@@ -487,6 +543,12 @@ export default function AdminPage() {
       default:
         return 'Ukjent'
     }
+  }
+
+  const getTournamentTitleById = (id?: string | null) => {
+    if (!id) return 'Ukjent turnering'
+    const tournament = tournaments.find(t => t.id === id)
+    return tournament?.title || 'Ukjent turnering'
   }
 
   const getPaymentStatusColor = (status?: string) => {
@@ -1729,6 +1791,16 @@ PRO11 Team`)
               >
                 Innstillinger
               </button>
+              <button
+                onClick={() => setActiveTab('messages')}
+                className={`px-3 py-1.5 rounded-lg font-medium transition-colors text-sm ${
+                  activeTab === 'messages' 
+                    ? 'bg-blue-600 text-white' 
+                    : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                Meldinger
+              </button>
             </div>
 
             {activeTab === 'teams' && (
@@ -1997,6 +2069,60 @@ PRO11 Team`)
                     <span>Eksporter fullstendig rapport</span>
                   </button>
                 </div>
+              </div>
+            )}
+
+            {activeTab === 'messages' && (
+              <div>
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-semibold">Meldinger fra lagledere</h3>
+                  <button
+                    onClick={loadMessages}
+                    className="pro11-button-secondary text-sm"
+                  >
+                    Oppdater
+                  </button>
+                </div>
+
+                {isLoadingMessages ? (
+                  <div className="text-sm text-slate-400">Laster meldinger...</div>
+                ) : messages.length === 0 ? (
+                  <div className="text-sm text-slate-400">Ingen meldinger.</div>
+                ) : (
+                  <div className="space-y-3">
+                    {messages.map(message => (
+                      <div key={message.id} className="pro11-card p-4">
+                        <div className="flex items-start justify-between gap-4">
+                          <div>
+                            <div className="font-semibold">{message.team_name}</div>
+                            <div className="text-xs text-slate-400">
+                              {getTournamentTitleById(message.tournament_id)} • {new Date(message.created_at).toLocaleString('nb-NO')}
+                            </div>
+                            <div className="text-xs text-slate-500 mt-1">
+                              {message.captain_name} • {message.captain_email}
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className={`text-xs px-2 py-1 rounded-full ${
+                              message.status === 'resolved' ? 'bg-green-600/20 text-green-400' : 'bg-yellow-600/20 text-yellow-400'
+                            }`}>
+                              {message.status === 'resolved' ? 'Lest' : 'Ny'}
+                            </span>
+                            {message.status !== 'resolved' && (
+                              <button
+                                onClick={() => markMessageRead(message.id)}
+                                className="pro11-button-secondary text-xs"
+                              >
+                                Marker som lest
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                        <p className="text-slate-300 mt-3 whitespace-pre-wrap">{message.message}</p>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
 

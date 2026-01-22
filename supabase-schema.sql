@@ -78,6 +78,20 @@ CREATE TABLE matches (
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
+-- Captain messages table (messages from captains to admin)
+CREATE TABLE captain_messages (
+  id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  tournament_id UUID REFERENCES tournaments(id) ON DELETE SET NULL,
+  team_id UUID REFERENCES teams(id) ON DELETE SET NULL,
+  team_name VARCHAR(255) NOT NULL,
+  captain_name VARCHAR(255) NOT NULL,
+  captain_email VARCHAR(255) NOT NULL,
+  message TEXT NOT NULL,
+  status VARCHAR(50) NOT NULL DEFAULT 'open' CHECK (status IN ('open', 'resolved')),
+  read_at TIMESTAMP WITH TIME ZONE,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
 -- Admin users table
 CREATE TABLE admin_users (
   id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
@@ -96,6 +110,8 @@ CREATE INDEX idx_payments_team_id ON payments(team_id);
 CREATE INDEX idx_payments_stripe_id ON payments(stripe_payment_intent_id);
 CREATE INDEX idx_matches_tournament_id ON matches(tournament_id);
 CREATE INDEX idx_matches_status ON matches(status);
+CREATE INDEX idx_captain_messages_tournament_id ON captain_messages(tournament_id);
+CREATE INDEX idx_captain_messages_status ON captain_messages(status);
 
 -- Create updated_at trigger function
 CREATE OR REPLACE FUNCTION update_updated_at_column()
@@ -129,6 +145,7 @@ ALTER TABLE players ENABLE ROW LEVEL SECURITY;
 ALTER TABLE payments ENABLE ROW LEVEL SECURITY;
 ALTER TABLE matches ENABLE ROW LEVEL SECURITY;
 ALTER TABLE admin_users ENABLE ROW LEVEL SECURITY;
+ALTER TABLE captain_messages ENABLE ROW LEVEL SECURITY;
 
 -- RLS Policies for tournaments
 CREATE POLICY "Public read access to tournaments" ON tournaments
@@ -179,6 +196,13 @@ CREATE POLICY "Public can read matches" ON matches
 
 CREATE POLICY "Public can update matches" ON matches
   FOR UPDATE USING (true);
+
+-- RLS Policies for captain_messages
+CREATE POLICY "Public can insert captain messages" ON captain_messages
+  FOR INSERT WITH CHECK (true);
+
+CREATE POLICY "Public can read captain messages" ON captain_messages
+  FOR SELECT USING (true);
 
 -- RLS Policies for admin_users (restrictive - only service role should access)
 CREATE POLICY "No public access to admin users" ON admin_users
