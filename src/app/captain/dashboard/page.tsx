@@ -1040,7 +1040,7 @@ export default function CaptainDashboardPage() {
                       </div>
                     </div>
                     
-                    <div className="flex flex-row flex-wrap items-center gap-3 max-sm:flex-col max-sm:items-stretch">
+                    <div className="flex flex-row flex-wrap items-center gap-3 max-sm:flex-col max-sm:items-stretch md:grid md:grid-cols-[auto_auto] md:justify-end md:gap-4">
                       <span className={`inline-flex items-center px-4 py-2 rounded-full text-xs font-medium ${getMatchStatusColor(match.status)}`}>
                         {getMatchStatusText(match.status)}
                       </span>
@@ -1057,7 +1057,7 @@ export default function CaptainDashboardPage() {
                         </div>
                       )}
                       
-                      <div className="flex flex-row flex-wrap items-center gap-2 max-sm:flex-col">
+                      <div className="flex flex-row flex-wrap items-center gap-2 max-sm:flex-col md:justify-end">
                         {match.canSubmitResult && (
                           <button
                             onClick={() => openResultModal(match)}
