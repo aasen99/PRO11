@@ -1117,9 +1117,9 @@ export default function CaptainDashboardPage() {
                   {sortedMatches.map(match => (
                     <div key={match.id} className="min-w-0 flex flex-col gap-3 md:flex-row md:items-center md:justify-between p-4 md:p-3 bg-slate-800/50 rounded-lg">
                       <div className="flex-1 min-w-0">
-                        <div className="flex flex-wrap items-center gap-3">
+                        <div className="flex flex-wrap items-center gap-2">
                           <span className="font-medium break-words">{match.team1}</span>
-                          <span className="text-slate-400">vs</span>
+                          <span className="text-slate-400 mx-1">vs</span>
                           <span className="font-medium break-words">{match.team2}</span>
                         </div>
                         <div className="text-sm text-slate-400 mt-1">
