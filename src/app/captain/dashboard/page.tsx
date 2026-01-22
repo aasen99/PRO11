@@ -24,6 +24,7 @@ interface Match {
   status: 'scheduled' | 'live' | 'completed' | 'pending_result' | 'pending_confirmation'
   time: string
   round: string
+  group?: string
   groupRound?: number
   tournamentId: string
   canSubmitResult: boolean
@@ -44,6 +45,17 @@ interface Tournament {
   endDate: string
   position?: number
   totalTeams?: number
+}
+
+interface GroupStandingRow {
+  team: string
+  played: number
+  wins: number
+  draws: number
+  losses: number
+  goalsFor: number
+  goalsAgainst: number
+  points: number
 }
 
 interface TeamStats {
@@ -226,6 +238,7 @@ export default function CaptainDashboardPage() {
                     status: m.status as 'scheduled' | 'live' | 'completed' | 'pending_result' | 'pending_confirmation',
                     time: m.scheduled_time ? new Date(m.scheduled_time).toLocaleTimeString('nb-NO', { hour: '2-digit', minute: '2-digit' }) : '',
                     round: m.round,
+                    group: m.group_name || undefined,
                     groupRound: m.group_round ?? undefined,
                     tournamentId: m.tournament_id,
                     canSubmitResult: canSubmit,
@@ -388,6 +401,75 @@ export default function CaptainDashboardPage() {
       bestFinish,
       currentRanking
     }
+  }
+
+  const calculateGroupStandings = (matches: Match[]): Record<string, GroupStandingRow[]> => {
+    const standings: Record<string, Record<string, GroupStandingRow>> = {}
+    matches.forEach(match => {
+      if (match.round !== 'Gruppespill' || !match.group) return
+      const group = match.group
+      if (!standings[group]) standings[group] = {}
+
+      const ensureTeam = (name: string) => {
+        if (!standings[group][name]) {
+          standings[group][name] = {
+            team: name,
+            played: 0,
+            wins: 0,
+            draws: 0,
+            losses: 0,
+            goalsFor: 0,
+            goalsAgainst: 0,
+            points: 0
+          }
+        }
+      }
+
+      ensureTeam(match.team1)
+      ensureTeam(match.team2)
+
+      if (match.status === 'completed') {
+        const team1 = standings[group][match.team1]
+        const team2 = standings[group][match.team2]
+        const score1 = match.score1 ?? 0
+        const score2 = match.score2 ?? 0
+
+        team1.played += 1
+        team2.played += 1
+        team1.goalsFor += score1
+        team1.goalsAgainst += score2
+        team2.goalsFor += score2
+        team2.goalsAgainst += score1
+
+        if (score1 > score2) {
+          team1.wins += 1
+          team1.points += 3
+          team2.losses += 1
+        } else if (score2 > score1) {
+          team2.wins += 1
+          team2.points += 3
+          team1.losses += 1
+        } else {
+          team1.draws += 1
+          team2.draws += 1
+          team1.points += 1
+          team2.points += 1
+        }
+      }
+    })
+
+    return Object.fromEntries(
+      Object.entries(standings).map(([group, rows]) => {
+        const sorted = Object.values(rows).sort((a, b) => {
+          if (b.points !== a.points) return b.points - a.points
+          const diffA = a.goalsFor - a.goalsAgainst
+          const diffB = b.goalsFor - b.goalsAgainst
+          if (diffB !== diffA) return diffB - diffA
+          return b.goalsFor - a.goalsFor
+        })
+        return [group, sorted]
+      })
+    )
   }
 
   const handleLogout = () => {
@@ -973,6 +1055,14 @@ export default function CaptainDashboardPage() {
             const visibleMatches = shouldShowKnockout 
               ? tournament.matches 
               : tournament.matches.filter(m => m.round === 'Gruppespill')
+
+            const groupedMatches = tournament.matches.filter(m => m.round === 'Gruppespill' && m.group)
+            const standingsByGroup = calculateGroupStandings(groupedMatches)
+            const teamGroup = groupedMatches.find(m => m.team1 === team.teamName || m.team2 === team.teamName)?.group
+            const activeGroup = teamGroup && standingsByGroup[teamGroup]
+              ? teamGroup
+              : Object.keys(standingsByGroup)[0]
+            const activeStandings = activeGroup ? standingsByGroup[activeGroup] : []
             
             const groupRoundMap = buildGroupRoundMap(groupMatches)
             const buildKey = (teamA: string, teamB: string) => [teamA, teamB].sort().join('|')
@@ -1005,89 +1095,121 @@ export default function CaptainDashboardPage() {
                  </span>
               </div>
 
-              {/* Matches */}
-              <div className="space-y-3 w-full">
-                {didNotAdvance && (
-                  <div className="p-4 mb-2 bg-slate-800/50 border border-slate-700/60 rounded-lg">
-                    <p className="text-slate-300 text-sm">
-                      Takk for innsatsen! Gruppen er ferdigspilt, og dere gikk ikke videre til sluttspill denne gangen.
-                    </p>
-                  </div>
-                )}
-                {!shouldShowKnockout && groupMatches.length > 0 && (
-                  <div className="p-4 mb-4 bg-yellow-900/20 border border-yellow-600/30 rounded-lg">
-                    <p className="text-yellow-400 text-sm">
-                      ⚠️ Sluttspillkamper vil bli vist når alle gruppespillkamper er ferdig.
-                    </p>
-                    <p className="text-slate-400 text-xs mt-1">
-                      Ferdig: {groupMatches.filter(m => m.status === 'completed').length} / {groupMatches.length} kamper
-                    </p>
-                  </div>
-                )}
-                {sortedMatches.map(match => (
-                  <div key={match.id} className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between p-4 md:p-3 bg-slate-800/50 rounded-lg">
-                    <div className="flex-1">
-                      <div className="flex flex-wrap items-center gap-3">
-                        <span className="font-medium break-words">{match.team1}</span>
-                        <span className="text-slate-400">vs</span>
-                        <span className="font-medium break-words">{match.team2}</span>
-                      </div>
-                      <div className="text-sm text-slate-400 mt-1">
-                        {match.time} • {match.round}
-                        {match.round === 'Gruppespill' && (match.groupRound || groupRoundMap[buildKey(match.team1, match.team2)]) && (
-                          <> • Runde {match.groupRound || groupRoundMap[buildKey(match.team1, match.team2)]}</>
-                        )}
-                      </div>
+              <div className="grid gap-6 md:grid-cols-[2fr_1fr]">
+                <div className="space-y-3 w-full">
+                  {didNotAdvance && (
+                    <div className="p-4 mb-2 bg-slate-800/50 border border-slate-700/60 rounded-lg">
+                      <p className="text-slate-300 text-sm">
+                        Takk for innsatsen! Gruppen er ferdigspilt, og dere gikk ikke videre til sluttspill denne gangen.
+                      </p>
                     </div>
-                    
-                    <div className="flex flex-row flex-wrap items-center gap-3 max-sm:flex-col max-sm:items-stretch md:grid md:grid-cols-[auto_auto] md:justify-end md:gap-4">
-                      <span className={`inline-flex items-center px-4 py-2 rounded-full text-xs font-medium ${getMatchStatusColor(match.status)}`}>
-                        {getMatchStatusText(match.status)}
-                      </span>
-                      
-                      {match.status === 'completed' && (
-                        <div className="text-sm font-medium px-4 py-2 bg-slate-700/50 rounded">
-                          {match.score1} - {match.score2}
+                  )}
+                  {!shouldShowKnockout && groupMatches.length > 0 && (
+                    <div className="p-4 mb-4 bg-yellow-900/20 border border-yellow-600/30 rounded-lg">
+                      <p className="text-yellow-400 text-sm">
+                        ⚠️ Sluttspillkamper vil bli vist når alle gruppespillkamper er ferdig.
+                      </p>
+                      <p className="text-slate-400 text-xs mt-1">
+                        Ferdig: {groupMatches.filter(m => m.status === 'completed').length} / {groupMatches.length} kamper
+                      </p>
+                    </div>
+                  )}
+                  {sortedMatches.map(match => (
+                    <div key={match.id} className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between p-4 md:p-3 bg-slate-800/50 rounded-lg">
+                      <div className="flex-1">
+                        <div className="flex flex-wrap items-center gap-3">
+                          <span className="font-medium break-words">{match.team1}</span>
+                          <span className="text-slate-400">vs</span>
+                          <span className="font-medium break-words">{match.team2}</span>
                         </div>
-                      )}
-                      
-                      {match.status === 'pending_confirmation' && match.opponentSubmittedScore1 !== null && match.opponentSubmittedScore2 !== null && (
-                        <div className="text-sm font-medium px-4 py-2 bg-orange-700/50 rounded">
-                          {match.opponentSubmittedScore1} - {match.opponentSubmittedScore2}
+                        <div className="text-sm text-slate-400 mt-1">
+                          {match.time} • {match.round}
+                          {match.round === 'Gruppespill' && (match.groupRound || groupRoundMap[buildKey(match.team1, match.team2)]) && (
+                            <> • Runde {match.groupRound || groupRoundMap[buildKey(match.team1, match.team2)]}</>
+                          )}
                         </div>
-                      )}
+                      </div>
                       
-                      <div className="flex flex-row flex-wrap items-center gap-2 max-sm:flex-col md:justify-end">
-                        {match.canSubmitResult && (
-                          <button
-                            onClick={() => openResultModal(match)}
-                            className="pro11-button-secondary flex items-center space-x-1 text-xs px-3 py-1.5 max-sm:w-full justify-center"
-                          >
-                            <Edit className="w-3 h-3" />
-                            <span>Legg inn resultat</span>
-                          </button>
+                      <div className="flex flex-row flex-wrap items-center gap-3 max-sm:flex-col max-sm:items-stretch md:grid md:grid-cols-[auto_auto] md:justify-end md:gap-4">
+                        <span className={`inline-flex items-center px-4 py-2 rounded-full text-xs font-medium ${getMatchStatusColor(match.status)}`}>
+                          {getMatchStatusText(match.status)}
+                        </span>
+                        
+                        {match.status === 'completed' && (
+                          <div className="text-sm font-medium px-4 py-2 bg-slate-700/50 rounded">
+                            {match.score1} - {match.score2}
+                          </div>
                         )}
                         
-                        {match.canConfirmResult && match.submittedBy && match.submittedBy !== team.teamName && (
-                          <>
-                            <button
-                              onClick={() => confirmResult(match)}
-                              className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded text-sm font-medium transition-colors max-sm:w-full"
-                            >
-                              Bekreft
-                            </button>
-                            <button
-                              onClick={() => rejectResult(match)}
-                              className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded text-sm font-medium transition-colors max-sm:w-full"
-                            >
-                              Avvis
-                            </button>
-                          </>
+                        {match.status === 'pending_confirmation' && match.opponentSubmittedScore1 !== null && match.opponentSubmittedScore2 !== null && (
+                          <div className="text-sm font-medium px-4 py-2 bg-orange-700/50 rounded">
+                            {match.opponentSubmittedScore1} - {match.opponentSubmittedScore2}
+                          </div>
                         )}
+                        
+                        <div className="flex flex-row flex-wrap items-center gap-2 max-sm:flex-col md:justify-end">
+                          {match.canSubmitResult && (
+                            <button
+                              onClick={() => openResultModal(match)}
+                              className="pro11-button-secondary flex items-center space-x-1 text-xs px-3 py-1.5 max-sm:w-full justify-center"
+                            >
+                              <Edit className="w-3 h-3" />
+                              <span>Legg inn resultat</span>
+                            </button>
+                          )}
+                          
+                          {match.canConfirmResult && match.submittedBy && match.submittedBy !== team.teamName && (
+                            <>
+                              <button
+                                onClick={() => confirmResult(match)}
+                                className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded text-sm font-medium transition-colors max-sm:w-full"
+                              >
+                                Bekreft
+                              </button>
+                              <button
+                                onClick={() => rejectResult(match)}
+                                className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded text-sm font-medium transition-colors max-sm:w-full"
+                              >
+                                Avvis
+                              </button>
+                            </>
+                          )}
+                        </div>
                       </div>
                     </div>
+                  ))}
+                </div>
+                {activeStandings.length > 0 && (
+                  <div className="pro11-card p-4 h-fit">
+                    <h3 className="text-sm font-semibold text-slate-300 mb-3">
+                      Tabell {activeGroup ? `• ${activeGroup}` : ''}
+                    </h3>
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-xs">
+                        <thead>
+                          <tr className="text-slate-500">
+                            <th className="text-left py-2">Lag</th>
+                            <th className="text-center py-2">K</th>
+                            <th className="text-center py-2">M+</th>
+                            <th className="text-center py-2">M-</th>
+                            <th className="text-center py-2">P</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {activeStandings.map(row => (
+                            <tr key={row.team} className="border-t border-slate-700/50">
+                              <td className="py-2 text-slate-200">{row.team}</td>
+                              <td className="py-2 text-center text-slate-300">{row.played}</td>
+                              <td className="py-2 text-center text-slate-300">{row.goalsFor}</td>
+                              <td className="py-2 text-center text-slate-300">{row.goalsAgainst}</td>
+                              <td className="py-2 text-center font-semibold text-blue-400">{row.points}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
                   </div>
-                ))}
+                )}
               </div>
             </div>
             )
