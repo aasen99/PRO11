@@ -88,8 +88,6 @@ export default function CaptainDashboardPage() {
   const [isSavingDiscord, setIsSavingDiscord] = useState(false)
   const [showDiscordEditor, setShowDiscordEditor] = useState(false)
   const [toasts, setToasts] = useState<ToastMessage[]>([])
-  const [contactMessage, setContactMessage] = useState('')
-  const [isSendingMessage, setIsSendingMessage] = useState(false)
   const [selectedTournamentId, setSelectedTournamentId] = useState('')
   const previousMatchesRef = useRef<Match[]>([])
 
@@ -505,45 +503,6 @@ export default function CaptainDashboardPage() {
     })
   }
 
-  const sendAdminMessage = async () => {
-    if (!team) return
-    const message = contactMessage.trim()
-    if (!message) {
-      addToast({ message: 'Skriv en melding før du sender.', type: 'warning' })
-      return
-    }
-
-    const liveTournament = tournaments.find(t => t.id === selectedTournamentId) || tournaments.find(t => t.status === 'live')
-    setIsSendingMessage(true)
-    try {
-      const response = await fetch('/api/messages', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          tournamentId: liveTournament?.id || null,
-          teamId: team.id,
-          teamName: team.teamName,
-          captainName: team.captainName,
-          captainEmail: team.captainEmail,
-          message
-        })
-      })
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ error: 'Ukjent feil' }))
-        addToast({ message: errorData.error || 'Kunne ikke sende meldingen.', type: 'error' })
-        return
-      }
-
-      setContactMessage('')
-      addToast({ message: 'Melding sendt til admin.', type: 'success' })
-    } catch (error: any) {
-      addToast({ message: error?.message || 'Kunne ikke sende meldingen.', type: 'error' })
-    } finally {
-      setIsSendingMessage(false)
-    }
-  }
-
   const handleLogout = () => {
     localStorage.removeItem('captainTeam')
     window.location.href = '/captain/login'
@@ -920,7 +879,7 @@ export default function CaptainDashboardPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
               <div className="pro11-card p-6 md:p-8 w-full text-center">
                 <h2 className="text-xl font-bold mb-4">Hurtig-handlinger</h2>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="grid grid-cols-1 gap-6">
                   {liveTournaments.map(tournament => {
                     // Filter out knockout matches if group stage is not completed
                     const groupMatches = tournament.matches.filter(m => m.round === 'Gruppespill')
@@ -1066,23 +1025,6 @@ export default function CaptainDashboardPage() {
                     </Link>
                   </div>
 
-                  <div className="space-y-2">
-                    <label className="block text-xs text-slate-400">Melding til admin</label>
-                    <textarea
-                      value={contactMessage}
-                      onChange={(e) => setContactMessage(e.target.value)}
-                      rows={4}
-                      className="pro11-input w-full"
-                      placeholder="Skriv en melding til admin..."
-                    />
-                    <button
-                      onClick={sendAdminMessage}
-                      disabled={isSendingMessage}
-                      className="pro11-button w-full"
-                    >
-                      {isSendingMessage ? 'Sender...' : 'Send'}
-                    </button>
-                  </div>
                 </div>
               </div>
             </div>
