@@ -1006,7 +1006,7 @@ export default function CaptainDashboardPage() {
               </div>
 
               {/* Matches */}
-              <div className="space-y-3 md:max-w-3xl md:mx-auto">
+              <div className="space-y-3 w-full">
                 {didNotAdvance && (
                   <div className="p-4 mb-2 bg-slate-800/50 border border-slate-700/60 rounded-lg">
                     <p className="text-slate-300 text-sm">
