@@ -1025,7 +1025,7 @@ export default function CaptainDashboardPage() {
                   </div>
                 )}
                 {sortedMatches.map(match => (
-                  <div key={match.id} className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between p-3 bg-slate-800/50 rounded-lg">
+                  <div key={match.id} className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between p-4 md:p-3 bg-slate-800/50 rounded-lg">
                     <div className="flex-1">
                       <div className="flex flex-wrap items-center gap-3">
                         <span className="font-medium break-words">{match.team1}</span>
@@ -1040,7 +1040,7 @@ export default function CaptainDashboardPage() {
                       </div>
                     </div>
                     
-                    <div className="flex flex-col items-stretch gap-3 md:flex-row md:items-center md:justify-end md:gap-4">
+                    <div className="flex flex-row flex-wrap items-center gap-3 max-sm:flex-col max-sm:items-stretch">
                       <span className={`inline-flex items-center px-4 py-2 rounded-full text-xs font-medium ${getMatchStatusColor(match.status)}`}>
                         {getMatchStatusText(match.status)}
                       </span>
@@ -1057,11 +1057,11 @@ export default function CaptainDashboardPage() {
                         </div>
                       )}
                       
-                      <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                      <div className="flex flex-row flex-wrap items-center gap-2 max-sm:flex-col">
                         {match.canSubmitResult && (
                           <button
                             onClick={() => openResultModal(match)}
-                            className="pro11-button-secondary flex items-center space-x-1 text-xs px-3 py-1.5 w-full sm:w-auto justify-center"
+                            className="pro11-button-secondary flex items-center space-x-1 text-xs px-3 py-1.5 max-sm:w-full justify-center"
                           >
                             <Edit className="w-3 h-3" />
                             <span>Legg inn resultat</span>
@@ -1072,13 +1072,13 @@ export default function CaptainDashboardPage() {
                           <>
                             <button
                               onClick={() => confirmResult(match)}
-                              className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded text-sm font-medium transition-colors w-full sm:w-auto"
+                              className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded text-sm font-medium transition-colors max-sm:w-full"
                             >
                               Bekreft
                             </button>
                             <button
                               onClick={() => rejectResult(match)}
-                              className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded text-sm font-medium transition-colors w-full sm:w-auto"
+                              className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded text-sm font-medium transition-colors max-sm:w-full"
                             >
                               Avvis
                             </button>
