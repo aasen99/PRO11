@@ -431,6 +431,61 @@ export default function CaptainDashboardPage() {
 
   const calculateGroupStandings = (matches: Match[]): Record<string, GroupStandingRow[]> => {
     const standings: Record<string, Record<string, GroupStandingRow>> = {}
+
+    const getHeadToHeadComparison = (teamA: string, teamB: string, groupMatches: Match[]) => {
+      let aPoints = 0
+      let bPoints = 0
+      let aGoalsFor = 0
+      let aGoalsAgainst = 0
+      let bGoalsFor = 0
+      let bGoalsAgainst = 0
+      let hasMatch = false
+
+      groupMatches.forEach(match => {
+        if (match.status !== 'completed') return
+        const isAHome = match.team1 === teamA && match.team2 === teamB
+        const isBHome = match.team1 === teamB && match.team2 === teamA
+        if (!isAHome && !isBHome) return
+
+        hasMatch = true
+        const score1 = match.score1 ?? 0
+        const score2 = match.score2 ?? 0
+
+        if (isAHome) {
+          aGoalsFor += score1
+          aGoalsAgainst += score2
+          bGoalsFor += score2
+          bGoalsAgainst += score1
+          if (score1 > score2) aPoints += 3
+          else if (score1 < score2) bPoints += 3
+          else {
+            aPoints += 1
+            bPoints += 1
+          }
+        } else {
+          bGoalsFor += score1
+          bGoalsAgainst += score2
+          aGoalsFor += score2
+          aGoalsAgainst += score1
+          if (score1 > score2) bPoints += 3
+          else if (score1 < score2) aPoints += 3
+          else {
+            aPoints += 1
+            bPoints += 1
+          }
+        }
+      })
+
+      if (!hasMatch) return 0
+
+      if (bPoints !== aPoints) return bPoints - aPoints
+      const aDiff = aGoalsFor - aGoalsAgainst
+      const bDiff = bGoalsFor - bGoalsAgainst
+      if (bDiff !== aDiff) return bDiff - aDiff
+      if (bGoalsFor !== aGoalsFor) return bGoalsFor - aGoalsFor
+      return 0
+    }
+
     matches.forEach(match => {
       if (match.round !== 'Gruppespill' || !match.group) return
       const group = match.group
@@ -486,12 +541,14 @@ export default function CaptainDashboardPage() {
 
     return Object.fromEntries(
       Object.entries(standings).map(([group, rows]) => {
+        const groupMatches = matches.filter(match => match.round === 'Gruppespill' && match.group === group)
         const sorted = Object.values(rows).sort((a, b) => {
           if (b.points !== a.points) return b.points - a.points
           const diffA = a.goalsFor - a.goalsAgainst
           const diffB = b.goalsFor - b.goalsAgainst
           if (diffB !== diffA) return diffB - diffA
-          return b.goalsFor - a.goalsFor
+          if (b.goalsFor !== a.goalsFor) return b.goalsFor - a.goalsFor
+          return getHeadToHeadComparison(a.team, b.team, groupMatches)
         })
         return [group, sorted]
       })
@@ -946,7 +1003,7 @@ export default function CaptainDashboardPage() {
                                   )}
                                 </div>
                                 <div className="text-xs text-slate-400 md:text-sm">
-                                  Motstander Discord: {nextMatch.opponentDiscordUsername || 'Eksempel#1234'}
+                                  Motstander Discord: {nextMatch.opponentDiscordUsername || 'Motstanders discord ikke registrert'}
                                 </div>
                                 <div className="text-xs md:text-sm text-slate-300">
                                   {nextMatch.canConfirmResult &&
@@ -1243,7 +1300,7 @@ export default function CaptainDashboardPage() {
                           )}
                         </div>
                         <div className="text-xs text-slate-400 mt-1">
-                          Motstander Discord: {match.opponentDiscordUsername || 'Eksempel#1234'}
+                          Motstander Discord: {match.opponentDiscordUsername || 'Motstanders discord ikke registrert'}
                         </div>
                       </div>
                       

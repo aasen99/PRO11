@@ -128,6 +128,60 @@ export default function TournamentDetailPage() {
   // Calculate group standings from actual match results (same logic as admin)
   const calculateGroupStandings = (allMatches: any[]): Record<string, Team[]> => {
     const standings: Record<string, Record<string, Team>> = {}
+
+    const getHeadToHeadComparison = (teamA: string, teamB: string, groupMatches: any[]) => {
+      let aPoints = 0
+      let bPoints = 0
+      let aGoalsFor = 0
+      let aGoalsAgainst = 0
+      let bGoalsFor = 0
+      let bGoalsAgainst = 0
+      let hasMatch = false
+
+      groupMatches.forEach(match => {
+        if (match.status !== 'completed') return
+        const isAHome = match.team1_name === teamA && match.team2_name === teamB
+        const isBHome = match.team1_name === teamB && match.team2_name === teamA
+        if (!isAHome && !isBHome) return
+
+        hasMatch = true
+        const score1 = match.score1 ?? 0
+        const score2 = match.score2 ?? 0
+
+        if (isAHome) {
+          aGoalsFor += score1
+          aGoalsAgainst += score2
+          bGoalsFor += score2
+          bGoalsAgainst += score1
+          if (score1 > score2) aPoints += 3
+          else if (score1 < score2) bPoints += 3
+          else {
+            aPoints += 1
+            bPoints += 1
+          }
+        } else {
+          bGoalsFor += score1
+          bGoalsAgainst += score2
+          aGoalsFor += score2
+          aGoalsAgainst += score1
+          if (score1 > score2) bPoints += 3
+          else if (score1 < score2) aPoints += 3
+          else {
+            aPoints += 1
+            bPoints += 1
+          }
+        }
+      })
+
+      if (!hasMatch) return 0
+
+      if (bPoints !== aPoints) return bPoints - aPoints
+      const aDiff = aGoalsFor - aGoalsAgainst
+      const bDiff = bGoalsFor - bGoalsAgainst
+      if (bDiff !== aDiff) return bDiff - aDiff
+      if (bGoalsFor !== aGoalsFor) return bGoalsFor - aGoalsFor
+      return 0
+    }
     
     // Initialize standings for all teams from matches
     allMatches.forEach(match => {
@@ -202,12 +256,16 @@ export default function TournamentDetailPage() {
     // Convert to arrays and sort
     const result: Record<string, Team[]> = {}
     Object.keys(standings).forEach(groupName => {
+      const groupMatches = allMatches.filter(match =>
+        match.group_name === groupName && match.round === 'Gruppespill'
+      )
       result[groupName] = Object.values(standings[groupName]).sort((a, b) => {
         if (b.points !== a.points) return b.points - a.points
         const aDiff = a.goalsFor - a.goalsAgainst
         const bDiff = b.goalsFor - b.goalsAgainst
         if (bDiff !== aDiff) return bDiff - aDiff
-        return b.goalsFor - a.goalsFor
+        if (b.goalsFor !== a.goalsFor) return b.goalsFor - a.goalsFor
+        return getHeadToHeadComparison(a.name, b.name, groupMatches)
       })
     })
 

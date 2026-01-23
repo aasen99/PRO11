@@ -418,6 +418,60 @@ export default function TournamentMatchesPage() {
 
   const calculateGroupStandings = (allMatches: Match[]): Record<string, GroupStanding[]> => {
     const standings: Record<string, Record<string, GroupStanding>> = {}
+
+    const getHeadToHeadComparison = (teamA: string, teamB: string, groupMatches: Match[]) => {
+      let aPoints = 0
+      let bPoints = 0
+      let aGoalsFor = 0
+      let aGoalsAgainst = 0
+      let bGoalsFor = 0
+      let bGoalsAgainst = 0
+      let hasMatch = false
+
+      groupMatches.forEach(match => {
+        if (match.status !== 'completed') return
+        const isAHome = match.team1_name === teamA && match.team2_name === teamB
+        const isBHome = match.team1_name === teamB && match.team2_name === teamA
+        if (!isAHome && !isBHome) return
+
+        hasMatch = true
+        const score1 = match.score1 ?? 0
+        const score2 = match.score2 ?? 0
+
+        if (isAHome) {
+          aGoalsFor += score1
+          aGoalsAgainst += score2
+          bGoalsFor += score2
+          bGoalsAgainst += score1
+          if (score1 > score2) aPoints += 3
+          else if (score1 < score2) bPoints += 3
+          else {
+            aPoints += 1
+            bPoints += 1
+          }
+        } else {
+          bGoalsFor += score1
+          bGoalsAgainst += score2
+          aGoalsFor += score2
+          aGoalsAgainst += score1
+          if (score1 > score2) bPoints += 3
+          else if (score1 < score2) aPoints += 3
+          else {
+            aPoints += 1
+            bPoints += 1
+          }
+        }
+      })
+
+      if (!hasMatch) return 0
+
+      if (bPoints !== aPoints) return bPoints - aPoints
+      const aDiff = aGoalsFor - aGoalsAgainst
+      const bDiff = bGoalsFor - bGoalsAgainst
+      if (bDiff !== aDiff) return bDiff - aDiff
+      if (bGoalsFor !== aGoalsFor) return bGoalsFor - aGoalsFor
+      return 0
+    }
     
     // Initialize standings for all teams
     allMatches.forEach(match => {
@@ -488,12 +542,16 @@ export default function TournamentMatchesPage() {
     // Convert to arrays and sort
     const result: Record<string, GroupStanding[]> = {}
     Object.keys(standings).forEach(groupName => {
+      const groupMatches = allMatches.filter(match =>
+        match.group_name === groupName && match.round === 'Gruppespill'
+      )
       result[groupName] = Object.values(standings[groupName]).sort((a, b) => {
         if (b.points !== a.points) return b.points - a.points
         const aDiff = a.goalsFor - a.goalsAgainst
         const bDiff = b.goalsFor - b.goalsAgainst
         if (bDiff !== aDiff) return bDiff - aDiff
-        return b.goalsFor - a.goalsFor
+        if (b.goalsFor !== a.goalsFor) return b.goalsFor - a.goalsFor
+        return getHeadToHeadComparison(a.team, b.team, groupMatches)
       })
     })
 
@@ -979,8 +1037,8 @@ export default function TournamentMatchesPage() {
                   return (
                   <div key={groupName} className="mb-6">
                     <h3 className="font-semibold mb-3 text-lg">{groupName}</h3>
-                    <div className="overflow-x-auto">
-                      <table className="w-full min-w-[980px] text-sm table-fixed">
+                    <div className="overflow-x-auto -mx-3 sm:mx-0">
+                      <table className="w-max min-w-full text-sm table-fixed">
                         <thead className="text-xs text-slate-400">
                           <tr>
                             <th className="py-2 pr-3 text-right w-48">Lag 1</th>
@@ -1012,7 +1070,7 @@ export default function TournamentMatchesPage() {
                               <tr key={match.id} className="border-b border-slate-700/50 bg-slate-800/50">
                                 {editingMatch === match.id ? (
                                   <>
-                                    <td className="py-3 pr-3 text-right font-medium">{match.team1_name}</td>
+                                    <td className="py-3 pr-3 text-right font-medium truncate max-w-[12rem]" title={match.team1_name}>{match.team1_name}</td>
                                     <td className="py-3 px-2">
                                       <input
                                         type="number"
@@ -1034,7 +1092,7 @@ export default function TournamentMatchesPage() {
                                         placeholder="0"
                                       />
                                     </td>
-                                    <td className="py-3 pl-3 font-medium">{match.team2_name}</td>
+                                    <td className="py-3 pl-3 font-medium truncate max-w-[12rem]" title={match.team2_name}>{match.team2_name}</td>
                                     <td className="py-3 px-2 text-xs text-slate-400">-</td>
                                     <td className="py-3 px-2">
                                       <input
@@ -1076,11 +1134,11 @@ export default function TournamentMatchesPage() {
                                   </>
                                 ) : (
                                   <>
-                                    <td className="py-3 pr-3 text-right font-medium">{match.team1_name}</td>
+                                    <td className="py-3 pr-3 text-right font-medium truncate max-w-[12rem]" title={match.team1_name}>{match.team1_name}</td>
                                     <td className="py-3 px-2 text-center text-lg font-bold">{showFinalScore ? match.score1 : '-'}</td>
                                     <td className="py-3 px-2 text-center text-slate-500">vs</td>
                                     <td className="py-3 px-2 text-center text-lg font-bold">{showFinalScore ? match.score2 : '-'}</td>
-                                    <td className="py-3 pl-3 font-medium">{match.team2_name}</td>
+                                    <td className="py-3 pl-3 font-medium truncate max-w-[12rem]" title={match.team2_name}>{match.team2_name}</td>
                                     <td className="py-3 px-2 text-xs text-slate-400 truncate" title={submittedText}>{submittedText}</td>
                                     <td className="py-3 px-2 text-xs text-slate-400 truncate" title={infoText || '-'}>{infoText || '-'}</td>
                                     <td className="py-3 px-2">
@@ -1141,8 +1199,8 @@ export default function TournamentMatchesPage() {
                 ).map(([roundName, roundMatches]) => (
                   <div key={roundName} className="mb-6">
                     <h3 className="font-semibold mb-3 text-lg">{roundName}</h3>
-                    <div className="overflow-x-auto">
-                      <table className="w-full min-w-[980px] text-sm table-fixed">
+                    <div className="overflow-x-auto -mx-3 sm:mx-0">
+                      <table className="w-max min-w-full text-sm table-fixed">
                         <thead className="text-xs text-slate-400">
                           <tr>
                             <th className="py-2 pr-3 text-right w-48">Lag 1</th>
@@ -1173,7 +1231,7 @@ export default function TournamentMatchesPage() {
                               <tr key={match.id} className="border-b border-slate-700/50 bg-slate-800/50">
                                 {editingMatch === match.id ? (
                                   <>
-                                    <td className="py-3 pr-3 text-right font-medium">{match.team1_name}</td>
+                                    <td className="py-3 pr-3 text-right font-medium truncate max-w-[12rem]" title={match.team1_name}>{match.team1_name}</td>
                                     <td className="py-3 px-2">
                                       <input
                                         type="number"
@@ -1195,7 +1253,7 @@ export default function TournamentMatchesPage() {
                                         placeholder="0"
                                       />
                                     </td>
-                                    <td className="py-3 pl-3 font-medium">{match.team2_name}</td>
+                                    <td className="py-3 pl-3 font-medium truncate max-w-[12rem]" title={match.team2_name}>{match.team2_name}</td>
                                     <td className="py-3 px-2 text-xs text-slate-400">-</td>
                                     <td className="py-3 px-2">
                                       <input
@@ -1237,11 +1295,11 @@ export default function TournamentMatchesPage() {
                                   </>
                                 ) : (
                                   <>
-                                    <td className="py-3 pr-3 text-right font-medium">{match.team1_name}</td>
+                                    <td className="py-3 pr-3 text-right font-medium truncate max-w-[12rem]" title={match.team1_name}>{match.team1_name}</td>
                                     <td className="py-3 px-2 text-center text-lg font-bold">{showFinalScore ? match.score1 : '-'}</td>
                                     <td className="py-3 px-2 text-center text-slate-500">vs</td>
                                     <td className="py-3 px-2 text-center text-lg font-bold">{showFinalScore ? match.score2 : '-'}</td>
-                                    <td className="py-3 pl-3 font-medium">{match.team2_name}</td>
+                                    <td className="py-3 pl-3 font-medium truncate max-w-[12rem]" title={match.team2_name}>{match.team2_name}</td>
                                     <td className="py-3 px-2 text-xs text-slate-400 truncate" title={submittedText}>{submittedText}</td>
                                     <td className="py-3 px-2 text-xs text-slate-400 truncate" title={infoText || '-'}>{infoText || '-'}</td>
                                     <td className="py-3 px-2">
