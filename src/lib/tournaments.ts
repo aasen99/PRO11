@@ -29,6 +29,14 @@ interface DatabaseTournament {
   updated_at: string
 }
 
+const POT_PER_TEAM_TAG_REGEX = /\[POT_PER_TEAM:(\d+)\]/i
+
+const getPerTeamPotFromDescription = (description?: string | null) => {
+  const match = description?.match(POT_PER_TEAM_TAG_REGEX)
+  const value = match?.[1]
+  return value ? Number(value) : null
+}
+
 // Helper function to format date
 function formatDate(dateString: string): { date: string; time: string } {
   try {
@@ -83,13 +91,16 @@ function getStatusText(status: 'open' | 'ongoing' | 'closed' | 'completed'): str
 function transformTournament(dbTournament: DatabaseTournament): Tournament {
   const { date, time } = formatDate(dbTournament.start_date)
   const status = mapStatus(dbTournament.status)
+  const perTeamPot = getPerTeamPotFromDescription(dbTournament.description)
+  const computedPrizePool =
+    perTeamPot !== null ? perTeamPot * (dbTournament.current_teams || 0) : dbTournament.prize_pool
   
   return {
     id: dbTournament.id,
     title: dbTournament.title,
     date,
     time,
-    prize: `${dbTournament.prize_pool.toLocaleString('nb-NO')} NOK`,
+    prize: `${computedPrizePool.toLocaleString('nb-NO')} NOK`,
     entryFee: dbTournament.entry_fee,
     registeredTeams: dbTournament.current_teams,
     maxTeams: dbTournament.max_teams,

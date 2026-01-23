@@ -43,12 +43,15 @@ export default function RegisterPage() {
             const startDate = new Date(t.start_date)
             const date = startDate.toLocaleDateString('nb-NO', { day: 'numeric', month: 'long', year: 'numeric' })
             const time = startDate.toLocaleTimeString('nb-NO', { hour: '2-digit', minute: '2-digit' })
+            const perTeamPotMatch = String(t.description || '').match(/\[POT_PER_TEAM:(\d+)\]/i)
+            const perTeamPot = perTeamPotMatch ? Number(perTeamPotMatch[1]) : null
+            const computedPrizePool = perTeamPot !== null ? perTeamPot * (t.current_teams || 0) : t.prize_pool
             setTournament({
               id: t.id,
               title: t.title,
               date,
               time,
-              prize: `${t.prize_pool.toLocaleString('nb-NO')} NOK`,
+              prize: `${computedPrizePool.toLocaleString('nb-NO')} NOK`,
               entryFee: t.entry_fee,
               description: t.description || ''
             })

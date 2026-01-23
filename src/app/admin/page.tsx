@@ -76,6 +76,7 @@ interface AdminMessage {
 
 const GEN_TAG_REGEX = /\[GEN:\s*(NEW GEN|OLD GEN|BOTH)\]/i
 const FORMAT_TAG_REGEX = /\[FORMAT\]([\s\S]*?)\[\/FORMAT\]/i
+const POT_PER_TEAM_TAG_REGEX = /\[POT_PER_TEAM:(\d+)\]/i
 
 const getGenFromDescription = (description?: string | null) => {
   const match = description?.match(GEN_TAG_REGEX)
@@ -87,7 +88,11 @@ const getGenFromDescription = (description?: string | null) => {
 }
 
 const stripGenFromDescription = (description?: string | null) => {
-  return (description || '').replace(GEN_TAG_REGEX, '').replace(FORMAT_TAG_REGEX, '').trim()
+  return (description || '')
+    .replace(GEN_TAG_REGEX, '')
+    .replace(FORMAT_TAG_REGEX, '')
+    .replace(POT_PER_TEAM_TAG_REGEX, '')
+    .trim()
 }
 
 const getFormatFromDescription = (description?: string | null) => {
@@ -95,11 +100,23 @@ const getFormatFromDescription = (description?: string | null) => {
   return match?.[1]?.trim() || ''
 }
 
-const buildDescriptionWithGen = (description: string, gen: 'new' | 'old' | 'both', formatText: string) => {
+const getPerTeamPotFromDescription = (description?: string | null) => {
+  const match = description?.match(POT_PER_TEAM_TAG_REGEX)
+  const value = match?.[1]
+  return value ? Number(value) : null
+}
+
+const buildDescriptionWithGen = (
+  description: string,
+  gen: 'new' | 'old' | 'both',
+  formatText: string,
+  perTeamPot: number | null
+) => {
   const cleaned = stripGenFromDescription(description)
   const tag = gen === 'new' ? '[GEN: New Gen]' : gen === 'old' ? '[GEN: Old Gen]' : '[GEN: Both]'
   const formatTag = formatText.trim() ? `[FORMAT]\n${formatText.trim()}\n[/FORMAT]` : ''
-  return [cleaned, formatTag, tag].filter(Boolean).join(' ').trim()
+  const potTag = perTeamPot && perTeamPot > 0 ? `[POT_PER_TEAM:${perTeamPot}]` : ''
+  return [cleaned, formatTag, potTag, tag].filter(Boolean).join(' ').trim()
 }
 
 export default function AdminPage() {
@@ -121,6 +138,7 @@ export default function AdminPage() {
   const [tournamentForMatchGeneration, setTournamentForMatchGeneration] = useState<string | null>(null)
   const [tournamentGen, setTournamentGen] = useState<'new' | 'old' | 'both'>('both')
   const [tournamentFormatText, setTournamentFormatText] = useState('')
+  const [tournamentPotPerTeam, setTournamentPotPerTeam] = useState('')
 
   const [messages, setMessages] = useState<AdminMessage[]>([])
   const [isLoadingMessages, setIsLoadingMessages] = useState(false)
@@ -181,7 +199,7 @@ export default function AdminPage() {
           const data = await response.json()
           if (data.tournaments) {
             // Transform database tournaments to frontend format and load matches
-            const transformedPromises = data.tournaments.map(async (t: any) => {
+          const transformedPromises = data.tournaments.map(async (t: any) => {
               const startDate = new Date(t.start_date)
               const date = startDate.toLocaleDateString('nb-NO', { day: 'numeric', month: 'long', year: 'numeric' })
               const time = startDate.toLocaleTimeString('nb-NO', { hour: '2-digit', minute: '2-digit' })
@@ -213,6 +231,8 @@ export default function AdminPage() {
                 console.error(`Error loading matches for tournament ${t.id}:`, error)
               }
               
+              const perTeamPot = getPerTeamPotFromDescription(t.description || '')
+              const computedPrizePool = perTeamPot !== null ? perTeamPot * (t.current_teams || 0) : t.prize_pool
               return {
                 id: t.id,
                 title: t.title,
@@ -221,7 +241,7 @@ export default function AdminPage() {
                 registeredTeams: t.current_teams || 0,
                 maxTeams: t.max_teams,
                 status,
-                prize: `${t.prize_pool.toLocaleString('nb-NO')} NOK`,
+                prize: `${computedPrizePool.toLocaleString('nb-NO')} NOK`,
                 entryFee: t.entry_fee,
                 description: t.description || '',
                 format: 'mixed' as const,
@@ -531,11 +551,14 @@ PRO11 Team`)
       setIsNewTournament(false)
       setTournamentGen(getGenFromDescription(tournament.description || ''))
       setTournamentFormatText(getFormatFromDescription(tournament.description || ''))
+      const perTeamPot = getPerTeamPotFromDescription(tournament.description || '')
+      setTournamentPotPerTeam(perTeamPot ? String(perTeamPot) : '')
     } else {
       setEditingTournament(null)
       setIsNewTournament(true)
       setTournamentGen('both')
       setTournamentFormatText('')
+      setTournamentPotPerTeam('')
     }
     setShowTournamentModal(true)
   }
@@ -569,11 +592,19 @@ PRO11 Team`)
         return
       }
       
-      const prizePool = parseInt(tournamentData.prize?.replace(/[^0-9]/g, '') || '0')
+      const perTeamPotValue = Number(tournamentPotPerTeam)
+      const safePerTeamPot = Number.isFinite(perTeamPotValue) ? perTeamPotValue : 0
+      const currentTeamsCount = editingTournament?.registeredTeams ?? 0
+      const prizePool = safePerTeamPot > 0 ? safePerTeamPot * currentTeamsCount : 0
       
       const dbData: any = {
         title: tournamentData.title,
-        description: buildDescriptionWithGen(tournamentData.description || '', tournamentGen, tournamentFormatText),
+        description: buildDescriptionWithGen(
+          tournamentData.description || '',
+          tournamentGen,
+          tournamentFormatText,
+          safePerTeamPot
+        ),
         start_date: startDate.toISOString(),
         end_date: endDate.toISOString(),
         max_teams: tournamentData.maxTeams || 16,
@@ -621,6 +652,10 @@ PRO11 Team`)
           else if (newTournament.status === 'completed') status = 'completed'
           else if (newTournament.status === 'cancelled') status = 'closed'
           
+          const perTeamPot = getPerTeamPotFromDescription(newTournament.description || '')
+          const computedPrizePool = perTeamPot !== null
+            ? perTeamPot * (newTournament.current_teams || 0)
+            : newTournament.prize_pool
           const transformedNewTournament = {
             id: newTournament.id,
             title: newTournament.title,
@@ -629,7 +664,7 @@ PRO11 Team`)
             registeredTeams: newTournament.current_teams || 0,
             maxTeams: newTournament.max_teams,
             status,
-            prize: `${newTournament.prize_pool.toLocaleString('nb-NO')} NOK`,
+            prize: `${computedPrizePool.toLocaleString('nb-NO')} NOK`,
             entryFee: newTournament.entry_fee,
             description: newTournament.description || '',
             format: 'mixed' as const
@@ -659,6 +694,8 @@ PRO11 Team`)
                 if (t.status === 'active') status = 'ongoing'
                 else if (t.status === 'completed') status = 'completed'
                 else if (t.status === 'cancelled') status = 'closed'
+                const perTeamPot = getPerTeamPotFromDescription(t.description || '')
+                const computedPrizePool = perTeamPot !== null ? perTeamPot * (t.current_teams || 0) : t.prize_pool
                 return {
                   id: t.id,
                   title: t.title,
@@ -667,7 +704,7 @@ PRO11 Team`)
                   registeredTeams: t.current_teams || 0,
                   maxTeams: t.max_teams,
                   status,
-                  prize: `${t.prize_pool.toLocaleString('nb-NO')} NOK`,
+                  prize: `${computedPrizePool.toLocaleString('nb-NO')} NOK`,
                   entryFee: t.entry_fee,
                   description: t.description || '',
                   format: 'mixed' as const
@@ -711,6 +748,8 @@ PRO11 Team`)
                 if (t.status === 'active') status = 'ongoing'
                 else if (t.status === 'completed') status = 'completed'
                 else if (t.status === 'cancelled') status = 'closed'
+                const perTeamPot = getPerTeamPotFromDescription(t.description || '')
+                const computedPrizePool = perTeamPot !== null ? perTeamPot * (t.current_teams || 0) : t.prize_pool
                 return {
                   id: t.id,
                   title: t.title,
@@ -719,7 +758,7 @@ PRO11 Team`)
                   registeredTeams: t.current_teams || 0,
                   maxTeams: t.max_teams,
                   status,
-                  prize: `${t.prize_pool.toLocaleString('nb-NO')} NOK`,
+                  prize: `${computedPrizePool.toLocaleString('nb-NO')} NOK`,
                   entryFee: t.entry_fee,
                   description: t.description || '',
                   format: 'mixed' as const
@@ -1055,7 +1094,8 @@ PRO11 Team`)
       try {
         const gen = getGenFromDescription(tournament.description || '')
         const baseDescription = stripGenFromDescription(tournament.description || '')
-        const descriptionWithFormat = buildDescriptionWithGen(baseDescription, gen, formatText)
+        const perTeamPot = getPerTeamPotFromDescription(tournament.description || '')
+        const descriptionWithFormat = buildDescriptionWithGen(baseDescription, gen, formatText, perTeamPot)
         const response = await fetch('/api/tournaments', {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
@@ -2142,14 +2182,13 @@ PRO11 Team`)
                 const formData = new FormData(e.currentTarget)
                 const date = formData.get('date') as string
                 const time = formData.get('time') as string
-                const prizeText = formData.get('prize') as string
                 const entryFeeValue = Number(formData.get('entryFee'))
                 
                 console.log('Form data:', {
                   title: formData.get('title'),
                   date,
                   time,
-                  prizeText,
+                  prizePerTeam: formData.get('prizePerTeam'),
                   maxTeams: formData.get('maxTeams'),
                   entryFee: formData.get('entryFee'),
                   status: formData.get('status')
@@ -2161,7 +2200,6 @@ PRO11 Team`)
                   date: date,
                   time: time,
                   maxTeams: parseInt(formData.get('maxTeams') as string || '16'),
-                  prize: prizeText || '0',
                   entryFee: Number.isFinite(entryFeeValue) ? entryFeeValue : 299,
                   status: (formData.get('status') as 'open' | 'ongoing' | 'closed' | 'completed') || 'open'
                 })
@@ -2225,14 +2263,16 @@ PRO11 Team`)
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-slate-300 mb-1">
-                    Premie (NOK)
+                    Premiepott per lag (NOK)
                   </label>
                   <input
-                    type="text"
-                    name="prize"
-                    defaultValue={editingTournament?.prize?.replace(' NOK', '') || '0'}
+                    type="number"
+                    name="prizePerTeam"
+                    value={tournamentPotPerTeam}
+                    onChange={(e) => setTournamentPotPerTeam(e.target.value)}
                     className="pro11-input"
-                    placeholder="15000"
+                    placeholder="500"
+                    min="0"
                   />
                 </div>
                 <div>
