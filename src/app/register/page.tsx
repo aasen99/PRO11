@@ -76,8 +76,8 @@ export default function RegisterPage() {
       return
     }
 
-    if (formData.expectedPlayers < 5 || formData.expectedPlayers > 11) {
-      alert('Antall spillere må være mellom 5 og 11')
+    if (formData.expectedPlayers < 2 || formData.expectedPlayers > 11) {
+      alert('Antall spillere må være mellom 2 og 11')
       return
     }
 
@@ -227,6 +227,9 @@ export default function RegisterPage() {
                   className="pro11-input w-full"
                   required
                 >
+                  <option value="2">2 spillere</option>
+                  <option value="3">3 spillere</option>
+                  <option value="4">4 spillere</option>
                   <option value="5">5 spillere</option>
                   <option value="6">6 spillere</option>
                   <option value="7">7 spillere</option>
@@ -236,7 +239,7 @@ export default function RegisterPage() {
                   <option value="11">11 spillere</option>
                 </select>
                 <p className="text-slate-400 text-sm mt-2">
-                  Velg forventet antall spillere som vil delta i turneringen
+                  Velg forventet antall spillere som vil delta i turneringen. Det er ikke krav om at laget stiller med tallet som oppgis her.
                 </p>
               </div>
             </div>

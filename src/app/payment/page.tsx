@@ -420,9 +420,9 @@ export default function PaymentPage() {
                     </>
                   ) : (
                     <>
-                      <p>• Inkluderer deltakelse i turneringen</p>
-                      <p>• Alle spillere på laget kan delta</p>
-                      <p>• Betalingen er ikke refunderbar</p>
+                  <p>• Inkluderer deltakelse i turneringen</p>
+                  <p>• Alle spillere på laget kan delta</p>
+                  <p>• Betalingen er ikke refunderbar</p>
                     </>
                   )}
                 </div>
@@ -450,71 +450,71 @@ export default function PaymentPage() {
               </div>
             </div>
           ) : (
-            <div className="pro11-card p-6 mt-8">
-              <h2 className="text-xl font-bold mb-4">Betaling med PayPal</h2>
-              <p className="text-slate-300 mb-6 text-center">
-                Trygg og sikker betaling med PayPal
-              </p>
-              
-              <div className="text-center">
-                {paypalLoading ? (
-                  <div className="p-8">
-                    <p className="text-slate-300">Laster PayPal-konfigurasjon...</p>
-                  </div>
-                ) : paypalClientId ? (
-                  <PayPalScriptProvider 
-                    options={{ 
-                      clientId: paypalClientId,
-                      currency: 'NOK',
-                      intent: 'capture'
+          <div className="pro11-card p-6 mt-8">
+            <h2 className="text-xl font-bold mb-4">Betaling med PayPal</h2>
+            <p className="text-slate-300 mb-6 text-center">
+              Trygg og sikker betaling med PayPal
+            </p>
+            
+            <div className="text-center">
+              {paypalLoading ? (
+                <div className="p-8">
+                  <p className="text-slate-300">Laster PayPal-konfigurasjon...</p>
+                </div>
+              ) : paypalClientId ? (
+                <PayPalScriptProvider 
+                  options={{ 
+                    clientId: paypalClientId,
+                    currency: 'NOK',
+                    intent: 'capture'
+                  }}
+                >
+                  <PayPalButtons
+                    createOrder={(data, actions) => {
+                      return actions.order.create({
+                        intent: 'CAPTURE',
+                        purchase_units: [{
+                          amount: {
+                            value: paymentData.amount.toString(),
+                            currency_code: 'NOK'
+                          },
+                          description: `PRO11 Turnering - ${paymentData.teamName}`
+                        }]
+                      })
                     }}
-                  >
-                    <PayPalButtons
-                      createOrder={(data, actions) => {
-                        return actions.order.create({
-                          intent: 'CAPTURE',
-                          purchase_units: [{
-                            amount: {
-                              value: paymentData.amount.toString(),
-                              currency_code: 'NOK'
-                            },
-                            description: `PRO11 Turnering - ${paymentData.teamName}`
-                          }]
-                        })
-                      }}
-                      onApprove={(data, actions) => {
-                        return actions.order!.capture().then((details) => {
-                          handlePaymentSuccess(details)
-                        })
-                      }}
-                      onError={handlePaymentError}
-                      style={{
-                        layout: 'vertical',
-                        color: 'blue',
-                        shape: 'rect',
-                        label: 'paypal'
-                      }}
-                    />
-                  </PayPalScriptProvider>
-                ) : (
-                  <div className="p-8 bg-yellow-900/20 border border-yellow-600/30 rounded-lg">
-                    <p className="text-yellow-400 mb-4 font-semibold">
-                      ⚠️ PayPal er ikke konfigurert ennå
-                    </p>
-                    <p className="text-slate-300 mb-4">
-                      For å aktivere PayPal-betaling, legg til NEXT_PUBLIC_PAYPAL_CLIENT_ID i miljøvariablene.
-                    </p>
-                    <p className="text-slate-400 text-sm mb-4">
-                      Inntil PayPal er konfigurert, kan du ikke fullføre betalingen. Kontakt administrator for hjelp.
-                    </p>
-                  </div>
-                )}
-                
-                <p className="text-slate-400 text-sm mt-4">
-                  Etter fullført betaling vil laget ditt bli godkjent for turneringen
-                </p>
-              </div>
+                    onApprove={(data, actions) => {
+                      return actions.order!.capture().then((details) => {
+                        handlePaymentSuccess(details)
+                      })
+                    }}
+                    onError={handlePaymentError}
+                    style={{
+                      layout: 'vertical',
+                      color: 'blue',
+                      shape: 'rect',
+                      label: 'paypal'
+                    }}
+                  />
+                </PayPalScriptProvider>
+              ) : (
+                <div className="p-8 bg-yellow-900/20 border border-yellow-600/30 rounded-lg">
+                  <p className="text-yellow-400 mb-4 font-semibold">
+                    ⚠️ PayPal er ikke konfigurert ennå
+                  </p>
+                  <p className="text-slate-300 mb-4">
+                    For å aktivere PayPal-betaling, legg til NEXT_PUBLIC_PAYPAL_CLIENT_ID i miljøvariablene.
+                  </p>
+                  <p className="text-slate-400 text-sm mb-4">
+                    Inntil PayPal er konfigurert, kan du ikke fullføre betalingen. Kontakt administrator for hjelp.
+                  </p>
+                </div>
+              )}
+              
+              <p className="text-slate-400 text-sm mt-4">
+                Etter fullført betaling vil laget ditt bli godkjent for turneringen
+              </p>
             </div>
+          </div>
           )}
         </div>
       </main>

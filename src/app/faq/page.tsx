@@ -16,70 +16,94 @@ export default function FAQPage() {
     // General
     {
       id: '1',
-      question: 'Hva er denne plattformen?',
-      answer: 'En enkel og profesjonell plattform for organisering av turneringer og lagpåmelding.',
+      question: 'Hva er PRO11?',
+      answer: 'PRO11 er en turneringsplattform for EA SPORTS FC Pro Clubs.',
       category: 'general'
     },
     {
       id: '2',
-      question: 'Hvor finner jeg oppdateringer?',
-      answer: 'Oppdateringer og nyheter publiseres i våre kanaler og på turneringssiden.',
+      question: 'Hvem kan delta?',
+      answer: 'Alle Pro Clubs-lag kan delta så lenge laget følger kravene i turneringen.',
       category: 'general'
     },
     {
       id: '3',
-      question: 'Hva trenger jeg for å delta?',
-      answer: 'Du trenger et lag og en lagkaptein som registrerer laget.',
+      question: 'Hvor får vi oppdateringer?',
+      answer: 'All informasjon publiseres på turneringssiden og i PRO11-Discorden.',
       category: 'general'
     },
 
     // Account
     {
       id: '4',
-      question: 'Hvordan oppretter vi lag?',
-      answer: 'Lagkaptein registrerer laget med grunnleggende laginformasjon og kontaktdata.',
-      category: 'account'
-    },
-    {
-      id: '5',
-      question: 'Kan vi endre lagdetaljer senere?',
-      answer: 'Ja, endringer kan gjøres frem til turneringsfristen.',
+      question: 'Hvordan melder vi oss på?',
+      answer: 'Lagleder registrerer laget og fullfører påmeldingen på turneringssiden.',
       category: 'account'
     },
 
     // Tournaments
     {
+      id: '5',
+      question: 'Hvordan fungerer turneringene?',
+      answer: 'Turneringene spilles normalt med gruppespill etterfulgt av sluttspill. Endelig format vises alltid på turneringssiden.',
+      category: 'tournaments'
+    },
+    {
       id: '6',
-      question: 'Hvordan fungerer turneringsformatet?',
-      answer: 'Formatet varierer, men følger normalt gruppespill etterfulgt av sluttspill.',
+      question: 'Hvordan settes sluttspillet opp?',
+      answer: 'Lag seedes basert på plassering i gruppespillet. Sluttspillet spilles som cup.',
       category: 'tournaments'
     },
     {
       id: '7',
       question: 'Når spilles kampene?',
-      answer: 'Kampene settes opp i tidsrommet som er oppgitt på turneringssiden.',
+      answer: 'Kampene spilles innenfor tidsrommet som er oppgitt på turneringssiden.',
+      category: 'tournaments'
+    },
+    {
+      id: '8',
+      question: 'Hvordan registreres resultater?',
+      answer: 'Begge lag registrerer kampresultatet. Når begge bekrefter samme resultat, registreres kampen automatisk. Ved uenighet varsles admin.',
+      category: 'tournaments'
+    },
+    {
+      id: '9',
+      question: 'Hva skjer ved uenighet eller feil?',
+      answer: 'Dersom lagene ikke er enige, varsles admin som avgjør saken.',
+      category: 'tournaments'
+    },
+    {
+      id: '10',
+      question: 'Føres det statistikk?',
+      answer: 'Ja. PRO11 bygger statistikk, rekorder og historikk på tvers av turneringer. Historikken starter fra første offisielle turnering.',
       category: 'tournaments'
     },
 
     // Payment
     {
-      id: '8',
+      id: '11',
       question: 'Hva koster det å delta?',
-      answer: 'Påmeldingsavgift oppgis i hver turnering og betales etter godkjenning.',
+      answer: 'Påmeldingsavgift vises på turneringssiden før påmelding.',
       category: 'payment'
     },
     {
-      id: '9',
+      id: '12',
       question: 'Hvordan betaler vi?',
-      answer: 'Betalingsmetode oppgis i turneringen og bekreftes ved betaling.',
+      answer: 'Betaling skjer via nettsiden. Tilgjengelige betalingsmetoder vises ved betaling.',
       category: 'payment'
     },
 
     // Support
     {
-      id: '10',
-      question: 'Trenger du hjelp?',
-      answer: 'Kontakt oss via Discord for raskest mulig svar.',
+      id: '13',
+      question: 'Hvor finner vi reglene?',
+      answer: 'Reglene for hver turnering finner du på turneringssiden.',
+      category: 'support'
+    },
+    {
+      id: '14',
+      question: 'Hvordan kan vi kontakte dere?',
+      answer: 'Bli med i Discord-serveren -discordserveren-',
       category: 'support'
     }
   ]

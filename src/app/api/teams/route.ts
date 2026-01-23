@@ -49,25 +49,34 @@ export async function POST(request: NextRequest) {
       }, { status: 400 })
     }
 
-    const normalizedTeamName = typeof teamName === 'string' ? teamName.trim() : teamName
+    const normalizedTeamName = typeof teamName === 'string'
+      ? teamName.trim().replace(/\\s+/g, ' ')
+      : teamName
 
     if (!normalizedTeamName) {
       return NextResponse.json({ error: 'Team name is required' }, { status: 400 })
     }
 
-    // Check for duplicate team name in the same tournament (case-insensitive)
+    // Check for duplicate team name in the same tournament (case-insensitive, trimmed)
     const { data: existingTeams, error: existingError } = await supabase
       .from('teams')
-      .select('id, team_name')
+      .select('team_name')
       .eq('tournament_id', tournamentUuid)
-      .ilike('team_name', normalizedTeamName)
 
     if (existingError) {
       console.error('Error checking existing teams:', existingError)
       return NextResponse.json({ error: 'Failed to validate team name' }, { status: 400 })
     }
 
-    if (existingTeams && existingTeams.length > 0) {
+    const normalizedLower = normalizedTeamName.toLowerCase()
+    const hasDuplicate = (existingTeams || []).some((team: any) => {
+      const existingName = typeof team.team_name === 'string'
+        ? team.team_name.trim().replace(/\\s+/g, ' ').toLowerCase()
+        : ''
+      return existingName === normalizedLower
+    })
+
+    if (hasDuplicate) {
       return NextResponse.json({ 
         error: 'Et lag med dette navnet er allerede registrert i turneringen.' 
       }, { status: 400 })

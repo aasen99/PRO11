@@ -207,7 +207,8 @@ export async function PUT(request: NextRequest) {
       team_score1, // Score for team_name
       team_score2, // Score for opponent
       group_round,
-      group_name
+      group_name,
+      scheduled_time
     } = body
 
     if (!id) {
@@ -333,6 +334,9 @@ export async function PUT(request: NextRequest) {
         updateData.status = 'completed'
       }
       if (body.round !== undefined) updateData.round = body.round
+      if (scheduled_time !== undefined) {
+        updateData.scheduled_time = scheduled_time || null
+      }
       if (submitted_by !== undefined) updateData.submitted_by = submitted_by
       if (submitted_score1 !== undefined) updateData.submitted_score1 = submitted_score1
       if (submitted_score2 !== undefined) updateData.submitted_score2 = submitted_score2

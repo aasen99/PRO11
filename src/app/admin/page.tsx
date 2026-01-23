@@ -72,6 +72,34 @@ interface AdminMessage {
   created_at: string
 }
 
+const GEN_TAG_REGEX = /\[GEN:\s*(NEW GEN|OLD GEN|BOTH)\]/i
+const FORMAT_TAG_REGEX = /\[FORMAT\]([\s\S]*?)\[\/FORMAT\]/i
+
+const getGenFromDescription = (description?: string | null) => {
+  const match = description?.match(GEN_TAG_REGEX)
+  const value = match?.[1]?.toUpperCase()
+  if (value === 'NEW GEN') return 'new'
+  if (value === 'OLD GEN') return 'old'
+  if (value === 'BOTH') return 'both'
+  return 'both'
+}
+
+const stripGenFromDescription = (description?: string | null) => {
+  return (description || '').replace(GEN_TAG_REGEX, '').replace(FORMAT_TAG_REGEX, '').trim()
+}
+
+const getFormatFromDescription = (description?: string | null) => {
+  const match = description?.match(FORMAT_TAG_REGEX)
+  return match?.[1]?.trim() || ''
+}
+
+const buildDescriptionWithGen = (description: string, gen: 'new' | 'old' | 'both', formatText: string) => {
+  const cleaned = stripGenFromDescription(description)
+  const tag = gen === 'new' ? '[GEN: New Gen]' : gen === 'old' ? '[GEN: Old Gen]' : '[GEN: Both]'
+  const formatTag = formatText.trim() ? `[FORMAT]\n${formatText.trim()}\n[/FORMAT]` : ''
+  return [cleaned, formatTag, tag].filter(Boolean).join(' ').trim()
+}
+
 export default function AdminPage() {
   const [isAuthenticated, setIsAuthenticated] = useState(false)
   const [password, setPassword] = useState('')
@@ -89,6 +117,8 @@ export default function AdminPage() {
   const [editingTournament, setEditingTournament] = useState<Tournament | null>(null)
   const [isNewTournament, setIsNewTournament] = useState(false)
   const [tournamentForMatchGeneration, setTournamentForMatchGeneration] = useState<string | null>(null)
+  const [tournamentGen, setTournamentGen] = useState<'new' | 'old' | 'both'>('both')
+  const [tournamentFormatText, setTournamentFormatText] = useState('')
 
   const [messages, setMessages] = useState<AdminMessage[]>([])
   const [isLoadingMessages, setIsLoadingMessages] = useState(false)
@@ -497,9 +527,13 @@ PRO11 Team`)
     if (tournament) {
       setEditingTournament(tournament)
       setIsNewTournament(false)
+      setTournamentGen(getGenFromDescription(tournament.description || ''))
+      setTournamentFormatText(getFormatFromDescription(tournament.description || ''))
     } else {
       setEditingTournament(null)
       setIsNewTournament(true)
+      setTournamentGen('both')
+      setTournamentFormatText('')
     }
     setShowTournamentModal(true)
   }
@@ -537,7 +571,7 @@ PRO11 Team`)
       
       const dbData: any = {
         title: tournamentData.title,
-        description: tournamentData.description || null,
+        description: buildDescriptionWithGen(tournamentData.description || '', tournamentGen, tournamentFormatText),
         start_date: startDate.toISOString(),
         end_date: endDate.toISOString(),
         max_teams: tournamentData.maxTeams || 16,
@@ -962,6 +996,7 @@ PRO11 Team`)
 
     let matches: Match[] = []
     let groups: string[][] = []
+    let formatText = ''
 
     if (tournament.format === 'group_stage' || tournament.format === 'mixed') {
       // Calculate number of groups
@@ -984,6 +1019,16 @@ PRO11 Team`)
 
       groups = generateGroupStage(approvedTeams, numGroups)
       matches = generateGroupMatches(groups)
+
+      const groupLines = [
+        `Gruppespill: ${numGroups} grupper`,
+        `Lag per gruppe: ${teamsPerGroup}`,
+        `Videre til sluttspill: ${useConfig.teamsToKnockout} fra hver gruppe`
+      ]
+      if (useConfig.useBestRunnersUp && useConfig.numBestRunnersUp > 0) {
+        groupLines.push(`Beste 2.-plasser videre: ${useConfig.numBestRunnersUp}`)
+      }
+      formatText = groupLines.join('\n')
     }
 
     if (tournament.format === 'knockout') {
@@ -996,7 +1041,35 @@ PRO11 Team`)
       // Generate knockout bracket with proper round names (Kvartfinaler, Semifinaler, Finale)
       const knockoutMatches = generateKnockoutBracket(knockoutTeams)
       matches = [...matches, ...knockoutMatches]
+      formatText = 'Sluttspill: cup (alle lag)'
     }
+
+    if (tournament.format === 'mixed' && formatText) {
+      formatText = `${formatText}\nSluttspill: cup`
+    }
+
+    const updateTournamentFormat = async () => {
+      if (!formatText) return
+      try {
+        const gen = getGenFromDescription(tournament.description || '')
+        const baseDescription = stripGenFromDescription(tournament.description || '')
+        const descriptionWithFormat = buildDescriptionWithGen(baseDescription, gen, formatText)
+        const response = await fetch('/api/tournaments', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: tournamentId, description: descriptionWithFormat })
+        })
+        if (response.ok) {
+          setTournaments(prev => prev.map(t => (
+            t.id === tournamentId ? { ...t, description: descriptionWithFormat } : t
+          )))
+        }
+      } catch (error) {
+        console.warn('Could not update tournament format description:', error)
+      }
+    }
+
+    updateTournamentFormat()
 
     // Lagre kamper i databasen
     const saveMatchesToDatabase = async () => {
@@ -2183,11 +2256,62 @@ PRO11 Team`)
 
               <div>
                 <label className="block text-sm font-medium text-slate-300 mb-1">
+                  Plattform (gen)
+                </label>
+                <div className="flex flex-wrap gap-3 text-sm">
+                  <label className="inline-flex items-center gap-2 text-slate-300">
+                    <input
+                      type="radio"
+                      name="tournamentGen"
+                      value="new"
+                      checked={tournamentGen === 'new'}
+                      onChange={() => setTournamentGen('new')}
+                    />
+                    New Gen
+                  </label>
+                  <label className="inline-flex items-center gap-2 text-slate-300">
+                    <input
+                      type="radio"
+                      name="tournamentGen"
+                      value="old"
+                      checked={tournamentGen === 'old'}
+                      onChange={() => setTournamentGen('old')}
+                    />
+                    Old Gen
+                  </label>
+                  <label className="inline-flex items-center gap-2 text-slate-300">
+                    <input
+                      type="radio"
+                      name="tournamentGen"
+                      value="both"
+                      checked={tournamentGen === 'both'}
+                      onChange={() => setTournamentGen('both')}
+                    />
+                    Begge
+                  </label>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-300 mb-1">
+                  Format (vises på turneringssiden)
+                </label>
+                <textarea
+                  value={tournamentFormatText}
+                  onChange={(e) => setTournamentFormatText(e.target.value)}
+                  className="pro11-input"
+                  rows={4}
+                  placeholder="Beskriv formatet for denne turneringen..."
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-300 mb-1">
                   Beskrivelse
                 </label>
                 <textarea
                   name="description"
-                  defaultValue={editingTournament?.description || ''}
+                  defaultValue={stripGenFromDescription(editingTournament?.description)}
                   className="pro11-input"
                   rows={3}
                   placeholder="Beskrivelse av turneringen..."

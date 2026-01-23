@@ -12,8 +12,9 @@ export default function RulesPage() {
 
           <section className="space-y-3">
             <h2 className="text-xl font-semibold">Gruppespill</h2>
-            <ul className="list-disc list-inside text-slate-300 space-y-2">
+            <ul className="list-disc list-inside text-slate-300 space-y-3">
               <li>Det laget som er oppsatt som hjemmelag skal invitere til kamp.</li>
+              <li>Begge lag skal registrere resultatet.</li>
               <li>Det gis 3 poeng for seier, 1 poeng for uavgjort og 0 poeng for tap.</li>
               <li>
                 Resultatet i gruppene rangeres på i denne rekkefølgen:
@@ -32,7 +33,7 @@ export default function RulesPage() {
 
           <section className="space-y-3">
             <h2 className="text-xl font-semibold">Sluttspill</h2>
-            <ul className="list-disc list-inside text-slate-300 space-y-2">
+            <ul className="list-disc list-inside text-slate-300 space-y-3">
               <li>Lagene spiller kun én kamp mot hverandre. Hjemmelag inviterer.</li>
               <li>Kampene kan ikke ende uavgjort og må spilles videre til vi har en vinner.</li>
             </ul>
@@ -40,7 +41,7 @@ export default function RulesPage() {
 
           <section className="space-y-3">
             <h2 className="text-xl font-semibold">Fairplay</h2>
-            <ul className="list-disc list-inside text-slate-300 space-y-2">
+            <ul className="list-disc list-inside text-slate-300 space-y-3">
               <li>Hvis dere har like drakter eller opplever forbindelsesproblemer, må kampen stoppes og startes på nytt.</li>
             </ul>
           </section>

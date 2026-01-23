@@ -77,6 +77,7 @@ export default function TournamentMatchesPage() {
   const [selectedMatchIds, setSelectedMatchIds] = useState<Set<string>>(new Set())
   const [bulkScheduledTime, setBulkScheduledTime] = useState('')
   const [isBulkSaving, setIsBulkSaving] = useState(false)
+  const [showBulkTool, setShowBulkTool] = useState(true)
   const previousMatchesRef = useRef<Match[]>([])
   const autoKnockoutInProgressRef = useRef(false)
   const groupRoundBackfillRef = useRef(false)
@@ -1023,49 +1024,59 @@ export default function TournamentMatchesPage() {
           </div>
         )}
         <div className="pro11-card p-4 mb-6">
-          <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
             <div className="space-y-1">
               <h2 className="text-lg font-semibold">Bulk dato/klokkeslett</h2>
               <p className="text-sm text-slate-400">
                 Velg kamper i listene under, sett tid og oppdater flere samtidig.
               </p>
             </div>
-            <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-              <input
-                type="datetime-local"
-                value={bulkScheduledTime}
-                onChange={(e) => setBulkScheduledTime(e.target.value)}
-                className="px-3 py-2 bg-slate-700 rounded text-sm"
-              />
-              <button
-                onClick={applyBulkSchedule}
-                disabled={isBulkSaving}
-                className="pro11-button-secondary text-sm"
-              >
-                {isBulkSaving ? 'Oppdaterer...' : `Oppdater valgte (${selectedMatchIds.size})`}
-              </button>
-            </div>
-          </div>
-          <div className="mt-3 flex flex-wrap gap-2">
             <button
-              onClick={() => selectMatches(groupMatches.map(match => match.id))}
-              className="pro11-button-secondary text-xs"
+              onClick={() => setShowBulkTool(prev => !prev)}
+              className="pro11-button-secondary text-sm"
             >
-              Velg alle gruppespill
-            </button>
-            <button
-              onClick={() => selectMatches(knockoutMatches.map(match => match.id))}
-              className="pro11-button-secondary text-xs"
-            >
-              Velg alle sluttspill
-            </button>
-            <button
-              onClick={clearSelectedMatches}
-              className="pro11-button-secondary text-xs"
-            >
-              Tøm utvalg
+              {showBulkTool ? 'Skjul' : 'Vis'}
             </button>
           </div>
+          {showBulkTool && (
+            <>
+              <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-center">
+                <input
+                  type="datetime-local"
+                  value={bulkScheduledTime}
+                  onChange={(e) => setBulkScheduledTime(e.target.value)}
+                  className="px-3 py-2 bg-slate-700 rounded text-sm"
+                />
+                <button
+                  onClick={applyBulkSchedule}
+                  disabled={isBulkSaving}
+                  className="pro11-button-secondary text-sm"
+                >
+                  {isBulkSaving ? 'Oppdaterer...' : `Oppdater valgte (${selectedMatchIds.size})`}
+                </button>
+              </div>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <button
+                  onClick={() => selectMatches(groupMatches.map(match => match.id))}
+                  className="pro11-button-secondary text-xs"
+                >
+                  Velg alle gruppespill
+                </button>
+                <button
+                  onClick={() => selectMatches(knockoutMatches.map(match => match.id))}
+                  className="pro11-button-secondary text-xs"
+                >
+                  Velg alle sluttspill
+                </button>
+                <button
+                  onClick={clearSelectedMatches}
+                  className="pro11-button-secondary text-xs"
+                >
+                  Tøm utvalg
+                </button>
+              </div>
+            </>
+          )}
         </div>
         {/* Group Stage Standings */}
         {Object.keys(groupStandings).length > 0 && (

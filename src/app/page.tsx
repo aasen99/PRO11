@@ -9,6 +9,21 @@ export default function HomePage() {
   const [nextTournament, setNextTournament] = useState<any>(null)
   const [isLoading, setIsLoading] = useState(true)
 
+  const getGenLabel = (tournament: any): 'New Gen' | 'Old Gen' | 'New Gen / Old Gen' | null => {
+    const haystack = `${tournament?.title || ''} ${tournament?.description || ''}`.toLowerCase()
+    if (!haystack.trim()) return null
+    if (haystack.includes('gen: both') || haystack.includes('gen:both')) {
+      return 'New Gen / Old Gen'
+    }
+    if (haystack.includes('old gen') || haystack.includes('old-gen') || haystack.includes('ps4') || haystack.includes('xbox one')) {
+      return 'Old Gen'
+    }
+    if (haystack.includes('new gen') || haystack.includes('next gen') || haystack.includes('ps5') || haystack.includes('xbox series')) {
+      return 'New Gen'
+    }
+    return null
+  }
+
   useEffect(() => {
     // Fetch tournaments from database
     const loadTournaments = async () => {
@@ -29,6 +44,8 @@ export default function HomePage() {
     loadTournaments()
   }, [])
   
+  const genLabel = nextTournament ? getGenLabel(nextTournament) : null
+
   return (
     <div className="min-h-screen">
       {/* Header */}
@@ -74,7 +91,7 @@ export default function HomePage() {
           </h2>
           {nextTournament ? (
             <p className="text-xl text-slate-300 mb-8 max-w-3xl mx-auto">
-              {nextTournament.title} - Vær med på den største Pro Clubs-turneringen i Norge
+              {nextTournament.title} – Starten på Norges nye Pro Clubs-arena
             </p>
           ) : (
             <p className="text-xl text-slate-300 mb-8 max-w-3xl mx-auto">
@@ -98,6 +115,13 @@ export default function HomePage() {
                   <Trophy className="w-6 h-6 text-yellow-400" />
                   <span className="text-yellow-400 font-semibold">Kommende</span>
                 </div>
+                {genLabel && (
+                  <div className="mb-3 flex justify-center">
+                    <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-slate-800 text-slate-200">
+                      {genLabel}
+                    </span>
+                  </div>
+                )}
                 <h3 className="text-3xl font-bold mb-4 text-center">{nextTournament.title}</h3>
                 <div className="space-y-3 text-slate-300 text-center">
                   <div className="flex items-center justify-center space-x-3">
@@ -175,7 +199,7 @@ export default function HomePage() {
                 Målet vårt er å samle norsk Pro Clubs på ett sted og bygge Norges ledende Pro Clubs-arena.
               </p>
             </div>
-            <div className="space-y-4">
+            <div className="space-y-4 mt-4">
               <div className="flex items-center space-x-3">
                 <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
                 <span className="text-slate-300">Gruppespill og sluttspill som betyr noe</span>
@@ -198,21 +222,21 @@ export default function HomePage() {
 
         {/* Quick Links */}
         <div className="grid md:grid-cols-4 gap-6 w-full max-w-4xl">
-          <Link href="/tournaments" className="pro11-card p-6 hover:bg-slate-700/50 transition-colors text-center" style={{textDecoration: 'none'}}>
-            <h4 className="text-2xl font-semibold mb-2 text-white">Se alle turneringer</h4>
-            <p className="text-slate-400">Oversikt over kommende og aktive turneringer</p>
+          <Link href="/captain/login" className="pro11-card p-6 hover:bg-slate-700/50 transition-colors text-center" style={{textDecoration: 'none'}}>
+            <h4 className="text-2xl font-semibold mb-2 text-white">Lagleder</h4>
+            <p className="text-slate-400">Logg inn for å legge inn resultater</p>
           </Link>
-          <a href="/rules.pdf" target="_blank" className="pro11-card p-6 hover:bg-slate-700/50 transition-colors text-center" style={{textDecoration: 'none'}}>
+          <Link href="/rules" className="pro11-card p-6 hover:bg-slate-700/50 transition-colors text-center" style={{textDecoration: 'none'}}>
             <h4 className="text-2xl font-semibold mb-2 text-white">Turneringsregler</h4>
-            <p className="text-slate-400">Laste ned offisielle regler og format</p>
-          </a>
+            <p className="text-slate-400">Her finner du de offiselle reglene</p>
+          </Link>
           <Link href="/faq" className="pro11-card p-6 hover:bg-slate-700/50 transition-colors text-center" style={{textDecoration: 'none'}}>
             <h4 className="text-2xl font-semibold mb-2 text-white">FAQ</h4>
             <p className="text-slate-400">Ofte stilte spørsmål og svar</p>
           </Link>
-          <Link href="/captain/login" className="pro11-card p-6 hover:bg-slate-700/50 transition-colors text-center" style={{textDecoration: 'none'}}>
-            <h4 className="text-2xl font-semibold mb-2 text-white">Lagleder</h4>
-            <p className="text-slate-400">Logg inn for å legge inn resultater</p>
+          <Link href="/tournaments" className="pro11-card p-6 hover:bg-slate-700/50 transition-colors text-center" style={{textDecoration: 'none'}}>
+            <h4 className="text-2xl font-semibold mb-2 text-white">Se alle turneringer</h4>
+            <p className="text-slate-400">Oversikt over kommende og aktive turneringer</p>
           </Link>
         </div>
       </main>

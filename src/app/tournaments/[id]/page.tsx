@@ -47,6 +47,18 @@ interface Tournament {
   description: string
 }
 
+const GEN_TAG_REGEX = /\[GEN:\s*(NEW GEN|OLD GEN|BOTH)\]/i
+const FORMAT_TAG_REGEX = /\[FORMAT\]([\s\S]*?)\[\/FORMAT\]/i
+
+const stripGenFromDescription = (description?: string) => {
+  return (description || '').replace(GEN_TAG_REGEX, '').replace(FORMAT_TAG_REGEX, '').trim()
+}
+
+const getFormatFromDescription = (description?: string) => {
+  const match = description?.match(FORMAT_TAG_REGEX)
+  return match?.[1]?.trim() || ''
+}
+
 export default function TournamentDetailPage() {
   const params = useParams()
   const tournamentId = params.id as string
@@ -845,43 +857,44 @@ export default function TournamentDetailPage() {
               <div className="space-y-6">
                 <div>
                   <h3 className="text-xl font-semibold mb-4">Om turneringen</h3>
-                  <p className="text-slate-300 leading-relaxed">{tournament.description}</p>
+                  <p className="text-slate-300 leading-relaxed">
+                    {stripGenFromDescription(tournament.description)}
+                  </p>
                 </div>
                 
                 <div>
                   <h3 className="text-xl font-semibold mb-4">Format</h3>
                   <div className="pro11-card p-4">
-                    <h4 className="font-semibold mb-2">Gruppespill</h4>
-                    <p className="text-slate-300 mb-2">8 lag delt i 2 grupper med 4 lag hver</p>
-                    <p className="text-slate-300 mb-2">Alle lag møter hverandre én gang i gruppen</p>
-                    <p className="text-slate-300">Topp 2 fra hver gruppe går videre til sluttspill</p>
-                  </div>
-                  
-                  <div className="pro11-card p-4 mt-4">
-                    <h4 className="font-semibold mb-2">Sluttspill</h4>
-                    <p className="text-slate-300 mb-2">Kvartfinaler, semifinaler og finale</p>
-                    <p className="text-slate-300">Alle kamper spilles som best-of-3</p>
+                    {getFormatFromDescription(tournament.description) ? (
+                      <div className="space-y-2">
+                        {getFormatFromDescription(tournament.description)
+                          .split('\n')
+                          .filter(Boolean)
+                          .map((line, index) => (
+                            <p key={index} className="text-slate-300">
+                              {line}
+                            </p>
+                          ))}
+                      </div>
+                    ) : (
+                      <p className="text-slate-300">
+                        Turneringens format og oppsett oppdateres av admin ved behov.
+                      </p>
+                    )}
                   </div>
                 </div>
 
                 <div>
                   <h3 className="text-xl font-semibold mb-4">Premier</h3>
-                  <div className="grid md:grid-cols-3 gap-4">
-                    <div className="pro11-card p-4 text-center">
-                      <div className="text-2xl font-bold text-yellow-400 mb-2">🥇</div>
-                      <div className="font-semibold">1. plass</div>
-                      <div className="text-slate-300">5,000 NOK</div>
-                    </div>
-                    <div className="pro11-card p-4 text-center">
-                      <div className="text-2xl font-bold text-slate-400 mb-2">🥈</div>
-                      <div className="font-semibold">2. plass</div>
-                      <div className="text-slate-300">3,000 NOK</div>
-                    </div>
-                    <div className="pro11-card p-4 text-center">
-                      <div className="text-2xl font-bold text-amber-600 mb-2">🥉</div>
-                      <div className="font-semibold">3. plass</div>
-                      <div className="text-slate-300">2,000 NOK</div>
-                    </div>
+                  <div className="pro11-card p-4">
+                    <p className="text-slate-300">
+                      Premiepotten oppgis av admin og oppdateres ved behov.
+                    </p>
+                    {tournament.prize && (
+                      <p className="text-slate-300 mt-2">
+                        Premie: {tournament.prize}
+                      </p>
+                    )}
                   </div>
                 </div>
               </div>
