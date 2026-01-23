@@ -945,11 +945,9 @@ export default function CaptainDashboardPage() {
                                     </>
                                   )}
                                 </div>
-                                {nextMatch.opponentDiscordUsername && (
-                                  <div className="text-xs text-slate-400 md:text-sm">
-                                    Motstander Discord: {nextMatch.opponentDiscordUsername}
-                                  </div>
-                                )}
+                                <div className="text-xs text-slate-400 md:text-sm">
+                                  Motstander Discord: {nextMatch.opponentDiscordUsername || 'Eksempel#1234'}
+                                </div>
                                 <div className="text-xs md:text-sm text-slate-300">
                                   {nextMatch.canConfirmResult &&
                                     nextMatch.opponentSubmittedScore1 !== null &&
@@ -1244,11 +1242,9 @@ export default function CaptainDashboardPage() {
                             <> • Runde {match.groupRound || groupRoundMap[buildKey(match.team1, match.team2)]}</>
                           )}
                         </div>
-                        {match.opponentDiscordUsername && (
-                          <div className="text-xs text-slate-400 mt-1">
-                            Motstander Discord: {match.opponentDiscordUsername}
-                          </div>
-                        )}
+                        <div className="text-xs text-slate-400 mt-1">
+                          Motstander Discord: {match.opponentDiscordUsername || 'Eksempel#1234'}
+                        </div>
                       </div>
                       
                       <div className="flex flex-row flex-wrap items-center gap-3 max-sm:flex-col max-sm:items-stretch md:flex-wrap md:justify-end md:gap-4">
