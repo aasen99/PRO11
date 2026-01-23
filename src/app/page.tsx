@@ -95,15 +95,17 @@ export default function HomePage() {
               <ExternalLink className="w-4 h-4" />
             </a>
           </nav>
-          <div className="flex lg:hidden pr-4">
-            <button
-              type="button"
-              onClick={() => setIsMobileMenuOpen(prev => !prev)}
-              className="pro11-button-secondary text-sm"
-            >
-              {isMobileMenuOpen ? 'Lukk' : 'Meny'}
-            </button>
-          </div>
+          {!isDesktop && (
+            <div className="flex pr-4">
+              <button
+                type="button"
+                onClick={() => setIsMobileMenuOpen(prev => !prev)}
+                className="pro11-button-secondary text-sm"
+              >
+                {isMobileMenuOpen ? 'Lukk' : 'Meny'}
+              </button>
+            </div>
+          )}
         </div>
         {isMobileMenuOpen && !isDesktop && (
           <div className="px-4 pb-4 lg:hidden">
