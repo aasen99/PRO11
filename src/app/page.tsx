@@ -8,6 +8,7 @@ import { fetchTournaments } from '../lib/tournaments'
 export default function HomePage() {
   const [nextTournament, setNextTournament] = useState<any>(null)
   const [isLoading, setIsLoading] = useState(true)
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
 
   const getGenLabel = (tournament: any): 'New Gen' | 'Old Gen' | 'New Gen / Old Gen' | null => {
     const haystack = `${tournament?.title || ''} ${tournament?.description || ''}`.toLowerCase()
@@ -59,7 +60,7 @@ export default function HomePage() {
               <p className="text-slate-400 text-sm">Pro Clubs Turneringer</p>
             </div>
           </div>
-          <nav className="hidden lg:flex flex-wrap items-center justify-end gap-4 px-4 py-4 text-sm">
+          <nav className="hidden lg:flex space-x-6 p-6">
             <Link href="/tournaments" className="text-slate-300 hover:text-white transition-colors">
               Turneringer
             </Link>
@@ -80,7 +81,59 @@ export default function HomePage() {
               <ExternalLink className="w-4 h-4" />
             </a>
           </nav>
+          <div className="flex lg:hidden pr-4">
+            <button
+              type="button"
+              onClick={() => setIsMobileMenuOpen(prev => !prev)}
+              className="pro11-button-secondary text-sm"
+            >
+              {isMobileMenuOpen ? 'Lukk' : 'Meny'}
+            </button>
+          </div>
         </div>
+        {isMobileMenuOpen && (
+          <div className="px-4 pb-4 lg:hidden">
+            <div className="pro11-card p-4 flex flex-col space-y-3">
+              <Link
+                href="/tournaments"
+                className="text-slate-300 hover:text-white transition-colors"
+                onClick={() => setIsMobileMenuOpen(false)}
+              >
+                Turneringer
+              </Link>
+              {nextTournament && nextTournament.status === 'ongoing' ? (
+                <span className="text-slate-500 cursor-not-allowed">
+                  Påmelding stengt
+                </span>
+              ) : (
+                <Link
+                  href="/register"
+                  className="text-slate-300 hover:text-white transition-colors"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                >
+                  Påmelding
+                </Link>
+              )}
+              <Link
+                href="/hall-of-fame"
+                className="text-slate-300 hover:text-white transition-colors"
+                onClick={() => setIsMobileMenuOpen(false)}
+              >
+                Hall of Fame
+              </Link>
+              <a
+                href="https://discord.gg/Es8UAkax8H"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-slate-300 hover:text-white transition-colors flex items-center space-x-2"
+                onClick={() => setIsMobileMenuOpen(false)}
+              >
+                <span>Discord</span>
+                <ExternalLink className="w-4 h-4" />
+              </a>
+            </div>
+          </div>
+        )}
       </header>
 
       {/* Hero Section */}
