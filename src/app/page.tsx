@@ -164,30 +164,33 @@ export default function HomePage() {
           <div className="grid md:grid-cols-2 gap-8">
             <div>
               <p className="text-slate-300 leading-relaxed mb-4">
-                PRO11 er Norges ledende plattform for Pro Clubs-turneringer i FC 26. 
-                Vi arrangerer eksklusive konkurranser for de beste lagene i landet.
+                PRO11 er en turneringsplattform for Pro Clubs i FC 26.
+                Gruppespill, sluttspill og kamper som betyr noe.
+              </p>
+              <p className="text-slate-300 leading-relaxed mb-4">
+                Her lagres resultater, mestere kåres og historikken følger laget videre.
+                Ikke bare én kveld – men turneringer som bygges videre over tid.
               </p>
               <p className="text-slate-300 leading-relaxed">
-                Våre turneringer tilbyr store premier, profesjonell organisering og 
-                en konkurransepreget atmosfære for seriøse Pro Clubs-lag.
+                Målet vårt er å samle norsk Pro Clubs på ett sted og bygge Norges ledende Pro Clubs-arena.
               </p>
             </div>
             <div className="space-y-4">
               <div className="flex items-center space-x-3">
                 <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
-                <span className="text-slate-300">Profesjonell turneringsorganisering</span>
+                <span className="text-slate-300">Gruppespill og sluttspill som betyr noe</span>
               </div>
               <div className="flex items-center space-x-3">
                 <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
-                <span className="text-slate-300">Store premier og anerkjennelse</span>
+                <span className="text-slate-300">Resultater, mestere og historikk</span>
               </div>
               <div className="flex items-center space-x-3">
                 <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
-                <span className="text-slate-300">Eksklusivt for de beste lagene</span>
+                <span className="text-slate-300">Turneringer som bygges videre over tid</span>
               </div>
               <div className="flex items-center space-x-3">
                 <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
-                <span className="text-slate-300">Discord-fellesskap og støtte</span>
+                <span className="text-slate-300">Samler norsk Pro Clubs på ett sted</span>
               </div>
             </div>
           </div>
