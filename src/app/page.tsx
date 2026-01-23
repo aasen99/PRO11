@@ -9,6 +9,7 @@ export default function HomePage() {
   const [nextTournament, setNextTournament] = useState<any>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
+  const [isDesktop, setIsDesktop] = useState(false)
 
   const getGenLabel = (tournament: any): 'New Gen' | 'Old Gen' | 'New Gen / Old Gen' | null => {
     const haystack = `${tournament?.title || ''} ${tournament?.description || ''}`.toLowerCase()
@@ -44,6 +45,19 @@ export default function HomePage() {
     
     loadTournaments()
   }, [])
+
+  useEffect(() => {
+    const updateBreakpoint = () => setIsDesktop(window.innerWidth >= 1024)
+    updateBreakpoint()
+    window.addEventListener('resize', updateBreakpoint)
+    return () => window.removeEventListener('resize', updateBreakpoint)
+  }, [])
+
+  useEffect(() => {
+    if (isDesktop && isMobileMenuOpen) {
+      setIsMobileMenuOpen(false)
+    }
+  }, [isDesktop, isMobileMenuOpen])
   
   const genLabel = nextTournament ? getGenLabel(nextTournament) : null
 
@@ -91,7 +105,7 @@ export default function HomePage() {
             </button>
           </div>
         </div>
-        {isMobileMenuOpen && (
+        {isMobileMenuOpen && !isDesktop && (
           <div className="px-4 pb-4 lg:hidden">
             <div className="pro11-card p-4 flex flex-col space-y-3">
               <Link
