@@ -306,19 +306,20 @@ export default function TournamentMatchesPage() {
           previousMatchesRef.current = loadedMatches
           
           await backfillGroupRounds(loadedMatches)
-          setMatches(loadedMatches)
+          const updatedMatches = await updateMatchesToLive(loadedMatches)
+          setMatches(updatedMatches)
           
           if (loadedMatches.length === 0) {
             console.warn('No matches found for tournament:', tournamentId)
           }
           
           // Calculate group standings
-          const standings = calculateGroupStandings(loadedMatches)
+          const standings = calculateGroupStandings(updatedMatches)
           setGroupStandings(standings)
 
           // Auto-generate knockout when all group matches are completed
-          const groupMatches = loadedMatches.filter((m: Match) => m.round === 'Gruppespill')
-          const knockoutMatches = loadedMatches.filter((m: Match) => m.round !== 'Gruppespill')
+          const groupMatches = updatedMatches.filter((m: Match) => m.round === 'Gruppespill')
+          const knockoutMatches = updatedMatches.filter((m: Match) => m.round !== 'Gruppespill')
           const allGroupMatchesCompleted = groupMatches.length > 0 && groupMatches.every((m: Match) =>
             m.status === 'completed' &&
             m.score1 !== undefined &&
@@ -789,6 +790,106 @@ export default function TournamentMatchesPage() {
       default:
         return 'Venter'
     }
+  }
+
+  const updateMatchesToLive = async (loadedMatches: Match[]) => {
+    const now = Date.now()
+    const groupMatches = loadedMatches.filter(match => match.round === 'Gruppespill' && match.group_name)
+    const groupedByGroup = groupMatches.reduce((acc: Record<string, Match[]>, match) => {
+      const groupName = match.group_name as string
+      if (!acc[groupName]) acc[groupName] = []
+      acc[groupName].push(match)
+      return acc
+    }, {})
+    const groupRoundMaps: Record<string, Record<string, number>> = {}
+    Object.entries(groupedByGroup).forEach(([groupName, matches]) => {
+      groupRoundMaps[groupName] = buildGroupRoundMap(matches)
+    })
+
+    const buildKey = (teamA: string, teamB: string) => [teamA, teamB].sort().join('|')
+    const getGroupRound = (match: Match) => {
+      if (match.group_round) return match.group_round
+      if (!match.group_name) return null
+      return groupRoundMaps[match.group_name]?.[buildKey(match.team1_name, match.team2_name)] || null
+    }
+
+    const isCompleted = (match: Match) => match.status === 'completed'
+
+    const hasCompletedPreviousGroupRound = (match: Match, teamName: string) => {
+      const currentRound = getGroupRound(match)
+      if (!currentRound || currentRound <= 1) return true
+      const previousRound = currentRound - 1
+      const previousMatch = groupMatches.find(candidate => {
+        if (candidate.group_name !== match.group_name) return false
+        const candidateRound = getGroupRound(candidate)
+        if (candidateRound !== previousRound) return false
+        return candidate.team1_name === teamName || candidate.team2_name === teamName
+      })
+      return previousMatch ? isCompleted(previousMatch) : false
+    }
+
+    const knockoutRoundOrder = ['Sluttspill', 'Kvartfinaler', 'Semifinaler', 'Finale']
+    const hasCompletedPreviousKnockoutRound = (match: Match, teamName: string) => {
+      const currentIndex = knockoutRoundOrder.indexOf(match.round)
+      if (currentIndex <= 0) return true
+      const previousRound = knockoutRoundOrder[currentIndex - 1]
+      const previousMatch = loadedMatches.find(candidate =>
+        candidate.round === previousRound &&
+        (candidate.team1_name === teamName || candidate.team2_name === teamName)
+      )
+      return previousMatch ? isCompleted(previousMatch) : false
+    }
+
+    const shouldGoLive = (match: Match) => {
+      if (match.status !== 'scheduled') return false
+      if (!match.scheduled_time) return false
+      if (new Date(match.scheduled_time).getTime() > now) return false
+
+      if (match.round === 'Gruppespill') {
+        return (
+          hasCompletedPreviousGroupRound(match, match.team1_name) &&
+          hasCompletedPreviousGroupRound(match, match.team2_name)
+        )
+      }
+
+      if (knockoutRoundOrder.includes(match.round)) {
+        return (
+          hasCompletedPreviousKnockoutRound(match, match.team1_name) &&
+          hasCompletedPreviousKnockoutRound(match, match.team2_name)
+        )
+      }
+
+      return false
+    }
+
+    const toUpdate = loadedMatches.filter(shouldGoLive)
+    if (toUpdate.length === 0) {
+      return loadedMatches
+    }
+
+    const results = await Promise.all(
+      toUpdate.map(async match => {
+        try {
+          const response = await fetch('/api/matches', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id: match.id, status: 'live' })
+          })
+          return response.ok ? match.id : null
+        } catch {
+          return null
+        }
+      })
+    )
+
+    const updatedIds = new Set(results.filter(Boolean) as string[])
+    if (updatedIds.size === 0) {
+      return loadedMatches
+    }
+
+    return loadedMatches.map(match =>
+      updatedIds.has(match.id) ? { ...match, status: 'live' } : match
+    )
   }
 
   const startEditing = (match: Match) => {
