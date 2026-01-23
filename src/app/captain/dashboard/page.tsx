@@ -35,6 +35,7 @@ interface Match {
   opponentSubmittedScore1: number | null
   opponentSubmittedScore2: number | null
   canConfirmResult: boolean
+  opponentDiscordUsername?: string | null
 }
 
 interface Tournament {
@@ -179,17 +180,30 @@ export default function CaptainDashboardPage() {
           // Hent hver turnering med kamper
           const tournamentPromises = tournamentIds.map(async (tournamentId: string) => {
             try {
-              const [tournamentResponse, matchesResponse] = await Promise.all([
+              const [tournamentResponse, matchesResponse, teamsResponse] = await Promise.all([
                 fetch(`/api/tournaments?id=${tournamentId}`),
-                fetch(`/api/matches?tournament_id=${tournamentId}`)
+                fetch(`/api/matches?tournament_id=${tournamentId}`),
+                fetch(`/api/teams?tournamentId=${tournamentId}`)
               ])
               
               let tournament = null
               let matches: Match[] = []
+              let teamDiscordByName: Record<string, string> = {}
               
               if (tournamentResponse.ok) {
                 const data = await tournamentResponse.json()
                 tournament = data.tournament
+              }
+
+              if (teamsResponse.ok) {
+                const teamsData = await teamsResponse.json()
+                teamDiscordByName = (teamsData.teams || []).reduce((acc: Record<string, string>, team: any) => {
+                  const name = team.teamName || team.team_name
+                  if (name) {
+                    acc[name] = team.discordUsername || team.discord_username || ''
+                  }
+                  return acc
+                }, {})
               }
               
               if (matchesResponse.ok) {
@@ -230,6 +244,8 @@ export default function CaptainDashboardPage() {
                   const opponentSubmittedScore2 = isTeam1
                     ? (m.team2_submitted_score1 ?? null)
                     : (m.team1_submitted_score2 ?? null)
+                  const opponentTeamName = isTeam1 ? m.team2_name : m.team1_name
+                  const opponentDiscordUsername = teamDiscordByName[opponentTeamName] || null
 
                   return {
                     id: m.id,
@@ -250,7 +266,8 @@ export default function CaptainDashboardPage() {
                     submittedScore2: isTeam1 ? (m.team1_submitted_score2 ?? m.submitted_score2 ?? null) : (m.team2_submitted_score2 ?? m.submitted_score2 ?? null),
                     opponentSubmittedScore1,
                     opponentSubmittedScore2,
-                    canConfirmResult: canConfirm
+                    canConfirmResult: canConfirm,
+                    opponentDiscordUsername
                   }
                 }).filter((match: Match | null): match is Match => match !== null)
               }
@@ -928,6 +945,11 @@ export default function CaptainDashboardPage() {
                                     </>
                                   )}
                                 </div>
+                                {nextMatch.opponentDiscordUsername && (
+                                  <div className="text-xs text-slate-400 md:text-sm">
+                                    Motstander Discord: {nextMatch.opponentDiscordUsername}
+                                  </div>
+                                )}
                                 <div className="text-xs md:text-sm text-slate-300">
                                   {nextMatch.canConfirmResult &&
                                     nextMatch.opponentSubmittedScore1 !== null &&
@@ -1222,6 +1244,11 @@ export default function CaptainDashboardPage() {
                             <> • Runde {match.groupRound || groupRoundMap[buildKey(match.team1, match.team2)]}</>
                           )}
                         </div>
+                        {match.opponentDiscordUsername && (
+                          <div className="text-xs text-slate-400 mt-1">
+                            Motstander Discord: {match.opponentDiscordUsername}
+                          </div>
+                        )}
                       </div>
                       
                       <div className="flex flex-row flex-wrap items-center gap-3 max-sm:flex-col max-sm:items-stretch md:flex-wrap md:justify-end md:gap-4">
