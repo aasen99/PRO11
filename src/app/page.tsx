@@ -74,27 +74,29 @@ export default function HomePage() {
               <p className="text-slate-400 text-sm">Pro Clubs Turneringer</p>
             </div>
           </div>
-          <nav className="hidden lg:flex flex-1 items-center justify-end gap-3 px-4 py-4 text-xs whitespace-nowrap">
-            <Link href="/tournaments" className="text-slate-300 hover:text-white transition-colors whitespace-nowrap">
-              Turneringer
-            </Link>
-            {nextTournament && nextTournament.status === 'ongoing' ? (
-              <span className="text-slate-500 cursor-not-allowed whitespace-nowrap" title="Påmelding stengt">
-                Stengt
-              </span>
-            ) : (
-              <Link href="/register" className="text-slate-300 hover:text-white transition-colors whitespace-nowrap">
-                Påmelding
+          {isDesktop && (
+            <nav className="flex flex-1 items-center justify-end gap-3 px-4 py-4 text-xs whitespace-nowrap">
+              <Link href="/tournaments" className="text-slate-300 hover:text-white transition-colors whitespace-nowrap">
+                Turneringer
               </Link>
-            )}
-            <Link href="/hall-of-fame" className="text-slate-300 hover:text-white transition-colors whitespace-nowrap">
-              Hall of Fame
-            </Link>
-            <a href="https://discord.gg/Es8UAkax8H" target="_blank" rel="noopener noreferrer" className="text-slate-300 hover:text-white transition-colors flex items-center space-x-1 whitespace-nowrap">
-              <span>Discord</span>
-              <ExternalLink className="w-4 h-4" />
-            </a>
-          </nav>
+              {nextTournament && nextTournament.status === 'ongoing' ? (
+                <span className="text-slate-500 cursor-not-allowed whitespace-nowrap" title="Påmelding stengt">
+                  Stengt
+                </span>
+              ) : (
+                <Link href="/register" className="text-slate-300 hover:text-white transition-colors whitespace-nowrap">
+                  Påmelding
+                </Link>
+              )}
+              <Link href="/hall-of-fame" className="text-slate-300 hover:text-white transition-colors whitespace-nowrap">
+                Hall of Fame
+              </Link>
+              <a href="https://discord.gg/Es8UAkax8H" target="_blank" rel="noopener noreferrer" className="text-slate-300 hover:text-white transition-colors flex items-center space-x-1 whitespace-nowrap">
+                <span>Discord</span>
+                <ExternalLink className="w-4 h-4" />
+              </a>
+            </nav>
+          )}
           {!isDesktop && (
             <div className="flex pr-4">
               <button
