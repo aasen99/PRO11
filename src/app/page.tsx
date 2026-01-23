@@ -74,13 +74,13 @@ export default function HomePage() {
               <p className="text-slate-400 text-sm">Pro Clubs Turneringer</p>
             </div>
           </div>
-          <nav className="hidden lg:flex flex-1 items-center justify-end gap-6 px-4 py-4 text-sm whitespace-nowrap">
+          <nav className="hidden lg:flex flex-1 items-center justify-end gap-3 px-4 py-4 text-xs whitespace-nowrap">
             <Link href="/tournaments" className="text-slate-300 hover:text-white transition-colors whitespace-nowrap">
               Turneringer
             </Link>
             {nextTournament && nextTournament.status === 'ongoing' ? (
-              <span className="text-slate-500 cursor-not-allowed whitespace-nowrap">
-                Påmelding stengt
+              <span className="text-slate-500 cursor-not-allowed whitespace-nowrap" title="Påmelding stengt">
+                Stengt
               </span>
             ) : (
               <Link href="/register" className="text-slate-300 hover:text-white transition-colors whitespace-nowrap">
