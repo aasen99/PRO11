@@ -7,22 +7,22 @@ const inter = Inter({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
   title: 'PRO11 - Pro Clubs Turneringer',
-  description: 'Offisielle Pro Clubs-turneringer for FC 26. Meld på laget ditt og konkurrer mot de beste!',
+  description: 'PRO11 er en turneringsplattform for Pro Clubs i FC 26. Gruppespill, sluttspill og kamper som betyr noe.',
   icons: {
-    icon: '/logo.png',
-    apple: '/logo.png'
+    icon: '/icon.png',
+    apple: '/apple-icon.png'
   },
   openGraph: {
     title: 'PRO11 - Pro Clubs Turneringer',
-    description: 'Offisielle Pro Clubs-turneringer for FC 26. Meld på laget ditt og konkurrer mot de beste!',
-    images: ['/logo.png'],
+    description: 'PRO11 er en turneringsplattform for Pro Clubs i FC 26. Gruppespill, sluttspill og kamper som betyr noe.',
+    images: ['/icon.png'],
     type: 'website'
   },
   twitter: {
     card: 'summary',
     title: 'PRO11 - Pro Clubs Turneringer',
-    description: 'Offisielle Pro Clubs-turneringer for FC 26. Meld på laget ditt og konkurrer mot de beste!',
-    images: ['/logo.png']
+    description: 'PRO11 er en turneringsplattform for Pro Clubs i FC 26. Gruppespill, sluttspill og kamper som betyr noe.',
+    images: ['/icon.png']
   }
 }
 
