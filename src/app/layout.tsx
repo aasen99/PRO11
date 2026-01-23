@@ -8,6 +8,22 @@ const inter = Inter({ subsets: ['latin'] })
 export const metadata: Metadata = {
   title: 'PRO11 - Pro Clubs Turneringer',
   description: 'Offisielle Pro Clubs-turneringer for FC 26. Meld på laget ditt og konkurrer mot de beste!',
+  icons: {
+    icon: '/logo.png',
+    apple: '/logo.png'
+  },
+  openGraph: {
+    title: 'PRO11 - Pro Clubs Turneringer',
+    description: 'Offisielle Pro Clubs-turneringer for FC 26. Meld på laget ditt og konkurrer mot de beste!',
+    images: ['/logo.png'],
+    type: 'website'
+  },
+  twitter: {
+    card: 'summary',
+    title: 'PRO11 - Pro Clubs Turneringer',
+    description: 'Offisielle Pro Clubs-turneringer for FC 26. Meld på laget ditt og konkurrer mot de beste!',
+    images: ['/logo.png']
+  }
 }
 
 export default function RootLayout({
