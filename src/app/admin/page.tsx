@@ -20,6 +20,8 @@ interface Team {
   captain_email?: string
   discordUsername?: string
   discord_username?: string
+  expectedPlayers?: number
+  expected_players?: number
   players?: Player[]
   status: 'pending' | 'approved' | 'rejected' | 'paid'
   registeredAt?: string
