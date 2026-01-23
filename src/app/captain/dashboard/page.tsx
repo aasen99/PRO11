@@ -1003,7 +1003,7 @@ export default function CaptainDashboardPage() {
                                   )}
                                 </div>
                                 <div className="text-xs text-slate-400 md:text-sm">
-                                  Motstander Discord: {nextMatch.opponentDiscordUsername || 'Motstanders discord ikke registrert'}
+                                  {nextMatch.opponentDiscordUsername || 'Motstanders discord ikke registrert'}
                                 </div>
                                 <div className="text-xs md:text-sm text-slate-300">
                                   {nextMatch.canConfirmResult &&
@@ -1300,7 +1300,7 @@ export default function CaptainDashboardPage() {
                           )}
                         </div>
                         <div className="text-xs text-slate-400 mt-1">
-                          Motstander Discord: {match.opponentDiscordUsername || 'Motstanders discord ikke registrert'}
+                          {match.opponentDiscordUsername || 'Motstanders discord ikke registrert'}
                         </div>
                       </div>
                       
