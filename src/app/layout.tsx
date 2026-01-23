@@ -9,7 +9,11 @@ export const metadata: Metadata = {
   title: 'PRO11 - Pro Clubs Turneringer',
   description: 'PRO11 er en turneringsplattform for Pro Clubs i FC 26. Gruppespill, sluttspill og kamper som betyr noe.',
   icons: {
-    icon: '/icon.png',
+    icon: [
+      { url: '/favicon.png', type: 'image/png', sizes: '32x32' },
+      { url: '/icon.png', type: 'image/png', sizes: '512x512' }
+    ],
+    shortcut: '/favicon.png',
     apple: '/apple-icon.png'
   },
   openGraph: {
