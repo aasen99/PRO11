@@ -75,7 +75,7 @@ export default function HomePage() {
             </div>
           </div>
           {isDesktop && (
-            <nav className="flex flex-1 items-center justify-end gap-3 px-4 py-4 text-xs whitespace-nowrap">
+            <nav className="flex flex-1 items-center justify-end gap-6 px-4 py-4 text-xs whitespace-nowrap">
               <Link href="/tournaments" className="text-slate-300 hover:text-white transition-colors whitespace-nowrap">
                 Turneringer
               </Link>
