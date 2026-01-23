@@ -1023,61 +1023,6 @@ export default function TournamentMatchesPage() {
             )}
           </div>
         )}
-        <div className="pro11-card p-4 mb-6">
-          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-            <div className="space-y-1">
-              <h2 className="text-lg font-semibold">Bulk dato/klokkeslett</h2>
-              <p className="text-sm text-slate-400">
-                Velg kamper i listene under, sett tid og oppdater flere samtidig.
-              </p>
-            </div>
-            <button
-              onClick={() => setShowBulkTool(prev => !prev)}
-              className="pro11-button-secondary text-sm"
-            >
-              {showBulkTool ? 'Skjul' : 'Vis'}
-            </button>
-          </div>
-          {showBulkTool && (
-            <>
-              <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-center">
-                <input
-                  type="datetime-local"
-                  value={bulkScheduledTime}
-                  onChange={(e) => setBulkScheduledTime(e.target.value)}
-                  className="px-3 py-2 bg-slate-700 rounded text-sm"
-                />
-                <button
-                  onClick={applyBulkSchedule}
-                  disabled={isBulkSaving}
-                  className="pro11-button-secondary text-sm"
-                >
-                  {isBulkSaving ? 'Oppdaterer...' : `Oppdater valgte (${selectedMatchIds.size})`}
-                </button>
-              </div>
-              <div className="mt-3 flex flex-wrap gap-2">
-                <button
-                  onClick={() => selectMatches(groupMatches.map(match => match.id))}
-                  className="pro11-button-secondary text-xs"
-                >
-                  Velg alle gruppespill
-                </button>
-                <button
-                  onClick={() => selectMatches(knockoutMatches.map(match => match.id))}
-                  className="pro11-button-secondary text-xs"
-                >
-                  Velg alle sluttspill
-                </button>
-                <button
-                  onClick={clearSelectedMatches}
-                  className="pro11-button-secondary text-xs"
-                >
-                  Tøm utvalg
-                </button>
-              </div>
-            </>
-          )}
-        </div>
         {/* Group Stage Standings */}
         {Object.keys(groupStandings).length > 0 && (
           <div className="mb-8">
@@ -1129,14 +1074,80 @@ export default function TournamentMatchesPage() {
             </div>
           </div>
         )}
+        {showBulkTool && (
+          <div className="pro11-card p-4 mb-6">
+            <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+              <div className="space-y-1">
+                <h2 className="text-lg font-semibold">Bulk dato/klokkeslett</h2>
+                <p className="text-sm text-slate-400">
+                  Velg kamper i listene under, sett tid og oppdater flere samtidig.
+                </p>
+              </div>
+              <button
+                onClick={() => setShowBulkTool(false)}
+                className="pro11-button-secondary text-sm"
+              >
+                Skjul
+              </button>
+            </div>
+            <>
+              <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-center">
+                <input
+                  type="datetime-local"
+                  lang="no"
+                  value={bulkScheduledTime}
+                  onChange={(e) => setBulkScheduledTime(e.target.value)}
+                  className="px-3 py-2 bg-slate-700 rounded text-sm"
+                />
+                <button
+                  onClick={applyBulkSchedule}
+                  disabled={isBulkSaving}
+                  className="pro11-button-secondary text-sm"
+                >
+                  {isBulkSaving ? 'Oppdaterer...' : `Oppdater valgte (${selectedMatchIds.size})`}
+                </button>
+              </div>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <button
+                  onClick={() => selectMatches(groupMatches.map(match => match.id))}
+                  className="pro11-button-secondary text-xs"
+                >
+                  Velg alle gruppespill
+                </button>
+                <button
+                  onClick={() => selectMatches(knockoutMatches.map(match => match.id))}
+                  className="pro11-button-secondary text-xs"
+                >
+                  Velg alle sluttspill
+                </button>
+                <button
+                  onClick={clearSelectedMatches}
+                  className="pro11-button-secondary text-xs"
+                >
+                  Tøm utvalg
+                </button>
+              </div>
+            </>
+          </div>
+        )}
 
         {/* Group Stage Matches */}
         {groupMatches.length > 0 && (
           <div className="mb-8">
-            <h2 className="text-xl font-bold mb-4 flex items-center space-x-2">
-              <Users className="w-5 h-5" />
-              <span>Gruppespill - Kamper</span>
-            </h2>
+            <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
+              <h2 className="text-xl font-bold flex items-center space-x-2">
+                <Users className="w-5 h-5" />
+                <span>Gruppespill - Kamper</span>
+              </h2>
+              {!showBulkTool && (
+                <button
+                  onClick={() => setShowBulkTool(true)}
+                  className="pro11-button-secondary text-xs"
+                >
+                  Vis bulk
+                </button>
+              )}
+            </div>
             <div className="pro11-card p-4">
               <div className="space-y-3">
                 {Object.entries(
@@ -1230,6 +1241,7 @@ export default function TournamentMatchesPage() {
                                     <td className="py-3 px-2">
                                       <input
                                         type="datetime-local"
+                                        lang="no"
                                         value={editForm.scheduled_time || ''}
                                         onChange={(e) => setEditForm({ ...editForm, scheduled_time: e.target.value })}
                                         className="px-2 py-1 bg-slate-700 rounded text-sm w-full"
@@ -1314,10 +1326,20 @@ export default function TournamentMatchesPage() {
             {/* Knockout Stage Matches */}
             {knockoutMatches.length > 0 && (
               <div className="mb-8">
-                <h2 className="text-xl font-bold mb-4 flex items-center space-x-2">
-                  <Trophy className="w-5 h-5" />
-                  <span>Sluttspill - Kamper</span>
-                </h2>
+                <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
+                  <h2 className="text-xl font-bold flex items-center space-x-2">
+                    <Trophy className="w-5 h-5" />
+                    <span>Sluttspill - Kamper</span>
+                  </h2>
+                  {!showBulkTool && (
+                    <button
+                      onClick={() => setShowBulkTool(true)}
+                      className="pro11-button-secondary text-xs"
+                    >
+                      Vis bulk
+                    </button>
+                  )}
+                </div>
                 {!shouldShowKnockout && groupMatches.length > 0 ? (
                   <div className="pro11-card p-4 mb-4 bg-yellow-900/20 border border-yellow-600/30">
                     <p className="text-yellow-400">
@@ -1408,6 +1430,7 @@ export default function TournamentMatchesPage() {
                                     <td className="py-3 px-2">
                                       <input
                                         type="datetime-local"
+                                        lang="no"
                                         value={editForm.scheduled_time || ''}
                                         onChange={(e) => setEditForm({ ...editForm, scheduled_time: e.target.value })}
                                         className="px-2 py-1 bg-slate-700 rounded text-sm w-full"
