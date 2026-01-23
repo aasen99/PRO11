@@ -74,6 +74,9 @@ export default function TournamentMatchesPage() {
     status?: string
   }>({})
   const [toasts, setToasts] = useState<ToastMessage[]>([])
+  const [selectedMatchIds, setSelectedMatchIds] = useState<Set<string>>(new Set())
+  const [bulkScheduledTime, setBulkScheduledTime] = useState('')
+  const [isBulkSaving, setIsBulkSaving] = useState(false)
   const previousMatchesRef = useRef<Match[]>([])
   const autoKnockoutInProgressRef = useRef(false)
   const groupRoundBackfillRef = useRef(false)
@@ -85,6 +88,30 @@ export default function TournamentMatchesPage() {
 
   const removeToast = (id: string) => {
     setToasts(prev => prev.filter(t => t.id !== id))
+  }
+
+  const toggleMatchSelection = (matchId: string) => {
+    setSelectedMatchIds(prev => {
+      const next = new Set(prev)
+      if (next.has(matchId)) {
+        next.delete(matchId)
+      } else {
+        next.add(matchId)
+      }
+      return next
+    })
+  }
+
+  const selectMatches = (matchIds: string[]) => {
+    setSelectedMatchIds(prev => {
+      const next = new Set(prev)
+      matchIds.forEach(id => next.add(id))
+      return next
+    })
+  }
+
+  const clearSelectedMatches = () => {
+    setSelectedMatchIds(new Set())
   }
 
   const getStoredMatchConfig = (): StoredMatchConfig => {
@@ -830,6 +857,47 @@ export default function TournamentMatchesPage() {
     }
   }
 
+  const applyBulkSchedule = async () => {
+    if (!bulkScheduledTime) {
+      addToast({ message: 'Velg dato og klokkeslett først.', type: 'warning' })
+      return
+    }
+    if (selectedMatchIds.size === 0) {
+      addToast({ message: 'Velg minst én kamp.', type: 'warning' })
+      return
+    }
+
+    const scheduledTimeIso = new Date(bulkScheduledTime).toISOString()
+    setIsBulkSaving(true)
+    const results = await Promise.all(
+      Array.from(selectedMatchIds).map(async matchId => {
+        try {
+          const response = await fetch('/api/matches', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id: matchId, scheduled_time: scheduledTimeIso })
+          })
+          return response.ok
+        } catch {
+          return false
+        }
+      })
+    )
+
+    const failed = results.filter(ok => !ok).length
+
+    await loadData()
+    setIsBulkSaving(false)
+
+    if (failed > 0) {
+      addToast({ message: `Kunne ikke oppdatere ${failed} kamper.`, type: 'error' })
+      return
+    }
+
+    addToast({ message: 'Dato og klokkeslett oppdatert for valgte kamper.', type: 'success' })
+    clearSelectedMatches()
+  }
+
   const groupMatches = matches.filter(m => m.round === 'Gruppespill')
   const knockoutMatches = matches.filter(m => m.round !== 'Gruppespill')
 
@@ -954,6 +1022,51 @@ export default function TournamentMatchesPage() {
             )}
           </div>
         )}
+        <div className="pro11-card p-4 mb-6">
+          <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+            <div className="space-y-1">
+              <h2 className="text-lg font-semibold">Bulk dato/klokkeslett</h2>
+              <p className="text-sm text-slate-400">
+                Velg kamper i listene under, sett tid og oppdater flere samtidig.
+              </p>
+            </div>
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+              <input
+                type="datetime-local"
+                value={bulkScheduledTime}
+                onChange={(e) => setBulkScheduledTime(e.target.value)}
+                className="px-3 py-2 bg-slate-700 rounded text-sm"
+              />
+              <button
+                onClick={applyBulkSchedule}
+                disabled={isBulkSaving}
+                className="pro11-button-secondary text-sm"
+              >
+                {isBulkSaving ? 'Oppdaterer...' : `Oppdater valgte (${selectedMatchIds.size})`}
+              </button>
+            </div>
+          </div>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <button
+              onClick={() => selectMatches(groupMatches.map(match => match.id))}
+              className="pro11-button-secondary text-xs"
+            >
+              Velg alle gruppespill
+            </button>
+            <button
+              onClick={() => selectMatches(knockoutMatches.map(match => match.id))}
+              className="pro11-button-secondary text-xs"
+            >
+              Velg alle sluttspill
+            </button>
+            <button
+              onClick={clearSelectedMatches}
+              className="pro11-button-secondary text-xs"
+            >
+              Tøm utvalg
+            </button>
+          </div>
+        </div>
         {/* Group Stage Standings */}
         {Object.keys(groupStandings).length > 0 && (
           <div className="mb-8">
@@ -1041,6 +1154,7 @@ export default function TournamentMatchesPage() {
                       <table className="w-max min-w-full text-sm table-fixed">
                         <thead className="text-xs text-slate-400">
                           <tr>
+                            <th className="py-2 px-2 text-left w-10">Velg</th>
                             <th className="py-2 pr-3 text-right w-48">Lag 1</th>
                             <th className="py-2 px-2 text-center w-12">Score</th>
                             <th className="py-2 px-2 text-center w-10">vs</th>
@@ -1070,6 +1184,14 @@ export default function TournamentMatchesPage() {
                               <tr key={match.id} className="border-b border-slate-700/50 bg-slate-800/50">
                                 {editingMatch === match.id ? (
                                   <>
+                                    <td className="py-3 px-2">
+                                      <input
+                                        type="checkbox"
+                                        checked={selectedMatchIds.has(match.id)}
+                                        onChange={() => toggleMatchSelection(match.id)}
+                                        className="h-4 w-4"
+                                      />
+                                    </td>
                                     <td className="py-3 pr-3 text-right font-medium truncate max-w-[12rem]" title={match.team1_name}>{match.team1_name}</td>
                                     <td className="py-3 px-2">
                                       <input
@@ -1134,6 +1256,14 @@ export default function TournamentMatchesPage() {
                                   </>
                                 ) : (
                                   <>
+                                    <td className="py-3 px-2">
+                                      <input
+                                        type="checkbox"
+                                        checked={selectedMatchIds.has(match.id)}
+                                        onChange={() => toggleMatchSelection(match.id)}
+                                        className="h-4 w-4"
+                                      />
+                                    </td>
                                     <td className="py-3 pr-3 text-right font-medium truncate max-w-[12rem]" title={match.team1_name}>{match.team1_name}</td>
                                     <td className="py-3 px-2 text-center text-lg font-bold">{showFinalScore ? match.score1 : '-'}</td>
                                     <td className="py-3 px-2 text-center text-slate-500">vs</td>
@@ -1203,6 +1333,7 @@ export default function TournamentMatchesPage() {
                       <table className="w-max min-w-full text-sm table-fixed">
                         <thead className="text-xs text-slate-400">
                           <tr>
+                            <th className="py-2 px-2 text-left w-10">Velg</th>
                             <th className="py-2 pr-3 text-right w-48">Lag 1</th>
                             <th className="py-2 px-2 text-center w-12">Score</th>
                             <th className="py-2 px-2 text-center w-10">vs</th>
@@ -1231,6 +1362,14 @@ export default function TournamentMatchesPage() {
                               <tr key={match.id} className="border-b border-slate-700/50 bg-slate-800/50">
                                 {editingMatch === match.id ? (
                                   <>
+                                    <td className="py-3 px-2">
+                                      <input
+                                        type="checkbox"
+                                        checked={selectedMatchIds.has(match.id)}
+                                        onChange={() => toggleMatchSelection(match.id)}
+                                        className="h-4 w-4"
+                                      />
+                                    </td>
                                     <td className="py-3 pr-3 text-right font-medium truncate max-w-[12rem]" title={match.team1_name}>{match.team1_name}</td>
                                     <td className="py-3 px-2">
                                       <input
@@ -1295,6 +1434,14 @@ export default function TournamentMatchesPage() {
                                   </>
                                 ) : (
                                   <>
+                                    <td className="py-3 px-2">
+                                      <input
+                                        type="checkbox"
+                                        checked={selectedMatchIds.has(match.id)}
+                                        onChange={() => toggleMatchSelection(match.id)}
+                                        className="h-4 w-4"
+                                      />
+                                    </td>
                                     <td className="py-3 pr-3 text-right font-medium truncate max-w-[12rem]" title={match.team1_name}>{match.team1_name}</td>
                                     <td className="py-3 px-2 text-center text-lg font-bold">{showFinalScore ? match.score1 : '-'}</td>
                                     <td className="py-3 px-2 text-center text-slate-500">vs</td>
