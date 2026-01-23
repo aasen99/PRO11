@@ -277,8 +277,8 @@ export default function TournamentMatchesPage() {
             }))
           })
           
-          const loadedMatches = (matchesData.matches || []).map((match: Match) => {
-            const status =
+          const loadedMatches: Match[] = (matchesData.matches || []).map((match: Match) => {
+            const status: Match['status'] =
               match.status === 'scheduled' ||
               match.status === 'live' ||
               match.status === 'completed' ||
