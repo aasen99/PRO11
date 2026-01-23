@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { ArrowLeft, Trophy, Medal, Star, Calendar, Users, Award, Crown } from 'lucide-react'
 
@@ -19,6 +19,12 @@ interface HallOfFameEntry {
 export default function HallOfFamePage() {
   const [activeTab, setActiveTab] = useState<'champions' | 'records' | 'achievements'>('champions')
   const [entries, setEntries] = useState<HallOfFameEntry[]>([])
+  const [stats, setStats] = useState({
+    tournaments: 0,
+    participants: 0,
+    payouts: 0,
+    matchesCompleted: 0
+  })
 
   // Hall of Fame entries will be populated from completed tournaments in the future
   // For now, show empty state
@@ -42,6 +48,44 @@ export default function HallOfFamePage() {
         return <Trophy className="w-6 h-6 text-yellow-400" />
     }
   }
+
+  useEffect(() => {
+    const loadStats = async () => {
+      try {
+        const [tournamentsResponse, matchesResponse] = await Promise.all([
+          fetch('/api/tournaments'),
+          fetch('/api/matches')
+        ])
+
+        const tournamentsData = tournamentsResponse.ok ? await tournamentsResponse.json() : { tournaments: [] }
+        const matchesData = matchesResponse.ok ? await matchesResponse.json() : { matches: [] }
+
+        const tournaments = tournamentsData.tournaments || []
+        const completedTournaments = tournaments.filter((t: any) => t.status === 'completed')
+        const completedTournamentIds = new Set(completedTournaments.map((t: any) => t.id))
+
+        const participants = completedTournaments.reduce(
+          (sum: number, t: any) => sum + (t.current_teams || 0),
+          0
+        )
+
+        const matchesCompleted = (matchesData.matches || []).filter((match: any) =>
+          match.status === 'completed' && completedTournamentIds.has(match.tournament_id)
+        ).length
+
+        setStats({
+          tournaments: completedTournaments.length,
+          participants,
+          payouts: 0,
+          matchesCompleted
+        })
+      } catch (error) {
+        console.warn('Could not load Hall of Fame stats:', error)
+      }
+    }
+
+    loadStats()
+  }, [])
 
   return (
     <div className="min-h-screen">
@@ -76,19 +120,19 @@ export default function HallOfFamePage() {
           {/* Stats Overview */}
           <div className="grid md:grid-cols-4 gap-6 mb-12">
             <div className="pro11-card p-6 text-center">
-              <div className="text-3xl font-bold text-yellow-400 mb-2">0</div>
+              <div className="text-3xl font-bold text-yellow-400 mb-2">{stats.tournaments}</div>
               <div className="text-slate-400">Turneringer</div>
             </div>
             <div className="pro11-card p-6 text-center">
-              <div className="text-3xl font-bold text-blue-400 mb-2">0</div>
+              <div className="text-3xl font-bold text-blue-400 mb-2">{stats.participants}</div>
               <div className="text-slate-400">Deltakere</div>
             </div>
             <div className="pro11-card p-6 text-center">
-              <div className="text-3xl font-bold text-green-400 mb-2">0</div>
+              <div className="text-3xl font-bold text-green-400 mb-2">{stats.payouts}</div>
               <div className="text-slate-400">NOK utdelt</div>
             </div>
             <div className="pro11-card p-6 text-center">
-              <div className="text-3xl font-bold text-purple-400 mb-2">0</div>
+              <div className="text-3xl font-bold text-purple-400 mb-2">{stats.matchesCompleted}</div>
               <div className="text-slate-400">Kamper spilt</div>
             </div>
           </div>

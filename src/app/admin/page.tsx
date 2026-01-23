@@ -479,12 +479,12 @@ export default function AdminPage() {
 
   const exportTeams = () => {
     const csvContent = [
-      ['Lag', 'Kaptein', 'E-post', 'Spillere', 'Status', 'Betalingsstatus', 'Registrert'],
+      ['Lag', 'Kaptein', 'E-post', 'Forventet spillere', 'Status', 'Betalingsstatus', 'Registrert'],
       ...filteredTeams.map(team => [
         team.teamName || team.team_name,
         team.captainName || team.captain_name,
         team.captainEmail || team.captain_email,
-        (team.players?.length || 0),
+        team.expectedPlayers || team.expected_players || team.players?.length || 0,
         getStatusText(team.status),
         getPaymentStatusText(team.paymentStatus || team.payment_status),
         team.registeredAt || team.created_at
@@ -1451,8 +1451,16 @@ PRO11 Team`)
   const totalTeams = teams.length
   const pendingTeams = teams.filter(t => t.status === 'pending').length
   const approvedTeams = teams.filter(t => t.status === 'approved').length
-  const paidTeams = teams.filter(t => t.paymentStatus === 'paid').length
-  const totalRevenue = paidTeams * 300 // Assuming 300 NOK per team
+  const isTeamPaid = (team: Team) =>
+    team.paymentStatus === 'paid' || team.payment_status === 'completed'
+  const paidTeams = teams.filter(isTeamPaid).length
+  const totalRevenue = teams
+    .filter(isTeamPaid)
+    .reduce((sum, team) => {
+      const tournamentId = team.tournamentId || team.tournament_id
+      const tournament = tournaments.find(t => t.id === tournamentId)
+      return sum + (tournament?.entryFee ?? 0)
+    }, 0)
 
   // Login form
   if (!isAuthenticated) {
@@ -1691,7 +1699,7 @@ PRO11 Team`)
                       <tr className="border-b border-slate-700">
                         <th className="py-2 px-3 text-left text-sm">Lag</th>
                         <th className="py-2 px-3 text-left text-sm">Kaptein</th>
-                        <th className="py-2 px-3 text-left text-sm">Spillere</th>
+                        <th className="py-2 px-3 text-left text-sm">Forventet</th>
                         <th className="py-2 px-3 text-left text-sm">Status</th>
                         <th className="py-2 px-3 text-left text-sm">Betaling</th>
                         <th className="py-2 px-3 text-left text-sm">Registrert</th>
@@ -1708,7 +1716,9 @@ PRO11 Team`)
                             </div>
                           </td>
                           <td className="py-2 px-3 text-sm">{team.captainName || team.captain_name}</td>
-                          <td className="py-2 px-3 text-sm">{(team.players?.length || 0)} spillere</td>
+                          <td className="py-2 px-3 text-sm">
+                            {team.expectedPlayers || team.expected_players || team.players?.length || 0} spillere
+                          </td>
                           <td className="py-2 px-3">
                             <span className={`inline-flex items-center px-4 py-2 rounded-full text-xs font-medium ${getStatusColor(team.status)}`}>
                               {getStatusText(team.status)}
