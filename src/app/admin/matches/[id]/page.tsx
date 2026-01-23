@@ -277,7 +277,7 @@ export default function TournamentMatchesPage() {
             }))
           })
           
-          const loadedMatches: Match[] = (matchesData.matches || []).map((match: Match) => {
+          const loadedMatches: Match[] = (matchesData.matches || []).map((match: any) => {
             const status: Match['status'] =
               match.status === 'scheduled' ||
               match.status === 'live' ||
@@ -286,7 +286,7 @@ export default function TournamentMatchesPage() {
               match.status === 'pending_confirmation'
                 ? match.status
                 : 'scheduled'
-            return { ...match, status }
+            return { ...match, status } as Match
           })
           
           // Check for new result conflicts
@@ -802,7 +802,7 @@ export default function TournamentMatchesPage() {
     }
   }
 
-  const updateMatchesToLive = async (loadedMatches: Match[]) => {
+  const updateMatchesToLive = async (loadedMatches: Match[]): Promise<Match[]> => {
     const now = Date.now()
     const groupMatches = loadedMatches.filter(match => match.round === 'Gruppespill' && match.group_name)
     const groupedByGroup = groupMatches.reduce((acc: Record<string, Match[]>, match) => {
