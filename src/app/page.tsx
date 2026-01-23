@@ -59,7 +59,7 @@ export default function HomePage() {
               <p className="text-slate-400 text-sm">Pro Clubs Turneringer</p>
             </div>
           </div>
-          <nav className="hidden md:flex space-x-6 p-6">
+          <nav className="hidden lg:flex flex-wrap items-center justify-end gap-4 px-4 py-4 text-sm">
             <Link href="/tournaments" className="text-slate-300 hover:text-white transition-colors">
               Turneringer
             </Link>
