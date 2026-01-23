@@ -277,7 +277,17 @@ export default function TournamentMatchesPage() {
             }))
           })
           
-          const loadedMatches = matchesData.matches || []
+          const loadedMatches = (matchesData.matches || []).map((match: Match) => {
+            const status =
+              match.status === 'scheduled' ||
+              match.status === 'live' ||
+              match.status === 'completed' ||
+              match.status === 'pending_result' ||
+              match.status === 'pending_confirmation'
+                ? match.status
+                : 'scheduled'
+            return { ...match, status }
+          })
           
           // Check for new result conflicts
           const previousMatches = previousMatchesRef.current
