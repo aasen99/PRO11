@@ -110,7 +110,7 @@ export default function HomePage() {
           )}
         </div>
         {isMobileMenuOpen && !isDesktop && (
-          <div className="px-4 pb-4 lg:hidden relative z-10">
+          <div className="fixed inset-x-0 top-24 px-4 pb-4 lg:hidden z-50">
             <div className="pro11-card p-4 flex flex-col space-y-3">
               <Link
                 href="/tournaments"
