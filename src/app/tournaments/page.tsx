@@ -6,6 +6,18 @@ import { Shield, Trophy, Users, Calendar, Clock, CheckCircle, XCircle, ExternalL
 import Header from '../../components/Header'
 import { fetchTournaments, Tournament } from '../../lib/tournaments'
 
+const GEN_TAG_REGEX = /\[GEN:\s*(NEW GEN|OLD GEN|BOTH)\]/i
+const FORMAT_TAG_REGEX = /\[FORMAT\][\s\S]*?\[\/FORMAT\]/i
+const POT_PER_TEAM_TAG_REGEX = /\[POT_PER_TEAM:(\d+)\]/i
+
+const stripMetadataTags = (description?: string) => {
+  return (description || '')
+    .replace(GEN_TAG_REGEX, '')
+    .replace(FORMAT_TAG_REGEX, '')
+    .replace(POT_PER_TEAM_TAG_REGEX, '')
+    .trim()
+}
+
 export default function TournamentsPage() {
   const [tournamentsWithCounts, setTournamentsWithCounts] = useState<Tournament[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -104,7 +116,7 @@ export default function TournamentsPage() {
                       </span>
                     </div>
                     
-                    <p className="text-slate-300 mb-4">{tournament.description}</p>
+                    <p className="text-slate-300 mb-4">{stripMetadataTags(tournament.description)}</p>
                     
                     <div className="grid md:grid-cols-3 gap-4 text-sm">
                       <div className="flex items-center space-x-2">

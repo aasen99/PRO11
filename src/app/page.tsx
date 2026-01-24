@@ -162,7 +162,7 @@ export default function HomePage() {
           </h2>
           {nextTournament ? (
             <p className="text-xl text-slate-300 mb-8 max-w-3xl mx-auto">
-              {nextTournament.title} – Starten på Norges nye Pro Clubs-arena
+              {nextTournament.title}
             </p>
           ) : (
             <p className="text-xl text-slate-300 mb-8 max-w-3xl mx-auto">
