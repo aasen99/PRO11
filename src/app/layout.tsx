@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { Inter } from 'next/font/google'
+import { Analytics } from '@vercel/analytics/next'
 import './globals.css'
 
 const inter = Inter({ subsets: ['latin'] })
@@ -54,6 +55,7 @@ export default function RootLayout({
             <p>PRO11 er en uavhengig turneringsarrangør og har ingen tilknytning til Electronic Arts Inc.</p>
           </footer>
         </div>
+        <Analytics />
       </body>
     </html>
   )
