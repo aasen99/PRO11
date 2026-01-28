@@ -13,6 +13,9 @@ interface Team {
   captainName: string
   discordUsername?: string
   tournaments: string[]
+  tournamentId?: string
+  expectedPlayers?: number
+  paymentStatus?: string
 }
 
 interface Match {
@@ -155,6 +158,29 @@ export default function CaptainDashboardPage() {
       setTeam(parsedTeam)
       setDiscordUsername(parsedTeam.discordUsername || '')
       setShowDiscordEditor(!parsedTeam.discordUsername)
+
+      const refreshPaymentStatus = async () => {
+        if (parsedTeam.paymentStatus) return
+        try {
+          const response = await fetch('/api/teams')
+          if (!response.ok) return
+          const data = await response.json()
+          const freshTeam = (data.teams || []).find((t: any) => t.id === parsedTeam.id)
+          if (!freshTeam) return
+
+          const updatedTeam = {
+            ...parsedTeam,
+            paymentStatus: freshTeam.paymentStatus || freshTeam.payment_status || parsedTeam.paymentStatus,
+            expectedPlayers: freshTeam.expectedPlayers || freshTeam.expected_players || parsedTeam.expectedPlayers || 0,
+            tournamentId: freshTeam.tournamentId || freshTeam.tournament_id || parsedTeam.tournamentId || parsedTeam.tournaments?.[0] || ''
+          }
+
+          setTeam(updatedTeam)
+          localStorage.setItem('captainTeam', JSON.stringify(updatedTeam))
+        } catch (error) {
+          console.error('Error refreshing team payment status:', error)
+        }
+      }
       
       // Hent faktiske turneringer fra databasen
       const loadTournaments = async () => {
@@ -361,6 +387,7 @@ export default function CaptainDashboardPage() {
       }
       
       loadTournaments()
+      refreshPaymentStatus()
       
       // Auto-refresh every 10 seconds to see updated match results
       const interval = setInterval(() => {
@@ -580,6 +607,27 @@ export default function CaptainDashboardPage() {
   const handleLogout = () => {
     localStorage.removeItem('captainTeam')
     window.location.href = '/captain/login'
+  }
+
+  const handlePaymentRedirect = () => {
+    if (!team) return
+    const tournamentId = team.tournamentId || team.tournaments?.[0]
+    if (!tournamentId) {
+      alert('Mangler turneringsinformasjon for betaling. Kontakt administrator.')
+      return
+    }
+
+    const registrationData = {
+      teamName: team.teamName,
+      captainName: team.captainName,
+      captainEmail: team.captainEmail,
+      expectedPlayers: team.expectedPlayers || 0,
+      tournamentId,
+      teamId: team.id
+    }
+
+    localStorage.setItem('teamRegistration', JSON.stringify(registrationData))
+    window.location.href = '/payment'
   }
 
   const openResultModal = (match: Match) => {
@@ -922,6 +970,25 @@ export default function CaptainDashboardPage() {
               )}
             </div>
           </div>
+
+          {team.paymentStatus !== 'completed' && (
+            <div className="pro11-card p-6 mb-6 border border-yellow-600/40 bg-yellow-900/10">
+              <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                <div>
+                  <h2 className="text-xl font-bold mb-2">Betaling ikke fullført</h2>
+                  <p className="text-slate-300">
+                    Registreringen er ikke aktiv før betalingen er gjennomført.
+                  </p>
+                </div>
+                <button
+                  onClick={handlePaymentRedirect}
+                  className="pro11-button-secondary w-full md:w-auto"
+                >
+                  Fullfør betaling
+                </button>
+              </div>
+            </div>
+          )}
 
           {(showDiscordEditor || !team.discordUsername) && (
             <div className="pro11-card p-6 mb-6">

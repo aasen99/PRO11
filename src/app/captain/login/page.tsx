@@ -11,6 +11,9 @@ interface Team {
   captainName: string
   discordUsername?: string
   tournaments: string[]
+  tournamentId?: string
+  expectedPlayers?: number
+  paymentStatus?: string
 }
 
 export default function CaptainLoginPage() {
@@ -52,13 +55,17 @@ export default function CaptainLoginPage() {
       
       if (isCorrectPassword) {
         // Lagre team data for dashboard
+        const tournamentId = team.tournamentId || team.tournament_id || ''
         const teamData = {
           id: team.id,
           teamName: team.teamName || team.team_name,
           captainEmail: team.captainEmail || team.captain_email,
           captainName: team.captainName || team.captain_name,
           discordUsername: team.discordUsername || team.discord_username || '',
-          tournaments: team.tournamentId || team.tournament_id ? [team.tournamentId || team.tournament_id] : []
+          tournaments: tournamentId ? [tournamentId] : [],
+          tournamentId,
+          expectedPlayers: team.expectedPlayers || team.expected_players || 0,
+          paymentStatus: team.paymentStatus || team.payment_status || 'pending'
         }
         localStorage.setItem('captainTeam', JSON.stringify(teamData))
         window.location.href = '/captain/dashboard'
