@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { Shield, CreditCard, CheckCircle, ArrowLeft, Mail } from 'lucide-react'
 import { PayPalScriptProvider, PayPalButtons } from '@paypal/react-paypal-js'
 import { getTournamentById } from '../../lib/tournaments'
+import { useLanguage } from '@/components/LanguageProvider'
 
 interface PaymentData {
   teamName: string
@@ -26,6 +27,8 @@ export default function PaymentPage() {
   const [paypalClientId, setPaypalClientId] = useState<string | null>(null)
   const [paypalLoading, setPaypalLoading] = useState(true)
   const [isLoadingRegistration, setIsLoadingRegistration] = useState(true)
+  const { language } = useLanguage()
+  const isEnglish = language === 'en'
 
   useEffect(() => {
     // Check PayPal Client ID from API (works even if NEXT_PUBLIC_ var wasn't available at build time)
@@ -184,7 +187,7 @@ export default function PaymentPage() {
       
     } catch (error) {
       console.error('Payment error:', error)
-      alert('Betalingen feilet. Prøv igjen.')
+      alert(isEnglish ? 'Payment failed. Please try again.' : 'Betalingen feilet. Prøv igjen.')
     } finally {
       setIsProcessing(false)
     }
@@ -192,7 +195,7 @@ export default function PaymentPage() {
 
   const handleFreeRegistration = async () => {
     if (!paymentData?.teamId) {
-      alert('Mangler laginformasjon for gratis påmelding.')
+      alert(isEnglish ? 'Missing team information for free registration.' : 'Mangler laginformasjon for gratis påmelding.')
       return
     }
 
@@ -236,7 +239,7 @@ export default function PaymentPage() {
       setPaymentComplete(true)
     } catch (error) {
       console.error('Free registration error:', error)
-      alert('Kunne ikke fullføre gratis påmelding. Prøv igjen.')
+      alert(isEnglish ? 'Could not complete free registration. Please try again.' : 'Kunne ikke fullføre gratis påmelding. Prøv igjen.')
     } finally {
       setIsProcessing(false)
     }
@@ -244,7 +247,7 @@ export default function PaymentPage() {
 
   const handlePaymentError = (error: any) => {
     console.error('PayPal error:', error)
-    alert('Betalingen feilet. Prøv igjen.')
+    alert(isEnglish ? 'Payment failed. Please try again.' : 'Betalingen feilet. Prøv igjen.')
     setIsProcessing(false)
   }
 
@@ -266,12 +269,14 @@ export default function PaymentPage() {
                 <img src="/logo.png" alt="PRO11 Logo" className="w-full h-full object-contain" />
               </Link>
               <div className="ml-4">
-                <p className="text-slate-400 text-sm">Pro Clubs Turneringer</p>
+                <p className="text-slate-400 text-sm">
+                  {isEnglish ? 'Pro Clubs Tournaments' : 'Pro Clubs Turneringer'}
+                </p>
               </div>
             </div>
             <Link href="/" className="pro11-button-secondary flex items-center space-x-2">
               <ArrowLeft className="w-4 h-4" />
-              <span>Tilbake</span>
+              <span>{isEnglish ? 'Back' : 'Tilbake'}</span>
             </Link>
           </div>
         </header>
@@ -279,12 +284,16 @@ export default function PaymentPage() {
         <main className="container mx-auto px-4 py-12 flex flex-col items-center">
           <div className="pro11-card p-8 max-w-2xl w-full text-center">
             <Shield className="w-16 h-16 text-red-400 mx-auto mb-4" />
-            <h1 className="text-2xl font-bold mb-4">Ingen registrering funnet</h1>
+            <h1 className="text-2xl font-bold mb-4">
+              {isEnglish ? 'No registration found' : 'Ingen registrering funnet'}
+            </h1>
             <p className="text-slate-300 mb-6">
-              Det ser ut som du ikke har registrert et lag ennå.
+              {isEnglish
+                ? "It looks like you haven't registered a team yet."
+                : 'Det ser ut som du ikke har registrert et lag ennå.'}
             </p>
             <Link href="/register" className="pro11-button">
-              Registrer lag
+              {isEnglish ? 'Register team' : 'Registrer lag'}
             </Link>
           </div>
         </main>
@@ -304,7 +313,9 @@ export default function PaymentPage() {
                 <img src="/logo.png" alt="PRO11 Logo" className="w-full h-full object-contain" />
               </Link>
               <div className="ml-4">
-                <p className="text-slate-400 text-sm">Pro Clubs Turneringer</p>
+                <p className="text-slate-400 text-sm">
+                  {isEnglish ? 'Pro Clubs Tournaments' : 'Pro Clubs Turneringer'}
+                </p>
               </div>
             </div>
           </div>
@@ -313,27 +324,35 @@ export default function PaymentPage() {
         <main className="container mx-auto px-4 py-12 flex flex-col items-center">
           <div className="pro11-card p-8 max-w-2xl w-full text-center">
             <CheckCircle className="w-16 h-16 text-green-400 mx-auto mb-4" />
-            <h1 className="text-2xl font-bold mb-4">Betaling fullført!</h1>
+            <h1 className="text-2xl font-bold mb-4">
+              {isEnglish ? 'Payment completed!' : 'Betaling fullført!'}
+            </h1>
             <p className="text-slate-300 mb-6">
-              Takk for din registrering! {paymentData.teamName} er nå påmeldt til turneringen.
+              {isEnglish
+                ? `Thanks for registering! ${paymentData.teamName} is now registered for the tournament.`
+                : `Takk for din registrering! ${paymentData.teamName} er nå påmeldt til turneringen.`}
             </p>
             <div className="bg-slate-800/50 p-4 rounded-lg mb-6">
               <p className="text-slate-300 mb-4">
-                Din betaling er bekreftet og laget ditt er nå godkjent for turneringen.
+                {isEnglish
+                  ? 'Your payment is confirmed and your team is now approved for the tournament.'
+                  : 'Din betaling er bekreftet og laget ditt er nå godkjent for turneringen.'}
               </p>
               <p className="text-slate-400 text-sm">
-                Du kan logge inn som lagkaptein med passordet du noterte ned under registreringen.
+                {isEnglish
+                  ? 'You can log in as team captain with the password you noted during registration.'
+                  : 'Du kan logge inn som lagkaptein med passordet du noterte ned under registreringen.'}
               </p>
             </div>
             <div className="space-y-3">
               <Link href="/" className="pro11-button w-full">
-                Tilbake til forsiden
+                {isEnglish ? 'Back to home' : 'Tilbake til forsiden'}
               </Link>
               <Link href="/captain/login" className="pro11-button-secondary w-full">
-                Logg inn som lagkaptein
+                {isEnglish ? 'Log in as captain' : 'Logg inn som lagkaptein'}
               </Link>
               <Link href="/tournaments" className="pro11-button-secondary w-full">
-                Se alle turneringer
+                {isEnglish ? 'See all tournaments' : 'Se alle turneringer'}
               </Link>
             </div>
           </div>
@@ -352,12 +371,14 @@ export default function PaymentPage() {
               <img src="/logo.png" alt="PRO11 Logo" className="w-full h-full object-contain" />
             </Link>
             <div className="ml-4">
-              <p className="text-slate-400 text-sm">Pro Clubs Turneringer</p>
+              <p className="text-slate-400 text-sm">
+                {isEnglish ? 'Pro Clubs Tournaments' : 'Pro Clubs Turneringer'}
+              </p>
             </div>
           </div>
           <Link href="/" className="pro11-button-secondary flex items-center space-x-2">
             <ArrowLeft className="w-4 h-4" />
-            <span>Tilbake</span>
+            <span>{isEnglish ? 'Back' : 'Tilbake'}</span>
           </Link>
         </div>
       </header>
@@ -366,9 +387,11 @@ export default function PaymentPage() {
         <div className="max-w-4xl w-full">
           {/* Payment Header */}
           <div className="text-center mb-12">
-            <h1 className="text-4xl font-bold mb-4">Betalingsinformasjon</h1>
+            <h1 className="text-4xl font-bold mb-4">
+              {isEnglish ? 'Payment information' : 'Betalingsinformasjon'}
+            </h1>
             <p className="text-xl text-slate-300">
-              Fullfør registreringen av {paymentData.teamName}
+              {isEnglish ? 'Complete the registration for' : 'Fullfør registreringen av'} {paymentData.teamName}
             </p>
           </div>
 
@@ -377,24 +400,26 @@ export default function PaymentPage() {
             <div className="pro11-card p-6">
               <h2 className="text-xl font-bold mb-4 flex items-center space-x-2">
                 <Shield className="w-5 h-5" />
-                <span>Laginformasjon</span>
+                <span>{isEnglish ? 'Team information' : 'Laginformasjon'}</span>
               </h2>
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-slate-400 mb-1">Lagnavn</label>
+                  <label className="block text-sm font-medium text-slate-400 mb-1">{isEnglish ? 'Team name' : 'Lagnavn'}</label>
                   <p className="text-lg font-semibold">{paymentData.teamName}</p>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-slate-400 mb-1">Kaptein</label>
+                  <label className="block text-sm font-medium text-slate-400 mb-1">{isEnglish ? 'Captain' : 'Kaptein'}</label>
                   <p className="text-lg font-semibold">{paymentData.captainName}</p>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-slate-400 mb-1">E-post</label>
+                  <label className="block text-sm font-medium text-slate-400 mb-1">{isEnglish ? 'Email' : 'E-post'}</label>
                   <p className="text-lg font-semibold">{paymentData.captainEmail}</p>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-slate-400 mb-1">Antall spillere</label>
-                  <p className="text-lg font-semibold">{paymentData.expectedPlayers} spillere</p>
+                  <label className="block text-sm font-medium text-slate-400 mb-1">{isEnglish ? 'Number of players' : 'Antall spillere'}</label>
+                  <p className="text-lg font-semibold">
+                    {paymentData.expectedPlayers} {isEnglish ? 'players' : 'spillere'}
+                  </p>
                 </div>
               </div>
             </div>
@@ -403,26 +428,26 @@ export default function PaymentPage() {
             <div className="pro11-card p-6">
               <h2 className="text-xl font-bold mb-4 flex items-center space-x-2">
                 <CreditCard className="w-5 h-5" />
-                <span>Betalingsdetaljer</span>
+                <span>{isEnglish ? 'Payment details' : 'Betalingsdetaljer'}</span>
               </h2>
               <div className="space-y-4">
                 <div className="flex justify-between items-center p-4 bg-slate-800/50 rounded-lg">
-                  <span className="text-slate-300">Turneringsgebyr</span>
+                  <span className="text-slate-300">{isEnglish ? 'Tournament fee' : 'Turneringsgebyr'}</span>
                   <span className="text-2xl font-bold text-green-400">
-                    {isFree ? 'GRATIS' : `${paymentData.amount} NOK`}
+                    {isFree ? (isEnglish ? 'FREE' : 'GRATIS') : `${paymentData.amount} NOK`}
                   </span>
                 </div>
                 <div className="text-sm text-slate-400">
                   {isFree ? (
                     <>
-                      <p>• Påmeldingen er gratis</p>
-                      <p>• Ingen betaling er nødvendig</p>
+                      <p>• {isEnglish ? 'Registration is free' : 'Påmeldingen er gratis'}</p>
+                      <p>• {isEnglish ? 'No payment is required' : 'Ingen betaling er nødvendig'}</p>
                     </>
                   ) : (
                     <>
-                  <p>• Inkluderer deltakelse i turneringen</p>
-                  <p>• Alle spillere på laget kan delta</p>
-                  <p>• Betalingen er ikke refunderbar</p>
+                  <p>• {isEnglish ? 'Includes participation in the tournament' : 'Inkluderer deltakelse i turneringen'}</p>
+                  <p>• {isEnglish ? 'All players on the team can participate' : 'Alle spillere på laget kan delta'}</p>
+                  <p>• {isEnglish ? 'Payment is non-refundable' : 'Betalingen er ikke refunderbar'}</p>
                     </>
                   )}
                 </div>
@@ -432,9 +457,11 @@ export default function PaymentPage() {
 
           {isFree ? (
             <div className="pro11-card p-6 mt-8">
-              <h2 className="text-xl font-bold mb-4">Gratis påmelding</h2>
+              <h2 className="text-xl font-bold mb-4">{isEnglish ? 'Free registration' : 'Gratis påmelding'}</h2>
               <p className="text-slate-300 mb-6 text-center">
-                Påmeldingsavgiften er 0 kr. Ingen betaling er nødvendig.
+                {isEnglish
+                  ? 'The registration fee is 0 NOK. No payment is required.'
+                  : 'Påmeldingsavgiften er 0 kr. Ingen betaling er nødvendig.'}
               </p>
               <div className="text-center">
                 <button
@@ -442,24 +469,26 @@ export default function PaymentPage() {
                   disabled={isProcessing}
                   className="pro11-button w-full md:w-auto"
                 >
-                  {isProcessing ? 'Fullfører...' : 'Fullfør gratis påmelding'}
+                  {isProcessing ? (isEnglish ? 'Completing...' : 'Fullfører...') : (isEnglish ? 'Complete free registration' : 'Fullfør gratis påmelding')}
                 </button>
                 <p className="text-slate-400 text-sm mt-4">
-                  Laget ditt blir godkjent umiddelbart etter fullføring.
+                  {isEnglish
+                    ? 'Your team will be approved immediately after completion.'
+                    : 'Laget ditt blir godkjent umiddelbart etter fullføring.'}
                 </p>
               </div>
             </div>
           ) : (
           <div className="pro11-card p-6 mt-8">
-            <h2 className="text-xl font-bold mb-4">Betaling med PayPal</h2>
+            <h2 className="text-xl font-bold mb-4">{isEnglish ? 'Pay with PayPal' : 'Betaling med PayPal'}</h2>
             <p className="text-slate-300 mb-6 text-center">
-              Trygg og sikker betaling med PayPal
+              {isEnglish ? 'Safe and secure payment with PayPal' : 'Trygg og sikker betaling med PayPal'}
             </p>
             
             <div className="text-center">
               {paypalLoading ? (
                 <div className="p-8">
-                  <p className="text-slate-300">Laster PayPal-konfigurasjon...</p>
+                  <p className="text-slate-300">{isEnglish ? 'Loading PayPal configuration...' : 'Laster PayPal-konfigurasjon...'}</p>
                 </div>
               ) : paypalClientId ? (
                 <PayPalScriptProvider 
@@ -499,19 +528,25 @@ export default function PaymentPage() {
               ) : (
                 <div className="p-8 bg-yellow-900/20 border border-yellow-600/30 rounded-lg">
                   <p className="text-yellow-400 mb-4 font-semibold">
-                    ⚠️ PayPal er ikke konfigurert ennå
+                    ⚠️ {isEnglish ? 'PayPal is not configured yet' : 'PayPal er ikke konfigurert ennå'}
                   </p>
                   <p className="text-slate-300 mb-4">
-                    For å aktivere PayPal-betaling, legg til NEXT_PUBLIC_PAYPAL_CLIENT_ID i miljøvariablene.
+                    {isEnglish
+                      ? 'To enable PayPal payments, add NEXT_PUBLIC_PAYPAL_CLIENT_ID to your environment variables.'
+                      : 'For å aktivere PayPal-betaling, legg til NEXT_PUBLIC_PAYPAL_CLIENT_ID i miljøvariablene.'}
                   </p>
                   <p className="text-slate-400 text-sm mb-4">
-                    Inntil PayPal er konfigurert, kan du ikke fullføre betalingen. Kontakt administrator for hjelp.
+                    {isEnglish
+                      ? 'Until PayPal is configured, you cannot complete payment. Contact the administrator for help.'
+                      : 'Inntil PayPal er konfigurert, kan du ikke fullføre betalingen. Kontakt administrator for hjelp.'}
                   </p>
                 </div>
               )}
               
               <p className="text-slate-400 text-sm mt-4">
-                Etter fullført betaling vil laget ditt bli godkjent for turneringen
+                {isEnglish
+                  ? 'After successful payment your team will be approved for the tournament'
+                  : 'Etter fullført betaling vil laget ditt bli godkjent for turneringen'}
               </p>
             </div>
           </div>

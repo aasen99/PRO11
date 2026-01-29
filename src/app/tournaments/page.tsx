@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { Shield, Trophy, Users, Calendar, Clock, CheckCircle, XCircle, ExternalLink } from 'lucide-react'
 import Header from '../../components/Header'
 import { fetchTournaments, Tournament } from '../../lib/tournaments'
+import { useLanguage } from '@/components/LanguageProvider'
 
 const GEN_TAG_REGEX = /\[GEN:\s*(NEW GEN|OLD GEN|BOTH)\]/i
 const FORMAT_TAG_REGEX = /\[FORMAT\][\s\S]*?\[\/FORMAT\]/i
@@ -21,6 +22,8 @@ const stripMetadataTags = (description?: string) => {
 export default function TournamentsPage() {
   const [tournamentsWithCounts, setTournamentsWithCounts] = useState<Tournament[]>([])
   const [isLoading, setIsLoading] = useState(true)
+  const { language } = useLanguage()
+  const isEnglish = language === 'en'
 
   useEffect(() => {
     // Fetch tournaments from API
@@ -91,16 +94,18 @@ export default function TournamentsPage() {
       <main className="container mx-auto px-4 py-8">
         <div className="max-w-6xl mx-auto">
           <div className="text-center mb-12">
-            <h2 className="text-4xl font-bold mb-4">Turneringer</h2>
+            <h2 className="text-4xl font-bold mb-4">{isEnglish ? 'Tournaments' : 'Turneringer'}</h2>
             <p className="text-slate-300 text-lg">
-              Oversikt over alle PRO11-turneringer
+              {isEnglish ? 'Overview of all PRO11 tournaments' : 'Oversikt over alle PRO11-turneringer'}
             </p>
           </div>
 
           <div className="grid gap-6">
             {tournamentsWithCounts.length === 0 ? (
               <div className="pro11-card p-8 text-center">
-                <p className="text-slate-300">Ingen turneringer tilgjengelig for øyeblikket.</p>
+                <p className="text-slate-300">
+                  {isEnglish ? 'No tournaments available right now.' : 'Ingen turneringer tilgjengelig for øyeblikket.'}
+                </p>
               </div>
             ) : (
               tournamentsWithCounts.map((tournament) => (
@@ -125,11 +130,15 @@ export default function TournamentsPage() {
                       </div>
                       <div className="flex items-center space-x-2">
                         <Trophy className="w-4 h-4 text-yellow-400" />
-                        <span className="text-slate-300">Premie: {tournament.prize}</span>
+                        <span className="text-slate-300">
+                          {isEnglish ? 'Prize' : 'Premie'}: {tournament.prize}
+                        </span>
                       </div>
                       <div className="flex items-center space-x-2">
                         <Users className="w-4 h-4 text-green-400" />
-                        <span className="text-slate-300">{tournament.registeredTeams}/{tournament.maxTeams} lag</span>
+                        <span className="text-slate-300">
+                          {tournament.registeredTeams}/{tournament.maxTeams} {isEnglish ? 'teams' : 'lag'}
+                        </span>
                       </div>
                     </div>
                   </div>
@@ -141,12 +150,12 @@ export default function TournamentsPage() {
                         href={`/register?tournament=${tournament.id}`}
                         className="pro11-button text-center"
                       >
-                        Meld på lag
+                        {isEnglish ? 'Register team' : 'Meld på lag'}
                       </Link>
                     )}
                     {tournament.status === 'ongoing' && (
                       <button disabled className="pro11-button-secondary text-center opacity-50 cursor-not-allowed">
-                        Påmelding stengt
+                        {isEnglish ? 'Registration closed' : 'Påmelding stengt'}
                       </button>
                     )}
                     
@@ -155,7 +164,7 @@ export default function TournamentsPage() {
                       className="pro11-button-secondary flex items-center justify-center space-x-2"
                     >
                       <ExternalLink className="w-4 h-4" />
-                      <span>Kamper og resultater</span>
+                      <span>{isEnglish ? 'Matches and results' : 'Kamper og resultater'}</span>
                     </Link>
                   </div>
                 </div>
@@ -164,8 +173,10 @@ export default function TournamentsPage() {
                 {tournament.status === 'open' && (
                   <div className="mt-4">
                     <div className="flex justify-between text-sm text-slate-400 mb-2">
-                      <span>Påmelding</span>
-                      <span>{Math.round((tournament.registeredTeams / tournament.maxTeams) * 100)}% full</span>
+                      <span>{isEnglish ? 'Registration' : 'Påmelding'}</span>
+                      <span>
+                        {Math.round((tournament.registeredTeams / tournament.maxTeams) * 100)}%{isEnglish ? ' full' : ' fullt'}
+                      </span>
                     </div>
                     <div className="w-full bg-slate-700 rounded-full h-2">
                       <div 
@@ -182,10 +193,11 @@ export default function TournamentsPage() {
 
           {/* Upcoming tournaments info */}
           <div className="pro11-card p-6 mt-8">
-            <h3 className="text-xl font-semibold mb-4">Kommende turneringer</h3>
+            <h3 className="text-xl font-semibold mb-4">{isEnglish ? 'Upcoming tournaments' : 'Kommende turneringer'}</h3>
             <p className="text-slate-300 mb-4">
-              Vi jobber kontinuerlig med å planlegge nye turneringer. Følg med på Discord for å få 
-              beskjed om nye turneringer først!
+              {isEnglish
+                ? 'We are continuously planning new tournaments. Follow us on Discord to be the first to hear about new events.'
+                : 'Vi jobber kontinuerlig med å planlegge nye turneringer. Følg med på Discord for å få beskjed om nye turneringer først!'}
             </p>
             <a 
               href="https://discord.gg/Es8UAkax8H" 
@@ -193,7 +205,7 @@ export default function TournamentsPage() {
               rel="noopener noreferrer"
               className="pro11-button inline-flex items-center space-x-2"
             >
-              <span>Bli med på Discord</span>
+              <span>{isEnglish ? 'Join Discord' : 'Bli med på Discord'}</span>
               <ExternalLink className="w-4 h-4" />
             </a>
           </div>

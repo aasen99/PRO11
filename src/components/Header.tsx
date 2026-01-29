@@ -4,6 +4,8 @@ import React, { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { ArrowLeft, ExternalLink } from 'lucide-react'
 import { fetchTournaments } from '../lib/tournaments'
+import LanguageToggle from './LanguageToggle'
+import { useLanguage } from './LanguageProvider'
 
 interface HeaderProps {
   backButton?: boolean
@@ -13,6 +15,8 @@ interface HeaderProps {
 
 export default function Header({ backButton = false, backHref = '/', title }: HeaderProps) {
   const [hasActiveTournament, setHasActiveTournament] = useState(false)
+  const { language } = useLanguage()
+  const isEnglish = language === 'en'
 
   useEffect(() => {
     const checkActiveTournament = async () => {
@@ -35,20 +39,22 @@ export default function Header({ backButton = false, backHref = '/', title }: He
             <img src="/logo.png" alt="PRO11 Logo" className="w-full h-full object-contain" />
           </Link>
           <div className="ml-4">
-            <p className="text-slate-400 text-sm">{title || 'Pro Clubs Turneringer'}</p>
+            <p className="text-slate-400 text-sm">
+              {title || (isEnglish ? 'Pro Clubs Tournaments' : 'Pro Clubs Turneringer')}
+            </p>
           </div>
         </div>
-        <nav className="hidden md:flex space-x-6 p-6">
+        <nav className="hidden md:flex items-center space-x-6 p-6">
           <Link href="/tournaments" className="text-slate-300 hover:text-white transition-colors">
-            Turneringer
+            {isEnglish ? 'Tournaments' : 'Turneringer'}
           </Link>
           {hasActiveTournament ? (
             <span className="text-slate-500 cursor-not-allowed">
-              Påmelding stengt
+              {isEnglish ? 'Registration closed' : 'Påmelding stengt'}
             </span>
           ) : (
             <Link href="/register" className="text-slate-300 hover:text-white transition-colors">
-              Påmelding
+              {isEnglish ? 'Registration' : 'Påmelding'}
             </Link>
           )}
           <Link href="/hall-of-fame" className="text-slate-300 hover:text-white transition-colors">
@@ -58,11 +64,12 @@ export default function Header({ backButton = false, backHref = '/', title }: He
             <span>Discord</span>
             <ExternalLink className="w-4 h-4" />
           </a>
+          <LanguageToggle />
         </nav>
         {backButton && (
           <Link href={backHref} className="pro11-button-secondary flex items-center space-x-2">
             <ArrowLeft className="w-4 h-4" />
-            <span>Tilbake</span>
+            <span>{isEnglish ? 'Back' : 'Tilbake'}</span>
           </Link>
         )}
       </div>

@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { useParams } from 'next/navigation'
 import { ArrowLeft, Trophy, Users, Calendar, Clock, CheckCircle, XCircle, ExternalLink } from 'lucide-react'
 import { fetchTournamentById } from '../../../lib/tournaments'
+import { useLanguage } from '@/components/LanguageProvider'
 
 interface Team {
   id: string
@@ -63,6 +64,10 @@ export default function TournamentDetailPage() {
   const params = useParams()
   const tournamentId = params.id as string
   const [activeTab, setActiveTab] = useState<'standings' | 'matches' | 'bracket' | 'info'>('standings')
+  const { language } = useLanguage()
+  const isEnglish = language === 'en'
+  const t = (noText: string, enText: string) => (isEnglish ? enText : noText)
+  const locale = isEnglish ? 'en-US' : 'nb-NO'
 
   const [tournament, setTournament] = useState<any>(null)
   const [registeredTeams, setRegisteredTeams] = useState<any[]>([])
@@ -346,8 +351,8 @@ export default function TournamentDetailPage() {
     awayTeam: m.team2_name,
     homeScore: m.score1 ?? null,
     awayScore: m.score2 ?? null,
-    date: m.scheduled_time ? new Date(m.scheduled_time).toLocaleDateString('nb-NO', { day: 'numeric', month: 'numeric', year: 'numeric' }) : '',
-    time: m.scheduled_time ? new Date(m.scheduled_time).toLocaleTimeString('nb-NO', { hour: '2-digit', minute: '2-digit' }) : '',
+    date: m.scheduled_time ? new Date(m.scheduled_time).toLocaleDateString(locale, { day: 'numeric', month: 'numeric', year: 'numeric' }) : '',
+    time: m.scheduled_time ? new Date(m.scheduled_time).toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' }) : '',
     status: m.status === 'completed' ? 'completed' : m.status === 'live' ? 'live' : 'scheduled',
     group: m.group_name || undefined,
     round: m.round || undefined,
@@ -358,7 +363,7 @@ export default function TournamentDetailPage() {
   const groupedGroupMatches = matches
     .filter((m: any) => m.round === 'Gruppespill')
     .reduce((acc: Record<string, any[]>, match: any) => {
-      const groupName = match.group_name || 'Ukjent gruppe'
+      const groupName = match.group_name || t('Ukjent gruppe', 'Unknown group')
       if (!acc[groupName]) acc[groupName] = []
       acc[groupName].push(match)
       return acc
@@ -395,14 +400,30 @@ export default function TournamentDetailPage() {
   const getStatusText = (status: string) => {
     switch (status) {
       case 'scheduled':
-        return 'Planlagt'
+        return t('Planlagt', 'Scheduled')
       case 'live':
         return 'LIVE'
       case 'completed':
-        return 'Ferdig'
+        return t('Ferdig', 'Finished')
       default:
-        return 'Planlagt'
+        return t('Planlagt', 'Scheduled')
     }
+  }
+
+  const translateRoundName = (round?: string) => {
+    if (!round) return ''
+    if (!isEnglish) return round
+    const map: Record<string, string> = {
+      'Gruppespill': 'Group stage',
+      'Sluttspill': 'Knockout',
+      'Kvartfinaler': 'Quarterfinals',
+      'Semifinaler': 'Semifinals',
+      'Finale': 'Final',
+      'Åttendelsfinaler': 'Round of 16',
+      '16-delsfinaler': 'Round of 32',
+      'Ukjent runde': 'Unknown round'
+    }
+    return map[round] || round
   }
 
   return (
@@ -415,12 +436,14 @@ export default function TournamentDetailPage() {
               <img src="/logo.png" alt="PRO11 Logo" className="w-full h-full object-contain" />
             </Link>
             <div className="ml-4">
-              <p className="text-slate-400 text-sm">Pro Clubs Turneringer</p>
+              <p className="text-slate-400 text-sm">
+                {t('Pro Clubs Turneringer', 'Pro Clubs Tournaments')}
+              </p>
             </div>
           </div>
           <Link href="/tournaments" className="pro11-button-secondary flex items-center space-x-2">
             <ArrowLeft className="w-4 h-4" />
-            <span>Tilbake</span>
+            <span>{t('Tilbake', 'Back')}</span>
           </Link>
         </div>
       </header>
@@ -437,18 +460,22 @@ export default function TournamentDetailPage() {
               </div>
               <div className="flex items-center space-x-2">
                 <Trophy className="w-5 h-5 text-yellow-400" />
-                <span>Premie: {tournament.prize}</span>
+                <span>{t('Premie', 'Prize')}: {tournament.prize}</span>
               </div>
               <div className="flex items-center space-x-2">
                 <Users className="w-5 h-5 text-green-400" />
-                <span>{tournament.registeredTeams}/{tournament.maxTeams} lag</span>
+                <span>{tournament.registeredTeams}/{tournament.maxTeams} {t('lag', 'teams')}</span>
               </div>
             </div>
             <div className="mt-4">
               <span className={`inline-block px-3 py-1 rounded-full text-sm font-semibold ${getStatusColor(tournament.status)}`}>
-                {tournament.status === 'open' ? 'Åpen for påmelding' : 
-                 tournament.status === 'ongoing' ? 'Pågående' : 
-                 tournament.status === 'closed' ? 'Stengt' : 'Fullført'}
+                {tournament.status === 'open'
+                  ? t('Åpen for påmelding', 'Open for registration')
+                  : tournament.status === 'ongoing'
+                    ? t('Pågående', 'Ongoing')
+                    : tournament.status === 'closed'
+                      ? t('Stengt', 'Closed')
+                      : t('Fullført', 'Completed')}
               </span>
             </div>
           </div>
@@ -464,7 +491,7 @@ export default function TournamentDetailPage() {
                     : 'text-slate-400 hover:text-white'
                 }`}
               >
-                Tabell
+                {t('Tabell', 'Standings')}
               </button>
               <button
                 onClick={() => setActiveTab('matches')}
@@ -474,7 +501,7 @@ export default function TournamentDetailPage() {
                     : 'text-slate-400 hover:text-white'
                 }`}
               >
-                Kamper
+                {t('Kamper', 'Matches')}
               </button>
               <button
                 onClick={() => setActiveTab('bracket')}
@@ -484,7 +511,7 @@ export default function TournamentDetailPage() {
                     : 'text-slate-400 hover:text-white'
                 }`}
               >
-                Sluttspill
+                {t('Sluttspill', 'Knockout')}
               </button>
               <button
                 onClick={() => setActiveTab('info')}
@@ -494,7 +521,7 @@ export default function TournamentDetailPage() {
                     : 'text-slate-400 hover:text-white'
                 }`}
               >
-                Info
+                {t('Info', 'Info')}
               </button>
             </div>
 
@@ -509,15 +536,15 @@ export default function TournamentDetailPage() {
                           <table className="w-full text-sm">
                             <thead>
                               <tr className="border-b border-slate-700">
-                                <th className="text-left py-2 px-2">Pos</th>
-                                <th className="text-left py-2 px-2">Lag</th>
-                                <th className="text-center py-2 px-2">K</th>
-                                <th className="text-center py-2 px-2">V</th>
-                                <th className="text-center py-2 px-2">U</th>
-                                <th className="text-center py-2 px-2">T</th>
-                                <th className="text-center py-2 px-2">M+</th>
-                                <th className="text-center py-2 px-2">M-</th>
-                                <th className="text-center py-2 px-2 font-bold">P</th>
+                                <th className="text-left py-2 px-2">{t('Pos', 'Pos')}</th>
+                                <th className="text-left py-2 px-2">{t('Lag', 'Team')}</th>
+                                <th className="text-center py-2 px-2">{t('K', 'P')}</th>
+                                <th className="text-center py-2 px-2">{t('V', 'W')}</th>
+                                <th className="text-center py-2 px-2">{t('U', 'D')}</th>
+                                <th className="text-center py-2 px-2">{t('T', 'L')}</th>
+                                <th className="text-center py-2 px-2">{t('M+', 'GF')}</th>
+                                <th className="text-center py-2 px-2">{t('M-', 'GA')}</th>
+                                <th className="text-center py-2 px-2 font-bold">{t('P', 'Pts')}</th>
                               </tr>
                             </thead>
                             <tbody>
@@ -549,16 +576,20 @@ export default function TournamentDetailPage() {
                   <div className="text-center py-12">
                     <div className="text-slate-400 mb-4">
                       <Trophy className="w-16 h-16 mx-auto mb-4 opacity-50" />
-                      <h3 className="text-xl font-semibold mb-2">Ingen gruppespillkamper ferdig ennå</h3>
-                      <p>Tabellen vil vises når kamper er spilt og resultater er registrert.</p>
+                      <h3 className="text-xl font-semibold mb-2">
+                        {t('Ingen gruppespillkamper ferdig ennå', 'No group stage matches completed yet')}
+                      </h3>
+                      <p>{t('Tabellen vil vises når kamper er spilt og resultater er registrert.', 'The standings will appear once matches are played and results are registered.')}</p>
                     </div>
                   </div>
                 ) : (
                   <div className="text-center py-12">
                     <div className="text-slate-400 mb-4">
                       <Trophy className="w-16 h-16 mx-auto mb-4 opacity-50" />
-                      <h3 className="text-xl font-semibold mb-2">Ingen kamper generert</h3>
-                      <p>Kamper må genereres før tabellen kan vises.</p>
+                      <h3 className="text-xl font-semibold mb-2">
+                        {t('Ingen kamper generert', 'No matches generated')}
+                      </h3>
+                      <p>{t('Kamper må genereres før tabellen kan vises.', 'Matches must be generated before standings can be shown.')}</p>
                     </div>
                   </div>
                 )}
@@ -600,15 +631,18 @@ export default function TournamentDetailPage() {
                         </div>
                         {match.group && (
                           <div className="text-xs text-slate-500 mt-1">
-                            {match.group.startsWith('Gruppe') ? match.group : `Gruppe ${match.group}`}
+                            {match.group.startsWith('Gruppe')
+                              ? (isEnglish ? match.group.replace('Gruppe', 'Group') : match.group)
+                              : `${t('Gruppe', 'Group')} ${match.group}`}
                           </div>
                         )}
                         {match.round && match.round !== 'Gruppespill' && (
-                          <div className="text-xs text-slate-500 mt-1">{match.round}</div>
+                          <div className="text-xs text-slate-500 mt-1">{translateRoundName(match.round)}</div>
                         )}
                         {match.round === 'Gruppespill' && match.group && (
                           <div className="text-xs text-slate-500 mt-1">
-                            Runde {match.groupRound || groupRoundMaps[match.group]?.[buildKey(match.homeTeam, match.awayTeam)] || '?'}
+                            {t('Runde', 'Round')}{' '}
+                            {match.groupRound || groupRoundMaps[match.group]?.[buildKey(match.homeTeam, match.awayTeam)] || '?'}
                           </div>
                         )}
                       </div>
@@ -620,9 +654,13 @@ export default function TournamentDetailPage() {
                   <div className="text-center py-12">
                     <div className="text-slate-400 mb-4">
                       <Trophy className="w-16 h-16 mx-auto mb-4 opacity-50" />
-                      <h3 className="text-xl font-semibold mb-2">Ingen kamper planlagt</h3>
-                      <p>Det må være minst 2 godkjente lag for å generere kamper.</p>
-                      <p className="text-sm mt-2">Antall registrerte lag: {registeredTeams.length}</p>
+                      <h3 className="text-xl font-semibold mb-2">
+                        {t('Ingen kamper planlagt', 'No matches scheduled')}
+                      </h3>
+                      <p>{t('Det må være minst 2 godkjente lag for å generere kamper.', 'At least 2 approved teams are required to generate matches.')}</p>
+                      <p className="text-sm mt-2">
+                        {t('Antall registrerte lag', 'Registered teams')}: {registeredTeams.length}
+                      </p>
                     </div>
                   </div>
                 )}
@@ -634,8 +672,8 @@ export default function TournamentDetailPage() {
                const knockoutMatches = matches.filter((m: any) => m.round && m.round !== 'Gruppespill')
                
                // Group matches by round
-               const matchesByRound = knockoutMatches.reduce((acc: any, match: any) => {
-                 const round = match.round || 'Ukjent runde'
+                 const matchesByRound = knockoutMatches.reduce((acc: any, match: any) => {
+                 const round = match.round || t('Ukjent runde', 'Unknown round')
                  if (!acc[round]) acc[round] = []
                  acc[round].push(match)
                  return acc
@@ -652,10 +690,12 @@ export default function TournamentDetailPage() {
                    <div className="text-center py-12">
                      <div className="text-slate-400 mb-4">
                        <Trophy className="w-16 h-16 mx-auto mb-4 opacity-50" />
-                       <h3 className="text-xl font-semibold mb-2">Sluttspill ikke tilgjengelig ennå</h3>
-                       <p>Sluttspill vil bli vist når alle gruppespillkamper er ferdig.</p>
+                       <h3 className="text-xl font-semibold mb-2">
+                         {t('Sluttspill ikke tilgjengelig ennå', 'Knockout not available yet')}
+                       </h3>
+                       <p>{t('Sluttspill vil bli vist når alle gruppespillkamper er ferdig.', 'The knockout bracket will be shown when all group stage matches are completed.')}</p>
                        <p className="text-sm mt-2">
-                         Ferdig: {groupMatches.filter((m: any) => m.status === 'completed').length} / {groupMatches.length} kamper
+                         {t('Ferdig', 'Completed')}: {groupMatches.filter((m: any) => m.status === 'completed').length} / {groupMatches.length} {t('kamper', 'matches')}
                        </p>
                      </div>
                    </div>
@@ -731,8 +771,10 @@ export default function TournamentDetailPage() {
                    <div className="text-center py-12">
                      <div className="text-slate-400 mb-4">
                        <Trophy className="w-16 h-16 mx-auto mb-4 opacity-50" />
-                       <h3 className="text-xl font-semibold mb-2">Ingen sluttspillkamper generert</h3>
-                       <p>Sluttspillkamper må genereres før de kan vises.</p>
+                       <h3 className="text-xl font-semibold mb-2">
+                         {t('Ingen sluttspillkamper generert', 'No knockout matches generated')}
+                       </h3>
+                       <p>{t('Sluttspillkamper må genereres før de kan vises.', 'Knockout matches must be generated before they can be shown.')}</p>
                      </div>
                    </div>
                  )
@@ -755,8 +797,8 @@ export default function TournamentDetailPage() {
               return (
                 <div className="pro11-card p-6">
                   <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-lg font-semibold">Sluttspill</h3>
-                    <span className="text-xs text-slate-500">Oppdateres automatisk</span>
+                    <h3 className="text-lg font-semibold">{t('Sluttspill', 'Knockout')}</h3>
+                    <span className="text-xs text-slate-500">{t('Oppdateres automatisk', 'Updates automatically')}</span>
                   </div>
                   <div className="overflow-x-auto -mx-4 sm:mx-0">
                     <div className="w-max min-w-full grid grid-flow-col auto-cols-[minmax(220px,1fr)] gap-6 pb-2">
@@ -775,18 +817,18 @@ export default function TournamentDetailPage() {
                         return (
                           <div key={roundName} className="min-w-[220px] pro11-card p-4 bg-slate-900/40">
                             <div className={`border-l-4 ${roundColor.split(' ')[1]} pl-3 mb-4`}>
-                              <h4 className={`text-lg font-bold ${roundColor.split(' ')[0]}`}>{roundName}</h4>
+                              <h4 className={`text-lg font-bold ${roundColor.split(' ')[0]}`}>{translateRoundName(roundName)}</h4>
                               <p className="text-slate-400 text-xs">
-                                {typedRoundMatches.length} {typedRoundMatches.length === 1 ? 'kamp' : 'kamper'}
+                                {typedRoundMatches.length} {typedRoundMatches.length === 1 ? t('kamp', 'match') : t('kamper', 'matches')}
                               </p>
                             </div>
                             <div className="space-y-3">
                               {typedRoundMatches.map((match: any, index: number) => {
                                 const matchDate = match.scheduled_time 
-                                  ? new Date(match.scheduled_time).toLocaleDateString('nb-NO', { day: 'numeric', month: 'numeric', year: 'numeric' })
+                                  ? new Date(match.scheduled_time).toLocaleDateString(locale, { day: 'numeric', month: 'numeric', year: 'numeric' })
                                   : ''
                                 const matchTime = match.scheduled_time 
-                                  ? new Date(match.scheduled_time).toLocaleTimeString('nb-NO', { hour: '2-digit', minute: '2-digit' })
+                                  ? new Date(match.scheduled_time).toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' })
                                   : ''
                                 
                                 const isPlaceholder = match.isPlaceholder || false
@@ -802,16 +844,16 @@ export default function TournamentDetailPage() {
                                   >
                                     <div className="flex items-center justify-between mb-2">
                                       <div className="text-xs text-slate-500 font-medium">
-                                        Kamp {index + 1}
+                                        {t('Kamp', 'Match')} {index + 1}
                                       </div>
                                       <span className={`text-xs px-2 py-0.5 rounded-full ${
                                         match.status === 'completed' ? 'bg-green-700/50 text-green-300' :
                                         match.status === 'live' ? 'bg-red-700/50 text-red-300' :
                                         isPlaceholder ? 'bg-yellow-700/50 text-yellow-200' : 'bg-slate-700/50 text-slate-300'
                                       }`}>
-                                        {match.status === 'completed' ? 'Ferdig' :
+                                        {match.status === 'completed' ? t('Ferdig', 'Finished') :
                                          match.status === 'live' ? 'LIVE' :
-                                         isPlaceholder ? 'Venter' : 'Planlagt'}
+                                         isPlaceholder ? t('Venter', 'Waiting') : t('Planlagt', 'Scheduled')}
                                       </span>
                                     </div>
                                     <div className="flex items-center justify-between text-sm">
@@ -856,14 +898,14 @@ export default function TournamentDetailPage() {
              {activeTab === 'info' && (
               <div className="space-y-6">
                 <div>
-                  <h3 className="text-xl font-semibold mb-4">Om turneringen</h3>
+                  <h3 className="text-xl font-semibold mb-4">{t('Om turneringen', 'About the tournament')}</h3>
                   <p className="text-slate-300 leading-relaxed">
                     {stripGenFromDescription(tournament.description)}
                   </p>
                 </div>
                 
                 <div>
-                  <h3 className="text-xl font-semibold mb-4">Format</h3>
+                  <h3 className="text-xl font-semibold mb-4">{t('Format', 'Format')}</h3>
                   <div className="pro11-card p-4">
                     {getFormatFromDescription(tournament.description) ? (
                       <div className="space-y-2">
@@ -878,21 +920,27 @@ export default function TournamentDetailPage() {
                       </div>
                     ) : (
                       <p className="text-slate-300">
-                        Turneringens format og oppsett oppdateres av admin ved behov.
+                        {t(
+                          'Turneringens format og oppsett oppdateres av admin ved behov.',
+                          'The tournament format and setup are updated by admin when needed.'
+                        )}
                       </p>
                     )}
                   </div>
                 </div>
 
                 <div>
-                  <h3 className="text-xl font-semibold mb-4">Premier</h3>
+                  <h3 className="text-xl font-semibold mb-4">{t('Premier', 'Prizes')}</h3>
                   <div className="pro11-card p-4">
                     <p className="text-slate-300">
-                      Premiepotten oppgis av admin og oppdateres ved behov.
+                      {t(
+                        'Premiepotten oppgis av admin og oppdateres ved behov.',
+                        'The prize pool is provided by admin and updated as needed.'
+                      )}
                     </p>
                     {tournament.prize && (
                       <p className="text-slate-300 mt-2">
-                        Premie: {tournament.prize}
+                        {t('Premie', 'Prize')}: {tournament.prize}
                       </p>
                     )}
                   </div>

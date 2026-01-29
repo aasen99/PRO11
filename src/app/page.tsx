@@ -4,12 +4,16 @@ import React, { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { Shield, Trophy, Users, Calendar, ExternalLink } from 'lucide-react'
 import { fetchTournaments } from '../lib/tournaments'
+import LanguageToggle from '@/components/LanguageToggle'
+import { useLanguage } from '@/components/LanguageProvider'
 
 export default function HomePage() {
   const [nextTournament, setNextTournament] = useState<any>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
   const [isDesktop, setIsDesktop] = useState(false)
+  const { language } = useLanguage()
+  const isEnglish = language === 'en'
 
   const getGenLabel = (tournament: any): 'New Gen' | 'Old Gen' | 'New Gen / Old Gen' | null => {
     const haystack = `${tournament?.title || ''} ${tournament?.description || ''}`.toLowerCase()
@@ -71,21 +75,23 @@ export default function HomePage() {
               <img src="/logo.png" alt="PRO11 Logo" className="w-full h-full object-contain" />
             </Link>
             <div className="ml-4">
-              <p className="text-slate-400 text-sm">Pro Clubs Turneringer</p>
+              <p className="text-slate-400 text-sm">
+                {isEnglish ? 'Pro Clubs Tournaments' : 'Pro Clubs Turneringer'}
+              </p>
             </div>
           </div>
           {isDesktop && (
             <nav className="flex flex-1 items-center justify-end gap-6 px-4 py-4 text-xs whitespace-nowrap">
               <Link href="/tournaments" className="text-slate-300 hover:text-white transition-colors whitespace-nowrap">
-                Turneringer
+                {isEnglish ? 'Tournaments' : 'Turneringer'}
               </Link>
               {nextTournament && nextTournament.status === 'ongoing' ? (
-                <span className="text-slate-500 cursor-not-allowed whitespace-nowrap" title="Påmelding stengt">
-                  Stengt
+                <span className="text-slate-500 cursor-not-allowed whitespace-nowrap" title={isEnglish ? 'Registration closed' : 'Påmelding stengt'}>
+                  {isEnglish ? 'Closed' : 'Stengt'}
                 </span>
               ) : (
                 <Link href="/register" className="text-slate-300 hover:text-white transition-colors whitespace-nowrap">
-                  Påmelding
+                  {isEnglish ? 'Registration' : 'Påmelding'}
                 </Link>
               )}
               <Link href="/hall-of-fame" className="text-slate-300 hover:text-white transition-colors whitespace-nowrap">
@@ -95,6 +101,7 @@ export default function HomePage() {
                 <span>Discord</span>
                 <ExternalLink className="w-4 h-4" />
               </a>
+              <LanguageToggle />
             </nav>
           )}
           {!isDesktop && (
@@ -104,7 +111,7 @@ export default function HomePage() {
                 onClick={() => setIsMobileMenuOpen(prev => !prev)}
                 className="pro11-button-secondary text-sm"
               >
-                {isMobileMenuOpen ? 'Lukk' : 'Meny'}
+                {isMobileMenuOpen ? (isEnglish ? 'Close' : 'Lukk') : (isEnglish ? 'Menu' : 'Meny')}
               </button>
             </div>
           )}
@@ -117,11 +124,11 @@ export default function HomePage() {
                 className="text-slate-300 hover:text-white transition-colors"
                 onClick={() => setIsMobileMenuOpen(false)}
               >
-                Turneringer
+                {isEnglish ? 'Tournaments' : 'Turneringer'}
               </Link>
               {nextTournament && nextTournament.status === 'ongoing' ? (
                 <span className="text-slate-500 cursor-not-allowed">
-                  Påmelding stengt
+                  {isEnglish ? 'Registration closed' : 'Påmelding stengt'}
                 </span>
               ) : (
                 <Link
@@ -129,7 +136,7 @@ export default function HomePage() {
                   className="text-slate-300 hover:text-white transition-colors"
                   onClick={() => setIsMobileMenuOpen(false)}
                 >
-                  Påmelding
+                  {isEnglish ? 'Registration' : 'Påmelding'}
                 </Link>
               )}
               <Link
@@ -149,6 +156,7 @@ export default function HomePage() {
                 <span>Discord</span>
                 <ExternalLink className="w-4 h-4" />
               </a>
+              <LanguageToggle />
             </div>
           </div>
         )}
@@ -158,7 +166,7 @@ export default function HomePage() {
       <main className="container mx-auto px-4 py-12 flex flex-col items-center">
         <div className="text-center mb-16 w-full">
           <h2 className="text-5xl md:text-7xl font-bold mb-6 text-white">
-            Neste Turnering
+            {isEnglish ? 'Next Tournament' : 'Neste Turnering'}
           </h2>
           {nextTournament ? (
             <p className="text-xl text-slate-300 mb-8 max-w-3xl mx-auto">
@@ -166,7 +174,9 @@ export default function HomePage() {
             </p>
           ) : (
             <p className="text-xl text-slate-300 mb-8 max-w-3xl mx-auto">
-              Vær med på den største Pro Clubs-turneringen i Norge
+              {isEnglish
+                ? 'Join the biggest Pro Clubs tournament in Norway'
+                : 'Vær med på den største Pro Clubs-turneringen i Norge'}
             </p>
           )}
         </div>
@@ -184,7 +194,9 @@ export default function HomePage() {
               <div className="text-center">
                 <div className="flex items-center justify-center space-x-2 mb-4">
                   <Trophy className="w-6 h-6 text-yellow-400" />
-                  <span className="text-yellow-400 font-semibold">Kommende</span>
+                  <span className="text-yellow-400 font-semibold">
+                    {isEnglish ? 'Upcoming' : 'Kommende'}
+                  </span>
                 </div>
                 {genLabel && (
                   <div className="mb-3 flex justify-center">
@@ -201,11 +213,14 @@ export default function HomePage() {
                   </div>
                   <div className="flex items-center justify-center space-x-3">
                     <Trophy className="w-5 h-5 text-yellow-400" />
-                    <span>Premie: {nextTournament.prize}</span>
+                    <span>{isEnglish ? 'Prize' : 'Premie'}: {nextTournament.prize}</span>
                   </div>
                   <div className="flex items-center justify-center space-x-3">
                     <Users className="w-5 h-5 text-green-400" />
-                    <span>{nextTournament.registeredTeams}/{nextTournament.maxTeams} lag påmeldt</span>
+                    <span>
+                      {nextTournament.registeredTeams}/{nextTournament.maxTeams}{' '}
+                      {isEnglish ? 'teams registered' : 'lag påmeldt'}
+                    </span>
                   </div>
                 </div>
                 <div className="mt-6 text-center">
@@ -217,11 +232,11 @@ export default function HomePage() {
               <div className="text-center">
                 {nextTournament.status === 'ongoing' ? (
                   <button disabled className="pro11-button-secondary text-lg px-8 py-4 inline-block opacity-50 cursor-not-allowed">
-                    Påmelding stengt
+                    {isEnglish ? 'Registration closed' : 'Påmelding stengt'}
                   </button>
                 ) : (
                   <Link href="/register" className="pro11-button text-lg px-8 py-4 inline-block">
-                    Meld på lag
+                    {isEnglish ? 'Register team' : 'Meld på lag'}
                   </Link>
                 )}
               </div>
@@ -231,13 +246,17 @@ export default function HomePage() {
           <div className="pro11-card p-8 mb-12 w-full max-w-4xl text-center">
             <div className="flex flex-col items-center justify-center gap-6">
               <Trophy className="w-16 h-16 text-slate-400" />
-              <h3 className="text-2xl font-bold text-white mb-2">Ingen kommende turneringer</h3>
+              <h3 className="text-2xl font-bold text-white mb-2">
+                {isEnglish ? 'No upcoming tournaments' : 'Ingen kommende turneringer'}
+              </h3>
               <p className="text-slate-300 max-w-2xl">
-                Det er for øyeblikket ingen kommende turneringer. Sjekk tilbake senere eller følg med på vår Discord for oppdateringer.
+                {isEnglish
+                  ? 'There are currently no upcoming tournaments. Check back later or follow our Discord for updates.'
+                  : 'Det er for øyeblikket ingen kommende turneringer. Sjekk tilbake senere eller følg med på vår Discord for oppdateringer.'}
               </p>
               <div className="mt-4 flex gap-4">
                 <Link href="/tournaments" className="pro11-button text-lg px-6 py-3 inline-block">
-                  Se alle turneringer
+                  {isEnglish ? 'See all tournaments' : 'Se alle turneringer'}
                 </Link>
                 <a 
                   href="https://discord.gg/Es8UAkax8H" 
@@ -255,37 +274,51 @@ export default function HomePage() {
 
         {/* About PRO11 */}
         <div className="pro11-card p-8 mb-12 w-full max-w-4xl text-center">
-          <h3 className="text-2xl font-bold mb-6 text-center">Om PRO11</h3>
+          <h3 className="text-2xl font-bold mb-6 text-center">
+            {isEnglish ? 'About PRO11' : 'Om PRO11'}
+          </h3>
           <div className="grid md:grid-cols-2 gap-8">
             <div>
               <p className="text-slate-300 leading-relaxed mb-4">
-                PRO11 er en turneringsplattform for Pro Clubs i FC 26.
-                Gruppespill, sluttspill og kamper som betyr noe.
+                {isEnglish
+                  ? 'PRO11 is a tournament platform for Pro Clubs in FC 26. Group stages, knockouts, and matches that matter.'
+                  : 'PRO11 er en turneringsplattform for Pro Clubs i FC 26. Gruppespill, sluttspill og kamper som betyr noe.'}
               </p>
               <p className="text-slate-300 leading-relaxed mb-4">
-                Her lagres resultater, mestere kåres og historikken følger laget videre.
-                Ikke bare én kveld – men turneringer som bygges videre over tid.
+                {isEnglish
+                  ? 'Results are archived, champions are crowned, and your team history carries on. Not just one night — but tournaments that build over time.'
+                  : 'Her lagres resultater, mestere kåres og historikken følger laget videre. Ikke bare én kveld – men turneringer som bygges videre over tid.'}
               </p>
               <p className="text-slate-300 leading-relaxed">
-                Målet vårt er å samle norsk Pro Clubs på ett sted og bygge Norges ledende Pro Clubs-arena.
+                {isEnglish
+                  ? 'Our goal is to bring Norwegian Pro Clubs together in one place and build Norway’s leading Pro Clubs arena.'
+                  : 'Målet vårt er å samle norsk Pro Clubs på ett sted og bygge Norges ledende Pro Clubs-arena.'}
               </p>
             </div>
             <div className="space-y-4 mt-4">
               <div className="flex items-center space-x-3">
                 <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
-                <span className="text-slate-300">Gruppespill og sluttspill som betyr noe</span>
+                <span className="text-slate-300">
+                  {isEnglish ? 'Group stages and knockouts that matter' : 'Gruppespill og sluttspill som betyr noe'}
+                </span>
               </div>
               <div className="flex items-center space-x-3">
                 <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
-                <span className="text-slate-300">Resultater, mestere og historikk</span>
+                <span className="text-slate-300">
+                  {isEnglish ? 'Results, champions, and history' : 'Resultater, mestere og historikk'}
+                </span>
               </div>
               <div className="flex items-center space-x-3">
                 <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
-                <span className="text-slate-300">Turneringer som bygges videre over tid</span>
+                <span className="text-slate-300">
+                  {isEnglish ? 'Tournaments that grow over time' : 'Turneringer som bygges videre over tid'}
+                </span>
               </div>
               <div className="flex items-center space-x-3">
                 <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
-                <span className="text-slate-300">Samler norsk Pro Clubs på ett sted</span>
+                <span className="text-slate-300">
+                  {isEnglish ? 'Bringing Norwegian Pro Clubs together' : 'Samler norsk Pro Clubs på ett sted'}
+                </span>
               </div>
             </div>
           </div>
@@ -294,20 +327,22 @@ export default function HomePage() {
         {/* Quick Links */}
         <div className="grid md:grid-cols-4 gap-6 w-full max-w-4xl">
           <Link href="/captain/login" className="pro11-card p-6 hover:bg-slate-700/50 transition-colors text-center" style={{textDecoration: 'none'}}>
-            <h4 className="text-2xl font-semibold mb-2 text-white">Lagleder</h4>
-            <p className="text-slate-400">Logg inn for å legge inn resultater</p>
+            <h4 className="text-2xl font-semibold mb-2 text-white">{isEnglish ? 'Captain' : 'Lagleder'}</h4>
+            <p className="text-slate-400">
+              {isEnglish ? 'Log in to submit results' : 'Logg inn for å legge inn resultater'}
+            </p>
           </Link>
           <Link href="/rules" className="pro11-card p-6 hover:bg-slate-700/50 transition-colors text-center" style={{textDecoration: 'none'}}>
-            <h4 className="text-2xl font-semibold mb-2 text-white">Turneringsregler</h4>
-            <p className="text-slate-400">Her finner du de offiselle reglene</p>
+            <h4 className="text-2xl font-semibold mb-2 text-white">{isEnglish ? 'Tournament Rules' : 'Turneringsregler'}</h4>
+            <p className="text-slate-400">{isEnglish ? 'Find the official rules here' : 'Her finner du de offiselle reglene'}</p>
           </Link>
           <Link href="/faq" className="pro11-card p-6 hover:bg-slate-700/50 transition-colors text-center" style={{textDecoration: 'none'}}>
             <h4 className="text-2xl font-semibold mb-2 text-white">FAQ</h4>
-            <p className="text-slate-400">Ofte stilte spørsmål og svar</p>
+            <p className="text-slate-400">{isEnglish ? 'Frequently asked questions' : 'Ofte stilte spørsmål og svar'}</p>
           </Link>
           <Link href="/tournaments" className="pro11-card p-6 hover:bg-slate-700/50 transition-colors text-center" style={{textDecoration: 'none'}}>
-            <h4 className="text-2xl font-semibold mb-2 text-white">Se alle turneringer</h4>
-            <p className="text-slate-400">Oversikt over kommende og aktive turneringer</p>
+            <h4 className="text-2xl font-semibold mb-2 text-white">{isEnglish ? 'See all tournaments' : 'Se alle turneringer'}</h4>
+            <p className="text-slate-400">{isEnglish ? 'Overview of upcoming and active tournaments' : 'Oversikt over kommende og aktive turneringer'}</p>
           </Link>
         </div>
       </main>

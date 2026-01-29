@@ -4,6 +4,7 @@ import React, { useState } from 'react'
 import Link from 'next/link'
 import { Shield, Trophy, Users, Calendar, Play, Pause, Square, RefreshCw, Award, Clock, Target, BarChart3, Settings } from 'lucide-react'
 import { getTournamentById } from '../../../lib/tournaments'
+import { useLanguage } from '@/components/LanguageProvider'
 
 interface Match {
   id: string
@@ -30,6 +31,9 @@ interface Tournament {
 
 export default function LiveTournamentPage() {
   const [activeTournament, setActiveTournament] = useState<Tournament | null>(null)
+  const { language } = useLanguage()
+  const isEnglish = language === 'en'
+  const t = (noText: string, enText: string) => (isEnglish ? enText : noText)
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -49,15 +53,15 @@ export default function LiveTournamentPage() {
   const getStatusText = (status: string) => {
     switch (status) {
       case 'preparing':
-        return 'Forbereder'
+        return t('Forbereder', 'Preparing')
       case 'live':
         return 'Live'
       case 'paused':
-        return 'Pauset'
+        return t('Pauset', 'Paused')
       case 'completed':
-        return 'Fullført'
+        return t('Fullført', 'Completed')
       default:
-        return 'Ukjent'
+        return t('Ukjent', 'Unknown')
     }
   }
 
@@ -77,13 +81,13 @@ export default function LiveTournamentPage() {
   const getMatchStatusText = (status: string) => {
     switch (status) {
       case 'scheduled':
-        return 'Planlagt'
+        return t('Planlagt', 'Scheduled')
       case 'live':
         return 'Live'
       case 'completed':
-        return 'Ferdig'
+        return t('Ferdig', 'Finished')
       default:
-        return 'Ukjent'
+        return t('Ukjent', 'Unknown')
     }
   }
 
@@ -135,7 +139,7 @@ export default function LiveTournamentPage() {
     if (!activeTournament) return
     
     // Simulerer oppdatering av alle kamper
-    alert('Alle kamper er oppdatert!')
+    alert(t('Alle kamper er oppdatert!', 'All matches have been updated!'))
   }
 
   const showResults = () => {
@@ -147,9 +151,9 @@ export default function LiveTournamentPage() {
       .join('\n')
     
     if (results) {
-      alert(`Resultater:\n\n${results}`)
+      alert(t(`Resultater:\n\n${results}`, `Results:\n\n${results}`))
     } else {
-      alert('Ingen ferdige kamper ennå.')
+      alert(t('Ingen ferdige kamper ennå.', 'No completed matches yet.'))
     }
   }
 
@@ -161,7 +165,8 @@ export default function LiveTournamentPage() {
     const liveMatches = activeTournament.matches.filter(m => m.status === 'live').length
     const scheduledMatches = activeTournament.matches.filter(m => m.status === 'scheduled').length
     
-    const stats = `
+    const stats = t(
+      `
 Statistikk for ${activeTournament.title}:
 
 Totalt antall kamper: ${totalMatches}
@@ -170,7 +175,18 @@ Live kamper: ${liveMatches}
 Planlagte kamper: ${scheduledMatches}
 
 Fremgang: ${Math.round((completedMatches / totalMatches) * 100)}%
+    `.trim(),
+      `
+Statistics for ${activeTournament.title}:
+
+Total matches: ${totalMatches}
+Completed matches: ${completedMatches}
+Live matches: ${liveMatches}
+Scheduled matches: ${scheduledMatches}
+
+Progress: ${Math.round((completedMatches / totalMatches) * 100)}%
     `.trim()
+    )
     
     alert(stats)
   }
@@ -178,10 +194,16 @@ Fremgang: ${Math.round((completedMatches / totalMatches) * 100)}%
   const openSettings = () => {
     if (!activeTournament) return
     
-    const settings = prompt('Innstillinger (kommaseparert):\nTid per kamp (min), Pause mellom kamper (min), Auto-oppdatering (on/off)', '90, 15, on')
+    const settings = prompt(
+      t(
+        'Innstillinger (kommaseparert):\nTid per kamp (min), Pause mellom kamper (min), Auto-oppdatering (on/off)',
+        'Settings (comma-separated):\nTime per match (min), Break between matches (min), Auto-refresh (on/off)'
+      ),
+      '90, 15, on'
+    )
     
     if (settings) {
-      alert(`Innstillinger oppdatert: ${settings}`)
+      alert(t(`Innstillinger oppdatert: ${settings}`, `Settings updated: ${settings}`))
     }
   }
 
@@ -195,21 +217,25 @@ Fremgang: ${Math.round((completedMatches / totalMatches) * 100)}%
                 <img src="/logo.png" alt="PRO11 Logo" className="w-full h-full object-contain" />
               </div>
               <div className="ml-4">
-                <p className="text-slate-400 text-sm">Pro Clubs Turneringer</p>
+                <p className="text-slate-400 text-sm">
+                  {t('Pro Clubs Turneringer', 'Pro Clubs Tournaments')}
+                </p>
               </div>
             </div>
             <Link href="/admin" className="pro11-button-secondary flex items-center space-x-2">
-              <span>Tilbake til Admin</span>
+              <span>{t('Tilbake til Admin', 'Back to Admin')}</span>
             </Link>
           </div>
         </header>
 
         <main className="container mx-auto px-4 py-8 flex flex-col items-center">
           <div className="text-center">
-            <h1 className="text-3xl font-bold mb-4">Ingen aktiv turnering</h1>
-            <p className="text-slate-300 mb-6">Det er ingen live turneringer for øyeblikket.</p>
+            <h1 className="text-3xl font-bold mb-4">{t('Ingen aktiv turnering', 'No active tournament')}</h1>
+            <p className="text-slate-300 mb-6">
+              {t('Det er ingen live turneringer for øyeblikket.', 'There are no live tournaments at the moment.')}
+            </p>
             <Link href="/admin" className="pro11-button flex items-center space-x-2">
-              <span>Gå til Admin Dashboard</span>
+              <span>{t('Gå til Admin Dashboard', 'Go to Admin Dashboard')}</span>
             </Link>
           </div>
         </main>
@@ -227,7 +253,7 @@ Fremgang: ${Math.round((completedMatches / totalMatches) * 100)}%
               <img src="/logo.png" alt="PRO11 Logo" className="w-full h-full object-contain" />
             </Link>
             <div className="ml-4">
-              <p className="text-slate-400 text-sm">Live Turnering</p>
+              <p className="text-slate-400 text-sm">{t('Live Turnering', 'Live Tournament')}</p>
             </div>
           </div>
           <div className="flex items-center space-x-4">
@@ -235,7 +261,7 @@ Fremgang: ${Math.round((completedMatches / totalMatches) * 100)}%
               {getStatusText(activeTournament.status)}
             </span>
             <Link href="/admin" className="pro11-button-secondary flex items-center space-x-2">
-              <span>Tilbake til Admin</span>
+              <span>{t('Tilbake til Admin', 'Back to Admin')}</span>
             </Link>
           </div>
         </div>
@@ -249,16 +275,16 @@ Fremgang: ${Math.round((completedMatches / totalMatches) * 100)}%
               <div>
                 <h1 className="text-3xl font-bold mb-2">{activeTournament.title}</h1>
                 <p className="text-slate-300">
-                  Runde {activeTournament.currentRound} • {activeTournament.participants} lag
+                  {t('Runde', 'Round')} {activeTournament.currentRound} • {activeTournament.participants} {t('lag', 'teams')}
                 </p>
               </div>
               <div className="flex items-center space-x-3">
                 <div className="text-right">
-                  <p className="text-sm text-slate-400">Startet</p>
+                  <p className="text-sm text-slate-400">{t('Startet', 'Started')}</p>
                   <p className="font-medium">{activeTournament.startTime}</p>
                 </div>
                 <div className="text-right">
-                  <p className="text-sm text-slate-400">Estimert slutt</p>
+                  <p className="text-sm text-slate-400">{t('Estimert slutt', 'Estimated end')}</p>
                   <p className="font-medium">{activeTournament.estimatedEnd}</p>
                 </div>
               </div>
@@ -275,7 +301,7 @@ Fremgang: ${Math.round((completedMatches / totalMatches) * 100)}%
                 }`}
               >
                 <Play className="w-4 h-4" />
-                <span>Start</span>
+                <span>{t('Start', 'Start')}</span>
               </button>
               <button
                 onClick={() => updateTournamentStatus('paused')}
@@ -286,7 +312,7 @@ Fremgang: ${Math.round((completedMatches / totalMatches) * 100)}%
                 }`}
               >
                 <Pause className="w-4 h-4" />
-                <span>Pause</span>
+                <span>{t('Pause', 'Pause')}</span>
               </button>
               <button
                 onClick={() => updateTournamentStatus('completed')}
@@ -297,7 +323,7 @@ Fremgang: ${Math.round((completedMatches / totalMatches) * 100)}%
                 }`}
               >
                 <Square className="w-4 h-4" />
-                <span>Avslutt</span>
+                <span>{t('Avslutt', 'End')}</span>
               </button>
             </div>
           </div>
@@ -354,7 +380,7 @@ Fremgang: ${Math.round((completedMatches / totalMatches) * 100)}%
                           : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
                       }`}
                     >
-                      Planlagt
+                      {t('Planlagt', 'Scheduled')}
                     </button>
                     <button
                       onClick={() => updateMatchStatus(match.id, 'live')}
@@ -374,7 +400,7 @@ Fremgang: ${Math.round((completedMatches / totalMatches) * 100)}%
                           : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
                       }`}
                     >
-                      Ferdig
+                      {t('Ferdig', 'Finished')}
                     </button>
                   </div>
                 </div>
@@ -384,35 +410,35 @@ Fremgang: ${Math.round((completedMatches / totalMatches) * 100)}%
 
           {/* Quick Actions */}
           <div className="pro11-card p-4 mt-6">
-            <h3 className="font-semibold mb-3">Hurtig-handlinger</h3>
+            <h3 className="font-semibold mb-3">{t('Hurtig-handlinger', 'Quick actions')}</h3>
             <div className="flex space-x-3">
               <button 
                 onClick={updateAllMatches}
                 className="pro11-button-secondary flex items-center space-x-2"
               >
                 <RefreshCw className="w-4 h-4" />
-                <span>Oppdater alle kamper</span>
+                <span>{t('Oppdater alle kamper', 'Update all matches')}</span>
               </button>
               <button 
                 onClick={showResults}
                 className="pro11-button-secondary flex items-center space-x-2"
               >
                 <Award className="w-4 h-4" />
-                <span>Vis resultater</span>
+                <span>{t('Vis resultater', 'Show results')}</span>
               </button>
               <button 
                 onClick={showStatistics}
                 className="pro11-button-secondary flex items-center space-x-2"
               >
                 <BarChart3 className="w-4 h-4" />
-                <span>Statistikk</span>
+                <span>{t('Statistikk', 'Statistics')}</span>
               </button>
               <button 
                 onClick={openSettings}
                 className="pro11-button-secondary flex items-center space-x-2"
               >
                 <Settings className="w-4 h-4" />
-                <span>Innstillinger</span>
+                <span>{t('Innstillinger', 'Settings')}</span>
               </button>
             </div>
           </div>

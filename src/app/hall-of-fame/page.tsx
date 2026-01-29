@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { ArrowLeft, Trophy, Medal, Star, Calendar, Users, Award, Crown } from 'lucide-react'
+import { useLanguage } from '@/components/LanguageProvider'
 
 interface HallOfFameEntry {
   id: string
@@ -25,6 +26,8 @@ export default function HallOfFamePage() {
     payouts: 0,
     matchesCompleted: 0
   })
+  const { language } = useLanguage()
+  const isEnglish = language === 'en'
 
   // Hall of Fame entries will be populated from completed tournaments in the future
   // For now, show empty state
@@ -97,12 +100,14 @@ export default function HallOfFamePage() {
               <img src="/logo.png" alt="PRO11 Logo" className="w-full h-full object-contain" />
             </Link>
             <div className="ml-4">
-              <p className="text-slate-400 text-sm">Pro Clubs Turneringer</p>
+              <p className="text-slate-400 text-sm">
+                {isEnglish ? 'Pro Clubs Tournaments' : 'Pro Clubs Turneringer'}
+              </p>
             </div>
           </div>
           <Link href="/" className="pro11-button-secondary flex items-center space-x-2">
             <ArrowLeft className="w-4 h-4" />
-            <span>Tilbake</span>
+            <span>{isEnglish ? 'Back' : 'Tilbake'}</span>
           </Link>
         </div>
       </header>
@@ -113,7 +118,9 @@ export default function HallOfFamePage() {
           <div className="text-center mb-12">
             <h1 className="text-4xl font-bold mb-4">Hall of Fame</h1>
             <p className="text-slate-300 text-lg">
-              Ære til de beste lagene og spillerne i PRO11-historien
+              {isEnglish
+                ? 'Honoring the best teams and players in PRO11 history'
+                : 'Ære til de beste lagene og spillerne i PRO11-historien'}
             </p>
           </div>
 
@@ -121,19 +128,19 @@ export default function HallOfFamePage() {
           <div className="grid md:grid-cols-4 gap-6 mb-12">
             <div className="pro11-card p-6 text-center">
               <div className="text-3xl font-bold text-yellow-400 mb-2">{stats.tournaments}</div>
-              <div className="text-slate-400">Turneringer</div>
+              <div className="text-slate-400">{isEnglish ? 'Tournaments' : 'Turneringer'}</div>
             </div>
             <div className="pro11-card p-6 text-center">
               <div className="text-3xl font-bold text-blue-400 mb-2">{stats.participants}</div>
-              <div className="text-slate-400">Deltakere</div>
+              <div className="text-slate-400">{isEnglish ? 'Participants' : 'Deltakere'}</div>
             </div>
             <div className="pro11-card p-6 text-center">
               <div className="text-3xl font-bold text-green-400 mb-2">{stats.payouts}</div>
-              <div className="text-slate-400">NOK utdelt</div>
+              <div className="text-slate-400">{isEnglish ? 'NOK paid out' : 'NOK utdelt'}</div>
             </div>
             <div className="pro11-card p-6 text-center">
               <div className="text-3xl font-bold text-purple-400 mb-2">{stats.matchesCompleted}</div>
-              <div className="text-slate-400">Kamper spilt</div>
+              <div className="text-slate-400">{isEnglish ? 'Matches played' : 'Kamper spilt'}</div>
             </div>
           </div>
 
@@ -148,7 +155,7 @@ export default function HallOfFamePage() {
                     : 'text-slate-400 hover:text-white'
                 }`}
               >
-                Mestere
+                {isEnglish ? 'Champions' : 'Mestere'}
               </button>
               <button
                 onClick={() => setActiveTab('records')}
@@ -158,7 +165,7 @@ export default function HallOfFamePage() {
                     : 'text-slate-400 hover:text-white'
                 }`}
               >
-                Rekorder
+                {isEnglish ? 'Records' : 'Rekorder'}
               </button>
               <button
                 onClick={() => setActiveTab('achievements')}
@@ -168,7 +175,7 @@ export default function HallOfFamePage() {
                     : 'text-slate-400 hover:text-white'
                 }`}
               >
-                Prestasjoner
+                {isEnglish ? 'Achievements' : 'Prestasjoner'}
               </button>
             </div>
 
@@ -198,9 +205,11 @@ export default function HallOfFamePage() {
                     </div>
                     
                     <div className="flex items-center justify-between text-sm text-slate-400 mb-3">
-                      <span>Premie: {entry.prize}</span>
+                      <span>{isEnglish ? 'Prize' : 'Premie'}: {entry.prize}</span>
                       {entry.participants > 1 && (
-                        <span>{entry.participants} deltakere</span>
+                        <span>
+                          {entry.participants} {isEnglish ? 'participants' : 'deltakere'}
+                        </span>
                       )}
                     </div>
                     
@@ -213,12 +222,18 @@ export default function HallOfFamePage() {
             ) : (
               <div className="text-center py-12">
                 <Trophy className="w-16 h-16 text-slate-600 mx-auto mb-4" />
-                <h3 className="text-xl font-semibold mb-2">Ingen {activeTab === 'champions' ? 'mestere' : activeTab === 'records' ? 'rekorder' : 'prestasjoner'} ennå</h3>
+                <h3 className="text-xl font-semibold mb-2">
+                  {isEnglish
+                    ? `No ${activeTab === 'champions' ? 'champions' : activeTab === 'records' ? 'records' : 'achievements'} yet`
+                    : `Ingen ${activeTab === 'champions' ? 'mestere' : activeTab === 'records' ? 'rekorder' : 'prestasjoner'} ennå`}
+                </h3>
                 <p className="text-slate-400 mb-6">
-                  Når turneringer er fullført, vil resultatene vises her.
+                  {isEnglish
+                    ? 'When tournaments are completed, the results will appear here.'
+                    : 'Når turneringer er fullført, vil resultatene vises her.'}
                 </p>
                 <Link href="/tournaments" className="pro11-button inline-flex items-center space-x-2">
-                  <span>Se turneringer</span>
+                  <span>{isEnglish ? 'See tournaments' : 'Se turneringer'}</span>
                 </Link>
               </div>
             )}
@@ -226,12 +241,16 @@ export default function HallOfFamePage() {
 
           {/* Future Champions */}
           <div className="pro11-card p-8 text-center">
-            <h2 className="text-2xl font-bold mb-4">Blir du neste mester?</h2>
+            <h2 className="text-2xl font-bold mb-4">
+              {isEnglish ? 'Will you be the next champion?' : 'Blir du neste mester?'}
+            </h2>
             <p className="text-slate-300 mb-6">
-              Meld på laget ditt til en turnering og skriv historie
+              {isEnglish
+                ? 'Register your team for a tournament and make history'
+                : 'Meld på laget ditt til en turnering og skriv historie'}
             </p>
             <Link href="/tournaments" className="pro11-button inline-flex items-center space-x-2">
-              <span>Se turneringer</span>
+              <span>{isEnglish ? 'See tournaments' : 'Se turneringer'}</span>
             </Link>
           </div>
         </div>

@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { Shield, Trophy, Users, Calendar, Edit, CheckCircle, XCircle, ArrowRight, LogOut } from 'lucide-react'
 import Toast, { ToastContainer } from '@/components/Toast'
 import type { ToastType } from '@/components/Toast'
+import { useLanguage } from '@/components/LanguageProvider'
 
 interface Team {
   id: string
@@ -94,6 +95,27 @@ export default function CaptainDashboardPage() {
   const [toasts, setToasts] = useState<ToastMessage[]>([])
   const [selectedTournamentId, setSelectedTournamentId] = useState('')
   const previousMatchesRef = useRef<Match[]>([])
+  const { language } = useLanguage()
+  const isEnglish = language === 'en'
+  const t = (noText: string, enText: string) => (isEnglish ? enText : noText)
+  const locale = isEnglish ? 'en-US' : 'nb-NO'
+
+  const translateRoundName = (round?: string) => {
+    if (!round) return ''
+    if (!isEnglish) return round
+    const map: Record<string, string> = {
+      'Gruppespill': 'Group stage',
+      'Sluttspill': 'Knockout',
+      'Kvartfinale': 'Quarterfinal',
+      'Kvartfinaler': 'Quarterfinals',
+      'Semifinale': 'Semifinal',
+      'Semifinaler': 'Semifinals',
+      'Finale': 'Final',
+      'Åttendelsfinaler': 'Round of 16',
+      '16-delsfinaler': 'Round of 32'
+    }
+    return map[round] || round
+  }
 
   const buildGroupRoundMap = (groupMatches: Match[]) => {
     const teamSet = new Set<string>()
@@ -197,7 +219,7 @@ export default function CaptainDashboardPage() {
               goalsFor: 0,
               goalsAgainst: 0,
               tournamentsPlayed: 0,
-              bestFinish: 'Ingen',
+              bestFinish: t('Ingen', 'None'),
               currentRanking: 0
             })
             return
@@ -280,7 +302,7 @@ export default function CaptainDashboardPage() {
                     score1: m.score1 || 0,
                     score2: m.score2 || 0,
                     status: m.status as 'scheduled' | 'live' | 'completed' | 'pending_result' | 'pending_confirmation',
-                    time: m.scheduled_time ? new Date(m.scheduled_time).toLocaleTimeString('nb-NO', { hour: '2-digit', minute: '2-digit' }) : '',
+                    time: m.scheduled_time ? new Date(m.scheduled_time).toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' }) : '',
                     scheduledTime: m.scheduled_time ?? null,
                     round: m.round,
                     group: m.group_name || undefined,
@@ -335,8 +357,8 @@ export default function CaptainDashboardPage() {
                 id: tournament.id,
                 title: tournament.title,
                 status: tournament.status === 'active' ? 'live' : tournament.status === 'completed' ? 'completed' : 'upcoming',
-                startDate: startDate.toLocaleDateString('nb-NO', { day: 'numeric', month: 'long', year: 'numeric' }),
-                endDate: endDate.toLocaleDateString('nb-NO', { day: 'numeric', month: 'long', year: 'numeric' }),
+                startDate: startDate.toLocaleDateString(locale, { day: 'numeric', month: 'long', year: 'numeric' }),
+                endDate: endDate.toLocaleDateString(locale, { day: 'numeric', month: 'long', year: 'numeric' }),
                 position: 0, // TODO: Calculate position from standings
                 totalTeams: tournament.max_teams,
                 matches: filteredMatches
@@ -369,7 +391,10 @@ export default function CaptainDashboardPage() {
                 : (match.opponentSubmittedScore2 || 0)
               
               addToast({
-                message: `${opponentName} har sendt inn resultat: ${opponentScore} - ${myScore}. Bekreft eller avvis resultatet.`,
+                message: t(
+                  `${opponentName} har sendt inn resultat: ${opponentScore} - ${myScore}. Bekreft eller avvis resultatet.`,
+                  `${opponentName} submitted a result: ${opponentScore} - ${myScore}. Confirm or reject the result.`
+                ),
                 type: 'info'
               })
             }
@@ -408,7 +433,7 @@ export default function CaptainDashboardPage() {
     let goalsFor = 0
     let goalsAgainst = 0
     let tournamentsPlayed = 0
-    let bestFinish = 'Ingen'
+    let bestFinish = t('Ingen', 'None')
     let currentRanking = 0
 
     tournaments.forEach(tournament => {
@@ -437,9 +462,9 @@ export default function CaptainDashboardPage() {
         // Mock rangering basert på antall kamper
         if (tournament.position) {
           currentRanking = tournament.position
-          if (tournament.position === 1) bestFinish = 'Vinner'
-          else if (tournament.position <= 4) bestFinish = 'Semifinale'
-          else if (tournament.position <= 8) bestFinish = 'Kvartfinale'
+          if (tournament.position === 1) bestFinish = t('Vinner', 'Winner')
+          else if (tournament.position <= 4) bestFinish = t('Semifinale', 'Semifinal')
+          else if (tournament.position <= 8) bestFinish = t('Kvartfinale', 'Quarterfinal')
         }
       }
     })
@@ -613,7 +638,7 @@ export default function CaptainDashboardPage() {
     if (!team) return
     const tournamentId = team.tournamentId || team.tournaments?.[0]
     if (!tournamentId) {
-      alert('Mangler turneringsinformasjon for betaling. Kontakt administrator.')
+      alert(t('Mangler turneringsinformasjon for betaling. Kontakt administrator.', 'Missing tournament information for payment. Contact an administrator.'))
       return
     }
 
@@ -647,7 +672,7 @@ export default function CaptainDashboardPage() {
     const isTeam2 = selectedMatch.team2 === team.teamName
     
     if (!isTeam1 && !isTeam2) {
-      alert('Du er ikke del av denne kampen.')
+      alert(t('Du er ikke del av denne kampen.', 'You are not part of this match.'))
       return
     }
 
@@ -670,7 +695,7 @@ export default function CaptainDashboardPage() {
 
       if (!response.ok) {
         const error = await response.json()
-        alert(`Feil ved innsending av resultat: ${error.error || 'Ukjent feil'}`)
+        alert(t(`Feil ved innsending av resultat: ${error.error || 'Ukjent feil'}`, `Error submitting result: ${error.error || 'Unknown error'}`))
         return
       }
 
@@ -679,9 +704,15 @@ export default function CaptainDashboardPage() {
 
       // Check if match was automatically completed (both teams submitted matching results)
       if (updatedMatch.status === 'completed') {
-        alert(`Resultat bekreftet og fullført: ${selectedMatch.team1} ${updatedMatch.score1} - ${updatedMatch.score2} ${selectedMatch.team2}\n\nBegge lag har bekreftet samme resultat.`)
+        alert(t(
+          `Resultat bekreftet og fullført: ${selectedMatch.team1} ${updatedMatch.score1} - ${updatedMatch.score2} ${selectedMatch.team2}\n\nBegge lag har bekreftet samme resultat.`,
+          `Result confirmed and completed: ${selectedMatch.team1} ${updatedMatch.score1} - ${updatedMatch.score2} ${selectedMatch.team2}\n\nBoth teams confirmed the same result.`
+        ))
       } else {
-    alert(`Resultat innsendt: ${selectedMatch.team1} ${resultScore1} - ${resultScore2} ${selectedMatch.team2}\n\nVenter på bekreftelse fra motstanderlaget.`)
+    alert(t(
+      `Resultat innsendt: ${selectedMatch.team1} ${resultScore1} - ${resultScore2} ${selectedMatch.team2}\n\nVenter på bekreftelse fra motstanderlaget.`,
+      `Result submitted: ${selectedMatch.team1} ${resultScore1} - ${resultScore2} ${selectedMatch.team2}\n\nWaiting for opponent confirmation.`
+    ))
       }
       
     setShowResultModal(false)
@@ -690,7 +721,7 @@ export default function CaptainDashboardPage() {
       window.location.reload()
     } catch (error) {
       console.error('Error submitting result:', error)
-      alert('Noe gikk galt ved innsending av resultat. Prøv igjen.')
+      alert(t('Noe gikk galt ved innsending av resultat. Prøv igjen.', 'Something went wrong submitting the result. Please try again.'))
     }
   }
 
@@ -709,7 +740,7 @@ export default function CaptainDashboardPage() {
 
       if (!response.ok) {
         const error = await response.json()
-        alert(`Kunne ikke oppdatere Discord: ${error.error || 'Ukjent feil'}`)
+        alert(t(`Kunne ikke oppdatere Discord: ${error.error || 'Ukjent feil'}`, `Could not update Discord: ${error.error || 'Unknown error'}`))
         return
       }
 
@@ -717,11 +748,11 @@ export default function CaptainDashboardPage() {
       const updatedTeam = { ...team, discordUsername: result.team?.discordUsername || discordUsername.trim() }
       setTeam(updatedTeam)
       localStorage.setItem('captainTeam', JSON.stringify(updatedTeam))
-      addToast({ message: 'Discord-brukernavn oppdatert.', type: 'success' })
+      addToast({ message: t('Discord-brukernavn oppdatert.', 'Discord username updated.'), type: 'success' })
       setShowDiscordEditor(false)
     } catch (error) {
       console.error('Error updating discord username:', error)
-      alert('Noe gikk galt ved oppdatering av Discord-brukernavn.')
+      alert(t('Noe gikk galt ved oppdatering av Discord-brukernavn.', 'Something went wrong updating the Discord username.'))
     } finally {
       setIsSavingDiscord(false)
     }
@@ -737,7 +768,7 @@ export default function CaptainDashboardPage() {
     const isTeam2 = match.team2 === team.teamName
     
     if (!isTeam1 && !isTeam2) {
-      alert('Du er ikke del av denne kampen.')
+      alert(t('Du er ikke del av denne kampen.', 'You are not part of this match.'))
       return
     }
 
@@ -746,7 +777,7 @@ export default function CaptainDashboardPage() {
     try {
       const matchResponse = await fetch(`/api/matches?tournament_id=${match.tournamentId}`)
       if (!matchResponse.ok) {
-        alert('Kunne ikke hente kampdata. Prøv igjen.')
+        alert(t('Kunne ikke hente kampdata. Prøv igjen.', 'Could not fetch match data. Please try again.'))
         return
       }
       
@@ -754,7 +785,7 @@ export default function CaptainDashboardPage() {
       const currentMatch = matchesData.matches?.find((m: any) => m.id === match.id)
       
       if (!currentMatch) {
-        alert('Kamp ikke funnet.')
+        alert(t('Kamp ikke funnet.', 'Match not found.'))
         return
       }
 
@@ -773,7 +804,7 @@ export default function CaptainDashboardPage() {
       }
 
       if (opponentScore1 === null || opponentScore2 === null) {
-        alert('Motstanderens resultat ikke funnet. Prøv å oppdatere siden.')
+        alert(t('Motstanderens resultat ikke funnet. Prøv å oppdatere siden.', 'Opponent result not found. Try refreshing the page.'))
         return
       }
 
@@ -796,7 +827,7 @@ export default function CaptainDashboardPage() {
 
       if (!response.ok) {
         const error = await response.json()
-        alert(`Feil ved bekreftelse av resultat: ${error.error || 'Ukjent feil'}`)
+        alert(t(`Feil ved bekreftelse av resultat: ${error.error || 'Ukjent feil'}`, `Error confirming result: ${error.error || 'Unknown error'}`))
         return
       }
 
@@ -805,23 +836,29 @@ export default function CaptainDashboardPage() {
 
       // Check if match was automatically completed (both teams submitted matching results)
       if (updatedMatch.status === 'completed') {
-        alert(`Resultat bekreftet og fullført: ${match.team1} ${updatedMatch.score1} - ${updatedMatch.score2} ${match.team2}\n\nBegge lag har bekreftet samme resultat.`)
+        alert(t(
+          `Resultat bekreftet og fullført: ${match.team1} ${updatedMatch.score1} - ${updatedMatch.score2} ${match.team2}\n\nBegge lag har bekreftet samme resultat.`,
+          `Result confirmed and completed: ${match.team1} ${updatedMatch.score1} - ${updatedMatch.score2} ${match.team2}\n\nBoth teams confirmed the same result.`
+        ))
       } else {
-        alert(`Resultat sendt inn: ${match.team1} ${myScore} - ${opponentScore} ${match.team2}\n\nHvis resultatene ikke matcher, vil admin se på det.`)
+        alert(t(
+          `Resultat sendt inn: ${match.team1} ${myScore} - ${opponentScore} ${match.team2}\n\nHvis resultatene ikke matcher, vil admin se på det.`,
+          `Result submitted: ${match.team1} ${myScore} - ${opponentScore} ${match.team2}\n\nIf results do not match, admin will review it.`
+        ))
       }
       
       // Reload page to get updated match status
       window.location.reload()
     } catch (error) {
       console.error('Error confirming result:', error)
-      alert('Noe gikk galt ved bekreftelse av resultat. Prøv igjen.')
+      alert(t('Noe gikk galt ved bekreftelse av resultat. Prøv igjen.', 'Something went wrong confirming the result. Please try again.'))
     }
   }
 
   const rejectResult = async (match: Match) => {
     if (!team) return
 
-    if (!confirm('Er du sikker på at du vil avvise dette resultatet? Begge lag må legge inn resultatet på nytt.')) {
+    if (!confirm(t('Er du sikker på at du vil avvise dette resultatet? Begge lag må legge inn resultatet på nytt.', 'Are you sure you want to reject this result? Both teams must submit the result again.'))) {
       return
     }
 
@@ -847,20 +884,20 @@ export default function CaptainDashboardPage() {
       if (!response.ok) {
         const error = await response.json()
         console.error('Reject result error:', error)
-        alert(`Feil ved avvisning av resultat: ${error.error || 'Ukjent feil'}`)
+        alert(t(`Feil ved avvisning av resultat: ${error.error || 'Ukjent feil'}`, `Error rejecting result: ${error.error || 'Unknown error'}`))
         return
       }
 
       const result = await response.json()
       console.log('Reject result success:', result)
 
-    alert('Resultat avvist. Begge lag må legge inn resultatet på nytt.')
+    alert(t('Resultat avvist. Begge lag må legge inn resultatet på nytt.', 'Result rejected. Both teams must submit the result again.'))
       
       // Reload page to get updated match status
       window.location.reload()
     } catch (error) {
       console.error('Error rejecting result:', error)
-      alert('Noe gikk galt ved avvisning av resultat. Prøv igjen.')
+      alert(t('Noe gikk galt ved avvisning av resultat. Prøv igjen.', 'Something went wrong rejecting the result. Please try again.'))
     }
   }
 
@@ -884,17 +921,17 @@ export default function CaptainDashboardPage() {
   const getMatchStatusText = (status: string) => {
     switch (status) {
       case 'scheduled':
-        return 'Planlagt'
+        return t('Planlagt', 'Scheduled')
       case 'live':
-        return 'Live'
+        return t('Live', 'Live')
       case 'completed':
-        return 'Ferdig'
+        return t('Ferdig', 'Finished')
       case 'pending_result':
-        return 'Venter resultat'
+        return t('Venter resultat', 'Waiting for result')
       case 'pending_confirmation':
-        return 'Venter bekreftelse'
+        return t('Venter bekreftelse', 'Waiting for confirmation')
       default:
-        return 'Ukjent'
+        return t('Ukjent', 'Unknown')
     }
   }
 
@@ -903,7 +940,7 @@ export default function CaptainDashboardPage() {
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
           <div className="w-8 h-8 border-2 border-blue-400 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-slate-300">Laster...</p>
+          <p className="text-slate-300">{t('Laster...', 'Loading...')}</p>
         </div>
       </div>
     )
@@ -923,7 +960,7 @@ export default function CaptainDashboardPage() {
               <img src="/logo.png" alt="PRO11 Logo" className="w-full h-full object-contain" />
             </Link>
             <div className="ml-4">
-              <p className="text-slate-400 text-sm">Lagleder Dashboard</p>
+              <p className="text-slate-400 text-sm">{t('Lagleder Dashboard', 'Captain Dashboard')}</p>
             </div>
           </div>
           <div className="flex items-center space-x-4">
@@ -933,7 +970,7 @@ export default function CaptainDashboardPage() {
               className="pro11-button-secondary flex items-center space-x-2"
             >
               <LogOut className="w-4 h-4" />
-              <span>Logg ut</span>
+              <span>{t('Logg ut', 'Log out')}</span>
             </button>
           </div>
         </div>
@@ -946,9 +983,14 @@ export default function CaptainDashboardPage() {
           <div className="pro11-card p-6 mb-6">
             <div className="flex items-start justify-between gap-4">
               <div>
-                <h1 className="text-2xl font-bold mb-2">Velkommen, {team.captainName}!</h1>
+                <h1 className="text-2xl font-bold mb-2">
+                  {t('Velkommen', 'Welcome')}, {team.captainName}!
+                </h1>
                 <p className="text-slate-300">
-                  Her kan du administrere {team.teamName} og legge inn resultater for dine kamper.
+                  {t(
+                    `Her kan du administrere ${team.teamName} og legge inn resultater for dine kamper.`,
+                    `Here you can manage ${team.teamName} and submit results for your matches.`
+                  )}
                 </p>
               </div>
               {team.discordUsername && (
@@ -957,7 +999,7 @@ export default function CaptainDashboardPage() {
                   onClick={() => setShowDiscordEditor(true)}
                   className="flex items-center space-x-2 text-slate-400 text-sm hover:text-slate-200 transition-colors"
                   style={{ background: 'transparent', border: 'none', padding: 0 }}
-                  title="Rediger Discord-brukernavn"
+                  title={t('Rediger Discord-brukernavn', 'Edit Discord username')}
                 >
                   <svg className="w-5 h-5" viewBox="0 0 127.14 96.36" aria-hidden="true">
                     <path
@@ -975,16 +1017,16 @@ export default function CaptainDashboardPage() {
             <div className="pro11-card p-6 mb-6 border border-yellow-600/40 bg-yellow-900/10">
               <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                 <div>
-                  <h2 className="text-xl font-bold mb-2">Betaling ikke fullført</h2>
+                  <h2 className="text-xl font-bold mb-2">{t('Betaling ikke fullført', 'Payment not completed')}</h2>
                   <p className="text-slate-300">
-                    Registreringen er ikke aktiv før betalingen er gjennomført.
+                    {t('Registreringen er ikke aktiv før betalingen er gjennomført.', 'Registration is not active until payment is completed.')}
                   </p>
                 </div>
                 <button
                   onClick={handlePaymentRedirect}
                   className="pro11-button-secondary w-full md:w-auto"
                 >
-                  Fullfør betaling
+                  {t('Fullfør betaling', 'Complete payment')}
                 </button>
               </div>
             </div>
@@ -992,16 +1034,16 @@ export default function CaptainDashboardPage() {
 
           {(showDiscordEditor || !team.discordUsername) && (
             <div className="pro11-card p-6 mb-6">
-              <h2 className="text-xl font-bold mb-4">Lagleder</h2>
+              <h2 className="text-xl font-bold mb-4">{t('Lagleder', 'Captain')}</h2>
               <div className="grid md:grid-cols-[1fr_auto] gap-4 items-end">
                 <div>
-                  <label className="block text-sm font-medium text-slate-300 mb-2">Discord brukernavn</label>
+                  <label className="block text-sm font-medium text-slate-300 mb-2">{t('Discord brukernavn', 'Discord username')}</label>
                   <input
                     type="text"
                     value={discordUsername}
                     onChange={(e) => setDiscordUsername(e.target.value)}
                     className="pro11-input w-full"
-                    placeholder="f.eks. brukernavn#1234"
+                    placeholder={t('f.eks. brukernavn#1234', 'e.g. username#1234')}
                   />
                 </div>
                 <button
@@ -1009,7 +1051,7 @@ export default function CaptainDashboardPage() {
                   disabled={isSavingDiscord}
                   className="pro11-button-secondary"
                 >
-                  {isSavingDiscord ? 'Lagrer...' : 'Lagre'}
+                  {isSavingDiscord ? t('Lagrer...', 'Saving...') : t('Lagre', 'Save')}
                 </button>
               </div>
             </div>
@@ -1019,7 +1061,7 @@ export default function CaptainDashboardPage() {
           {liveTournaments.length > 0 && (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
               <div className="pro11-card p-6 md:p-8 w-full text-center">
-                <h2 className="text-xl font-bold mb-4">Hurtig-handlinger</h2>
+                <h2 className="text-xl font-bold mb-4">{t('Hurtig-handlinger', 'Quick actions')}</h2>
                 <div className="grid grid-cols-1 gap-6">
                   {liveTournaments.map(tournament => {
                     // Filter out knockout matches if group stage is not completed
@@ -1060,23 +1102,23 @@ export default function CaptainDashboardPage() {
                                   {nextMatch.team1} vs {nextMatch.team2}
                                 </div>
                                 <div className="text-xs text-slate-400 md:text-sm">
-                                  {nextMatch.round}
+                                  {translateRoundName(nextMatch.round)}
                                   {nextMatch.round === 'Gruppespill' && (
                                     <>
                                       {nextMatch.groupRound || groupRoundMap[buildKey(nextMatch.team1, nextMatch.team2)] ? (
-                                        <> • Runde {nextMatch.groupRound || groupRoundMap[buildKey(nextMatch.team1, nextMatch.team2)]}</>
+                                        <> • {t('Runde', 'Round')} {nextMatch.groupRound || groupRoundMap[buildKey(nextMatch.team1, nextMatch.team2)]}</>
                                       ) : null}
                                     </>
                                   )}
                                 </div>
                                 <div className="text-xs text-slate-400 md:text-sm">
-                                  {nextMatch.opponentDiscordUsername || 'Motstanders discord ikke registrert'}
+                                  {nextMatch.opponentDiscordUsername || t('Motstanders discord ikke registrert', 'Opponent Discord not registered')}
                                 </div>
                                 <div className="text-xs md:text-sm text-slate-300">
                                   {nextMatch.canConfirmResult &&
                                     nextMatch.opponentSubmittedScore1 !== null &&
                                     nextMatch.opponentSubmittedScore2 !== null && (
-                                      <>Innsendt: {nextMatch.opponentSubmittedScore1} - {nextMatch.opponentSubmittedScore2}</>
+                                      <>{t('Innsendt', 'Submitted')}: {nextMatch.opponentSubmittedScore1} - {nextMatch.opponentSubmittedScore2}</>
                                     )}
                                 </div>
                                 <div className="flex flex-wrap gap-2 justify-center">
@@ -1086,7 +1128,7 @@ export default function CaptainDashboardPage() {
                                       className="pro11-button-secondary text-xs px-3 py-1"
                                     >
                                       <Edit className="w-3 h-3 mr-1" />
-                                      Legg inn
+                                      {t('Legg inn', 'Submit')}
                                     </button>
                                   )}
                                   {nextMatch.canConfirmResult && (
@@ -1095,14 +1137,14 @@ export default function CaptainDashboardPage() {
                                         onClick={() => confirmResult(nextMatch)}
                                         className="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded text-xs font-medium transition-colors"
                                       >
-                                        Bekreft
+                                        {t('Bekreft', 'Confirm')}
                                       </button>
                                       {nextMatch.submittedBy && nextMatch.submittedBy !== team.teamName && (
                                         <button
                                           onClick={() => rejectResult(nextMatch)}
                                           className="bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded text-xs font-medium transition-colors"
                                         >
-                                          Avvis
+                                          {t('Avvis', 'Reject')}
                                         </button>
                                       )}
                                     </>
@@ -1112,7 +1154,7 @@ export default function CaptainDashboardPage() {
                             </div>
                           ) : (
                             <div className="text-sm text-slate-400 text-center py-2">
-                              Ingen ventende handlinger
+                              {t('Ingen ventende handlinger', 'No pending actions')}
                             </div>
                           )}
                         </div>
@@ -1122,10 +1164,10 @@ export default function CaptainDashboardPage() {
                 </div>
               </div>
               <div className="pro11-card p-6 md:p-8 w-full">
-                <h2 className="text-xl font-bold mb-4">Lagleder verktøy</h2>
+                <h2 className="text-xl font-bold mb-4">{t('Lagleder verktøy', 'Captain tools')}</h2>
                 <div className="space-y-4">
                   <div>
-                    <div className="text-sm text-slate-400 mb-2">Form (siste 5)</div>
+                    <div className="text-sm text-slate-400 mb-2">{t('Form (siste 5)', 'Form (last 5)')}</div>
                     <div className="flex flex-wrap gap-2">
                       {formResults.length > 0 ? (
                         formResults.map((result, index) => (
@@ -1141,14 +1183,14 @@ export default function CaptainDashboardPage() {
                           </span>
                         ))
                       ) : (
-                        <span className="text-xs text-slate-500">Ingen ferdige kamper</span>
+                        <span className="text-xs text-slate-500">{t('Ingen ferdige kamper', 'No completed matches')}</span>
                       )}
                     </div>
                   </div>
 
                   {liveTournaments.length > 1 && (
                     <div>
-                      <label className="block text-xs text-slate-400 mb-2">Turnering</label>
+                      <label className="block text-xs text-slate-400 mb-2">{t('Turnering', 'Tournament')}</label>
                       <select
                         value={selectedTournamentId}
                         onChange={(e) => setSelectedTournamentId(e.target.value)}
@@ -1165,7 +1207,7 @@ export default function CaptainDashboardPage() {
 
                   <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
                     <Link href="/rules" className="pro11-button-secondary text-sm text-center w-full sm:w-auto">
-                      Regler
+                      {t('Regler', 'Rules')}
                     </Link>
                   </div>
 
@@ -1177,40 +1219,40 @@ export default function CaptainDashboardPage() {
           {/* Team Statistics */}
           {teamStats && (
             <div className="pro11-card p-6 mb-6">
-              <h2 className="text-xl font-bold mb-4">Lagstatistikk</h2>
+              <h2 className="text-xl font-bold mb-4">{t('Lagstatistikk', 'Team statistics')}</h2>
               <div className="flex items-center justify-center space-x-8 mb-6">
                 <div className="text-center p-4 bg-slate-800/50 rounded-lg">
                   <div className="text-2xl font-bold text-green-400">{teamStats.wins}</div>
-                  <div className="text-sm text-slate-400">Seiere</div>
+                  <div className="text-sm text-slate-400">{t('Seiere', 'Wins')}</div>
                 </div>
                 <div className="text-center p-4 bg-slate-800/50 rounded-lg">
                   <div className="text-2xl font-bold text-red-400">{teamStats.losses}</div>
-                  <div className="text-sm text-slate-400">Tap</div>
+                  <div className="text-sm text-slate-400">{t('Tap', 'Losses')}</div>
                 </div>
                 <div className="text-center p-4 bg-slate-800/50 rounded-lg">
                   <div className="text-2xl font-bold text-yellow-400">{teamStats.draws}</div>
-                  <div className="text-sm text-slate-400">Uavgjort</div>
+                  <div className="text-sm text-slate-400">{t('Uavgjort', 'Draws')}</div>
                 </div>
                 <div className="text-center p-4 bg-slate-800/50 rounded-lg">
                   <div className="text-2xl font-bold text-blue-400">{teamStats.tournamentsPlayed}</div>
-                  <div className="text-sm text-slate-400">Turneringer spilt</div>
+                  <div className="text-sm text-slate-400">{t('Turneringer spilt', 'Tournaments played')}</div>
                 </div>
               </div>
               
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="p-4 bg-slate-800/50 rounded-lg">
-                  <h3 className="font-semibold mb-2">Målstatistikk</h3>
+                  <h3 className="font-semibold mb-2">{t('Målstatistikk', 'Goal stats')}</h3>
                   <div className="space-y-1">
                     <div className="flex justify-between">
-                      <span className="text-slate-400">Mål for:</span>
+                      <span className="text-slate-400">{t('Mål for:', 'Goals for:')}</span>
                       <span className="font-medium">{teamStats.goalsFor}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-slate-400">Mål mot:</span>
+                      <span className="text-slate-400">{t('Mål mot:', 'Goals against:')}</span>
                       <span className="font-medium">{teamStats.goalsAgainst}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-slate-400">Målforskjell:</span>
+                      <span className="text-slate-400">{t('Målforskjell:', 'Goal difference:')}</span>
                       <span className={`font-medium ${teamStats.goalsFor - teamStats.goalsAgainst >= 0 ? 'text-green-400' : 'text-red-400'}`}>
                         {teamStats.goalsFor - teamStats.goalsAgainst > 0 ? '+' : ''}{teamStats.goalsFor - teamStats.goalsAgainst}
                       </span>
@@ -1219,21 +1261,21 @@ export default function CaptainDashboardPage() {
                 </div>
                 
                 <div className="p-4 bg-slate-800/50 rounded-lg">
-                  <h3 className="font-semibold mb-2">Prestasjoner</h3>
+                  <h3 className="font-semibold mb-2">{t('Prestasjoner', 'Performance')}</h3>
                   <div className="space-y-1">
                     <div className="flex justify-between">
-                      <span className="text-slate-400">Beste plassering:</span>
+                      <span className="text-slate-400">{t('Beste plassering:', 'Best finish:')}</span>
                       <span className="font-medium">{teamStats.bestFinish}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-slate-400">Nåværende rangering:</span>
+                      <span className="text-slate-400">{t('Nåværende rangering:', 'Current ranking:')}</span>
                       <span className="font-medium">{teamStats.currentRanking || 'N/A'}</span>
                     </div>
                   </div>
                 </div>
                 
                 <div className="p-4 bg-slate-800/50 rounded-lg">
-                  <h3 className="font-semibold mb-2">Vinnprosent</h3>
+                  <h3 className="font-semibold mb-2">{t('Vinnprosent', 'Win rate')}</h3>
                   <div className="text-center">
                     <div className="text-3xl font-bold text-green-400">
                       {teamStats.wins + teamStats.losses + teamStats.draws > 0 
@@ -1241,7 +1283,7 @@ export default function CaptainDashboardPage() {
                         : 0}%
                     </div>
                     <div className="text-sm text-slate-400">
-                      {teamStats.wins} av {teamStats.wins + teamStats.losses + teamStats.draws} kamper
+                      {teamStats.wins} {t('av', 'of')} {teamStats.wins + teamStats.losses + teamStats.draws} {t('kamper', 'matches')}
                     </div>
                   </div>
                 </div>
@@ -1251,7 +1293,7 @@ export default function CaptainDashboardPage() {
 
           {/* Tournament History */}
           <div className="pro11-card p-6 mb-6">
-            <h2 className="text-xl font-bold mb-4">Turneringshistorikk</h2>
+            <h2 className="text-xl font-bold mb-4">{t('Turneringshistorikk', 'Tournament history')}</h2>
             <div className="space-y-4">
               {tournaments.filter(t => t.status === 'completed').map(tournament => (
                 <div key={tournament.id} className="flex items-center justify-between p-4 bg-slate-800/50 rounded-lg">
@@ -1262,13 +1304,13 @@ export default function CaptainDashboardPage() {
                   <div className="flex items-center space-x-4">
                     <div className="text-center">
                       <div className="text-2xl font-bold text-blue-400">{tournament.position}</div>
-                      <div className="text-xs text-slate-400">av {tournament.totalTeams}</div>
+                      <div className="text-xs text-slate-400">{t('av', 'of')} {tournament.totalTeams}</div>
                     </div>
                     <div className="text-center">
                       <div className="text-sm font-medium text-green-400">
-                        {tournament.matches.filter(m => m.status === 'completed').length} kamper
+                        {tournament.matches.filter(m => m.status === 'completed').length} {t('kamper', 'matches')}
                       </div>
-                      <div className="text-xs text-slate-400">spilt</div>
+                      <div className="text-xs text-slate-400">{t('spilt', 'played')}</div>
                     </div>
                     <Trophy className={`w-6 h-6 ${tournament.position === 1 ? 'text-yellow-400' : 'text-slate-400'}`} />
                   </div>
@@ -1328,8 +1370,8 @@ export default function CaptainDashboardPage() {
                    tournament.status === 'live' ? 'bg-green-600' : 
                    tournament.status === 'completed' ? 'bg-blue-600' : 'bg-yellow-600'
                  }`}>
-                   {tournament.status === 'live' ? 'Live' : 
-                    tournament.status === 'completed' ? 'Fullført' : 'Kommende'}
+                   {tournament.status === 'live' ? t('Live', 'Live') : 
+                    tournament.status === 'completed' ? t('Fullført', 'Completed') : t('Kommende', 'Upcoming')}
                  </span>
               </div>
 
@@ -1337,17 +1379,23 @@ export default function CaptainDashboardPage() {
                 {didNotAdvance && (
                   <div className="p-4 bg-slate-800/50 border border-slate-700/60 rounded-lg md:col-span-2">
                     <p className="text-slate-300 text-sm">
-                      Takk for innsatsen! Gruppen er ferdigspilt, og dere gikk ikke videre til sluttspill denne gangen.
+                      {t(
+                        'Takk for innsatsen! Gruppen er ferdigspilt, og dere gikk ikke videre til sluttspill denne gangen.',
+                        'Thanks for the effort! The group stage is complete, and you did not advance to the knockout this time.'
+                      )}
                     </p>
                   </div>
                 )}
                 {!shouldShowKnockout && groupMatches.length > 0 && (
                   <div className="p-4 bg-yellow-900/20 border border-yellow-600/30 rounded-lg md:col-span-2">
                     <p className="text-yellow-400 text-sm">
-                      ⚠️ Sluttspillkamper vil bli vist når alle gruppespillkamper er ferdig.
+                      {t(
+                        '⚠️ Sluttspillkamper vil bli vist når alle gruppespillkamper er ferdig.',
+                        '⚠️ Knockout matches will be shown when all group stage matches are completed.'
+                      )}
                     </p>
                     <p className="text-slate-400 text-xs mt-1">
-                      Ferdig: {groupMatches.filter(m => m.status === 'completed').length} / {groupMatches.length} kamper
+                      {t('Ferdig', 'Completed')}: {groupMatches.filter(m => m.status === 'completed').length} / {groupMatches.length} {t('kamper', 'matches')}
                     </p>
                   </div>
                 )}
@@ -1361,13 +1409,13 @@ export default function CaptainDashboardPage() {
                           <span className="font-medium break-words">{match.team2}</span>
                         </div>
                         <div className="text-sm text-slate-400 mt-1">
-                          {match.time} • {match.round}
+                          {match.time} • {translateRoundName(match.round)}
                           {match.round === 'Gruppespill' && (match.groupRound || groupRoundMap[buildKey(match.team1, match.team2)]) && (
-                            <> • Runde {match.groupRound || groupRoundMap[buildKey(match.team1, match.team2)]}</>
+                            <> • {t('Runde', 'Round')} {match.groupRound || groupRoundMap[buildKey(match.team1, match.team2)]}</>
                           )}
                         </div>
                         <div className="text-xs text-slate-400 mt-1">
-                          {match.opponentDiscordUsername || 'Motstanders discord ikke registrert'}
+                          {match.opponentDiscordUsername || t('Motstanders discord ikke registrert', 'Opponent Discord not registered')}
                         </div>
                       </div>
                       
@@ -1395,7 +1443,7 @@ export default function CaptainDashboardPage() {
                               className="pro11-button-secondary flex items-center space-x-1 text-xs px-3 py-1.5 max-sm:w-full justify-center"
                             >
                               <Edit className="w-3 h-3" />
-                              <span>Legg inn resultat</span>
+                              <span>{t('Legg inn resultat', 'Submit result')}</span>
                             </button>
                           )}
                           
@@ -1405,13 +1453,13 @@ export default function CaptainDashboardPage() {
                                 onClick={() => confirmResult(match)}
                                 className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded text-sm font-medium transition-colors max-sm:w-full"
                               >
-                                Bekreft
+                                {t('Bekreft', 'Confirm')}
                               </button>
                               <button
                                 onClick={() => rejectResult(match)}
                                 className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded text-sm font-medium transition-colors max-sm:w-full"
                               >
-                                Avvis
+                                {t('Avvis', 'Reject')}
                               </button>
                             </>
                           )}
@@ -1423,21 +1471,22 @@ export default function CaptainDashboardPage() {
                 {activeStandings.length > 0 && (
                   <div className="pro11-card p-4">
                     <h3 className="text-sm font-semibold text-slate-300 mb-3">
-                      Tabell {activeGroup ? `• ${activeGroup}` : ''}
+                      {t('Tabell', 'Standings')}{' '}
+                      {activeGroup ? `• ${isEnglish ? activeGroup.replace('Gruppe', 'Group') : activeGroup}` : ''}
                     </h3>
                     <div className="overflow-x-auto">
                       <table className="w-full text-xs">
                         <thead>
                           <tr className="text-slate-500">
                             <th className="text-center py-2 w-6">#</th>
-                            <th className="text-left py-2">Lag</th>
-                            <th className="text-center py-2">K</th>
-                            <th className="text-center py-2">S</th>
-                            <th className="text-center py-2">U</th>
-                            <th className="text-center py-2">T</th>
-                            <th className="text-center py-2">M+</th>
-                            <th className="text-center py-2">M-</th>
-                            <th className="text-center py-2">P</th>
+                            <th className="text-left py-2">{t('Lag', 'Team')}</th>
+                            <th className="text-center py-2">{t('K', 'P')}</th>
+                            <th className="text-center py-2">{t('S', 'W')}</th>
+                            <th className="text-center py-2">{t('U', 'D')}</th>
+                            <th className="text-center py-2">{t('T', 'L')}</th>
+                            <th className="text-center py-2">{t('M+', 'GF')}</th>
+                            <th className="text-center py-2">{t('M-', 'GA')}</th>
+                            <th className="text-center py-2">{t('P', 'Pts')}</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -1467,12 +1516,12 @@ export default function CaptainDashboardPage() {
           {tournaments.length === 0 && (
             <div className="pro11-card p-8 text-center">
               <Trophy className="w-12 h-12 text-slate-400 mx-auto mb-4" />
-              <h3 className="text-lg font-semibold mb-2">Ingen aktive turneringer</h3>
+              <h3 className="text-lg font-semibold mb-2">{t('Ingen aktive turneringer', 'No active tournaments')}</h3>
               <p className="text-slate-300 mb-4">
-                Du har ingen turneringer å administrere for øyeblikket.
+                {t('Du har ingen turneringer å administrere for øyeblikket.', 'You have no tournaments to manage at the moment.')}
               </p>
               <Link href="/tournaments" className="pro11-button flex items-center space-x-2 mx-auto w-fit">
-                <span>Se alle turneringer</span>
+                <span>{t('Se alle turneringer', 'See all tournaments')}</span>
                 <ArrowRight className="w-4 h-4" />
               </Link>
             </div>
@@ -1491,7 +1540,7 @@ export default function CaptainDashboardPage() {
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl font-bold">Legg inn resultat</h2>
+              <h2 className="text-xl font-bold">{t('Legg inn resultat', 'Submit result')}</h2>
               <button
                 onClick={() => setShowResultModal(false)}
                 className="text-slate-400 hover:text-white"
@@ -1503,13 +1552,13 @@ export default function CaptainDashboardPage() {
             <div className="space-y-4">
               <div className="text-center mb-4">
                 <p className="text-slate-300 mb-2">{selectedMatch.team1} vs {selectedMatch.team2}</p>
-                <p className="text-sm text-slate-400">{selectedMatch.round} • {selectedMatch.time}</p>
+                <p className="text-sm text-slate-400">{translateRoundName(selectedMatch.round)} • {selectedMatch.time}</p>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-slate-300 mb-2">
-                    {selectedMatch.team1} mål
+                    {selectedMatch.team1} {t('mål', 'goals')}
                   </label>
                   <input
                     type="number"
@@ -1521,7 +1570,7 @@ export default function CaptainDashboardPage() {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-slate-300 mb-2">
-                    {selectedMatch.team2} mål
+                    {selectedMatch.team2} {t('mål', 'goals')}
                   </label>
                   <input
                     type="number"
@@ -1539,14 +1588,14 @@ export default function CaptainDashboardPage() {
                   className="pro11-button flex items-center space-x-2 flex-1"
                 >
                   <CheckCircle className="w-4 h-4" />
-                  <span>Send inn</span>
+                  <span>{t('Send inn', 'Submit')}</span>
                 </button>
                 <button
                   onClick={() => setShowResultModal(false)}
                   className="pro11-button-secondary flex items-center space-x-2 flex-1"
                 >
                   <XCircle className="w-4 h-4" />
-                  <span>Avbryt</span>
+                  <span>{t('Avbryt', 'Cancel')}</span>
                 </button>
               </div>
             </div>

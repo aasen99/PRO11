@@ -6,6 +6,7 @@ import { useParams } from 'next/navigation'
 import { ArrowLeft, Trophy, Users, Calendar, Edit, Save, X, RefreshCw, Wrench } from 'lucide-react'
 import { ToastContainer } from '@/components/Toast'
 import type { ToastType } from '@/components/Toast'
+import { useLanguage } from '@/components/LanguageProvider'
 
 interface ToastMessage {
   id: string
@@ -61,6 +62,10 @@ interface StoredMatchConfig {
 export default function TournamentMatchesPage() {
   const params = useParams()
   const tournamentId = params.id as string
+  const { language } = useLanguage()
+  const isEnglish = language === 'en'
+  const t = (noText: string, enText: string) => (isEnglish ? enText : noText)
+  const locale = isEnglish ? 'en-US' : 'nb-NO'
   
   const [tournament, setTournament] = useState<Tournament | null>(null)
   const [matches, setMatches] = useState<Match[]>([])
@@ -134,12 +139,12 @@ export default function TournamentMatchesPage() {
   }
 
   const getRoundNameForTeams = (numTeams: number): string => {
-    if (numTeams === 2) return 'Finale'
-    if (numTeams === 4) return 'Semifinaler'
-    if (numTeams === 8) return 'Kvartfinaler'
-    if (numTeams > 8) return 'Kvartfinaler'
-    if (numTeams > 4) return 'Semifinaler'
-    return 'Sluttspill'
+    if (numTeams === 2) return t('Finale', 'Final')
+    if (numTeams === 4) return t('Semifinaler', 'Semifinals')
+    if (numTeams === 8) return t('Kvartfinaler', 'Quarterfinals')
+    if (numTeams > 8) return t('Kvartfinaler', 'Quarterfinals')
+    if (numTeams > 4) return t('Semifinaler', 'Semifinals')
+    return t('Sluttspill', 'Knockout')
   }
 
   const generateSeededBracket = (teams: string[], roundName: string) => {
@@ -200,11 +205,14 @@ export default function TournamentMatchesPage() {
         })
         if (!response.ok) {
           hasError = true
-          const errorData = await response.json().catch(() => ({ error: 'Ukjent feil' }))
+          const errorData = await response.json().catch(() => ({ error: t('Ukjent feil', 'Unknown error') }))
           console.error('Failed to backfill group_round:', update, errorData)
           if (String(errorData.error || '').includes('group_round')) {
             addToast({
-              message: 'Klarte ikke oppdatere group_round. Kjør SQL: alter table public.matches add column if not exists group_round integer;',
+              message: t(
+                'Klarte ikke oppdatere group_round. Kjør SQL: alter table public.matches add column if not exists group_round integer;',
+                'Could not update group_round. Run SQL: alter table public.matches add column if not exists group_round integer;'
+              ),
               type: 'warning'
             })
           }
@@ -215,7 +223,7 @@ export default function TournamentMatchesPage() {
         groupRoundBackfillRef.current = false
       } else {
         addToast({
-          message: `Oppdaterte group_round for ${updates.length} kamper.`,
+          message: t(`Oppdaterte group_round for ${updates.length} kamper.`, `Updated group_round for ${updates.length} matches.`),
           type: 'success'
         })
       }
@@ -405,7 +413,10 @@ export default function TournamentMatchesPage() {
 
                   await Promise.all(insertPromises)
                   addToast({
-                    message: `Sluttspill generert automatisk: ${roundName} (${matchesToCreate.length} kamper).`,
+                    message: t(
+                      `Sluttspill generert automatisk: ${roundName} (${matchesToCreate.length} kamper).`,
+                      `Knockout generated automatically: ${roundName} (${matchesToCreate.length} matches).`
+                    ),
                     type: 'success'
                   })
                 }
@@ -413,7 +424,10 @@ export default function TournamentMatchesPage() {
             } catch (error) {
               console.error('Error auto-generating knockout:', error)
               addToast({
-                message: 'Kunne ikke generere sluttspill automatisk. Prøv å oppdatere.',
+                message: t(
+                  'Kunne ikke generere sluttspill automatisk. Prøv å oppdatere.',
+                  'Could not generate knockout automatically. Try refreshing.'
+                ),
                 type: 'error'
               })
             } finally {
@@ -785,20 +799,20 @@ export default function TournamentMatchesPage() {
   const getStatusText = (status: string, match?: Match) => {
     switch (status) {
       case 'completed':
-        return 'Ferdig'
+        return t('Ferdig', 'Finished')
       case 'live':
         return 'LIVE'
       case 'scheduled':
-        return 'Planlagt'
+        return t('Planlagt', 'Scheduled')
       case 'pending_confirmation':
         if (match?.submitted_by) {
-          return `Venter bekreftelse (${match.submitted_by})`
+          return t(`Venter bekreftelse (${match.submitted_by})`, `Waiting for confirmation (${match.submitted_by})`)
         }
-        return 'Venter bekreftelse'
+        return t('Venter bekreftelse', 'Waiting for confirmation')
       case 'pending_result':
-        return 'Venter resultat'
+        return t('Venter resultat', 'Waiting for result')
       default:
-        return 'Venter'
+        return t('Venter', 'Waiting')
     }
   }
 
@@ -957,25 +971,25 @@ export default function TournamentMatchesPage() {
         
         setEditingMatch(null)
         setEditForm({})
-        alert('Kamp oppdatert!')
+        alert(t('Kamp oppdatert!', 'Match updated!'))
       } else {
-        const errorData = await response.json().catch(() => ({ error: 'Ukjent feil' }))
+        const errorData = await response.json().catch(() => ({ error: t('Ukjent feil', 'Unknown error') }))
         console.error('Error response:', errorData)
-        alert(`Kunne ikke oppdatere kamp: ${errorData.error || 'Ukjent feil'}`)
+        alert(t(`Kunne ikke oppdatere kamp: ${errorData.error || 'Ukjent feil'}`, `Could not update match: ${errorData.error || 'Unknown error'}`))
       }
     } catch (error: any) {
       console.error('Error saving match:', error)
-      alert(`Noe gikk galt ved oppdatering av kamp: ${error.message || 'Ukjent feil'}`)
+      alert(t(`Noe gikk galt ved oppdatering av kamp: ${error.message || 'Ukjent feil'}`, `Something went wrong updating match: ${error.message || 'Unknown error'}`))
     }
   }
 
   const applyBulkSchedule = async () => {
     if (!bulkScheduledTime) {
-      addToast({ message: 'Velg dato og klokkeslett først.', type: 'warning' })
+      addToast({ message: t('Velg dato og klokkeslett først.', 'Select date and time first.'), type: 'warning' })
       return
     }
     if (selectedMatchIds.size === 0) {
-      addToast({ message: 'Velg minst én kamp.', type: 'warning' })
+      addToast({ message: t('Velg minst én kamp.', 'Select at least one match.'), type: 'warning' })
       return
     }
 
@@ -1068,8 +1082,8 @@ export default function TournamentMatchesPage() {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
-          <p className="text-red-400 mb-4">Turnering ikke funnet</p>
-          <Link href="/admin" className="pro11-button">Tilbake til admin</Link>
+          <p className="text-red-400 mb-4">{t('Turnering ikke funnet', 'Tournament not found')}</p>
+          <Link href="/admin" className="pro11-button">{t('Tilbake til admin', 'Back to admin')}</Link>
         </div>
       </div>
     )
@@ -1084,12 +1098,12 @@ export default function TournamentMatchesPage() {
           <div className="flex items-center space-x-4">
             <Link href="/admin" className="pro11-button-secondary flex items-center space-x-2">
               <ArrowLeft className="w-4 h-4" />
-              <span>Tilbake</span>
+              <span>{t('Tilbake', 'Back')}</span>
             </Link>
             <div>
               <h1 className="text-2xl font-bold">{tournament.title}</h1>
               <p className="text-slate-400 text-sm">
-                {new Date(tournament.start_date).toLocaleDateString('nb-NO', { 
+                {new Date(tournament.start_date).toLocaleDateString(locale, { 
                   day: 'numeric', 
                   month: 'long', 
                   year: 'numeric' 
@@ -1100,15 +1114,15 @@ export default function TournamentMatchesPage() {
           <div className="flex items-center space-x-2">
             <button onClick={loadData} className="pro11-button-secondary flex items-center space-x-2">
               <RefreshCw className="w-4 h-4" />
-              <span>Refresh</span>
+              <span>{t('Oppdater', 'Refresh')}</span>
             </button>
             <button
               onClick={runGroupRoundBackfill}
               className="pro11-button-secondary flex items-center space-x-2"
-              title="Oppdater manglende runder for gruppespill"
+              title={t('Oppdater manglende runder for gruppespill', 'Update missing rounds for group stage')}
             >
               <Wrench className="w-4 h-4" />
-              <span>Fiks runder</span>
+              <span>{t('Fiks runder', 'Fix rounds')}</span>
             </button>
           </div>
         </div>
@@ -1117,17 +1131,23 @@ export default function TournamentMatchesPage() {
       <main className="container mx-auto px-4 py-6">
         {(scheduleDiagnostics.missingGroupRound.length > 0 || scheduleDiagnostics.duplicates.length > 0) && (
           <div className="pro11-card p-4 mb-6 border border-orange-500/40 bg-orange-900/10">
-            <h2 className="text-lg font-semibold text-orange-300 mb-2">Feilsøking: kampprogram</h2>
+            <h2 className="text-lg font-semibold text-orange-300 mb-2">{t('Feilsøking: kampprogram', 'Diagnostics: match schedule')}</h2>
             {scheduleDiagnostics.missingGroupRound.length > 0 && (
               <p className="text-sm text-orange-200">
-                Mangler `group_round` på {scheduleDiagnostics.missingGroupRound.length} gruppespill‑kamper.
+                {t(
+                  `Mangler \`group_round\` på ${scheduleDiagnostics.missingGroupRound.length} gruppespill‑kamper.`,
+                  `Missing \`group_round\` for ${scheduleDiagnostics.missingGroupRound.length} group stage matches.`
+                )}
               </p>
             )}
             {scheduleDiagnostics.duplicates.length > 0 && (
               <div className="mt-2 text-sm text-orange-200 space-y-1">
                 {scheduleDiagnostics.duplicates.map(item => (
                   <div key={`${item.group}-${item.round}-${item.team}`}>
-                    {item.group} • {item.round}: {item.team} har flere kamper (ID: {item.matchIds.join(', ')})
+                    {item.group} • {item.round}: {t(
+                      `${item.team} har flere kamper (ID: ${item.matchIds.join(', ')})`,
+                      `${item.team} has multiple matches (ID: ${item.matchIds.join(', ')})`
+                    )}
                   </div>
                 ))}
               </div>
@@ -1139,7 +1159,7 @@ export default function TournamentMatchesPage() {
           <div className="mb-8">
             <h2 className="text-xl font-bold mb-4 flex items-center space-x-2">
               <Trophy className="w-5 h-5" />
-              <span>Gruppespill - Tabeller</span>
+              <span>{t('Gruppespill - Tabeller', 'Group stage - Standings')}</span>
             </h2>
             <div className="grid md:grid-cols-2 gap-4">
               {Object.entries(groupStandings).map(([groupName, standings]) => (
@@ -1149,14 +1169,14 @@ export default function TournamentMatchesPage() {
                     <table className="w-full text-sm">
                       <thead>
                         <tr className="border-b border-slate-700">
-                          <th className="text-left py-2 px-2">Lag</th>
-                          <th className="text-center py-2 px-2">K</th>
-                          <th className="text-center py-2 px-2">S</th>
-                          <th className="text-center py-2 px-2">U</th>
-                          <th className="text-center py-2 px-2">T</th>
-                          <th className="text-center py-2 px-2">M+</th>
-                          <th className="text-center py-2 px-2">M-</th>
-                          <th className="text-center py-2 px-2 font-bold">P</th>
+                          <th className="text-left py-2 px-2">{t('Lag', 'Team')}</th>
+                          <th className="text-center py-2 px-2">{t('K', 'P')}</th>
+                          <th className="text-center py-2 px-2">{t('S', 'W')}</th>
+                          <th className="text-center py-2 px-2">{t('U', 'D')}</th>
+                          <th className="text-center py-2 px-2">{t('T', 'L')}</th>
+                          <th className="text-center py-2 px-2">{t('M+', 'GF')}</th>
+                          <th className="text-center py-2 px-2">{t('M-', 'GA')}</th>
+                          <th className="text-center py-2 px-2 font-bold">{t('P', 'Pts')}</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -1189,23 +1209,23 @@ export default function TournamentMatchesPage() {
           <div className="pro11-card p-4 mb-6">
             <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
               <div className="space-y-1">
-                <h2 className="text-lg font-semibold">Bulk dato/klokkeslett</h2>
+                <h2 className="text-lg font-semibold">{t('Bulk dato/klokkeslett', 'Bulk date/time')}</h2>
                 <p className="text-sm text-slate-400">
-                  Velg kamper i listene under, sett tid og oppdater flere samtidig.
+                  {t('Velg kamper i listene under, sett tid og oppdater flere samtidig.', 'Select matches below, set time, and update multiple at once.')}
                 </p>
               </div>
               <button
                 onClick={() => setShowBulkTool(false)}
                 className="pro11-button-secondary text-sm"
               >
-                Skjul
+                {t('Skjul', 'Hide')}
               </button>
             </div>
             <>
               <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-center">
                 <input
                   type="datetime-local"
-                  lang="no"
+                  lang={isEnglish ? 'en' : 'no'}
                   value={bulkScheduledTime}
                   onChange={(e) => setBulkScheduledTime(e.target.value)}
                   className="px-3 py-2 bg-slate-700 rounded text-sm"
@@ -1215,7 +1235,9 @@ export default function TournamentMatchesPage() {
                   disabled={isBulkSaving}
                   className="pro11-button-secondary text-sm"
                 >
-                  {isBulkSaving ? 'Oppdaterer...' : `Oppdater valgte (${selectedMatchIds.size})`}
+                  {isBulkSaving
+                    ? t('Oppdaterer...', 'Updating...')
+                    : t(`Oppdater valgte (${selectedMatchIds.size})`, `Update selected (${selectedMatchIds.size})`)}
                 </button>
               </div>
               <div className="mt-3 flex flex-wrap gap-2">
@@ -1223,19 +1245,19 @@ export default function TournamentMatchesPage() {
                   onClick={() => selectMatches(groupMatches.map(match => match.id))}
                   className="pro11-button-secondary text-xs"
                 >
-                  Velg alle gruppespill
+                  {t('Velg alle gruppespill', 'Select all group stage')}
                 </button>
                 <button
                   onClick={() => selectMatches(knockoutMatches.map(match => match.id))}
                   className="pro11-button-secondary text-xs"
                 >
-                  Velg alle sluttspill
+                  {t('Velg alle sluttspill', 'Select all knockout')}
                 </button>
                 <button
                   onClick={clearSelectedMatches}
                   className="pro11-button-secondary text-xs"
                 >
-                  Tøm utvalg
+                  {t('Tøm utvalg', 'Clear selection')}
                 </button>
               </div>
             </>
@@ -1248,14 +1270,14 @@ export default function TournamentMatchesPage() {
             <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
               <h2 className="text-xl font-bold flex items-center space-x-2">
                 <Users className="w-5 h-5" />
-                <span>Gruppespill - Kamper</span>
+                <span>{t('Gruppespill - Kamper', 'Group stage - Matches')}</span>
               </h2>
               {!showBulkTool && (
                 <button
                   onClick={() => setShowBulkTool(true)}
                   className="pro11-button-secondary text-xs"
                 >
-                  Vis bulk
+                  {t('Vis bulk', 'Show bulk')}
                 </button>
               )}
             </div>
@@ -1263,7 +1285,7 @@ export default function TournamentMatchesPage() {
               <div className="space-y-3">
                 {Object.entries(
                   groupMatches.reduce((acc, match) => {
-                    const group = match.group_name || 'Ukjent gruppe'
+                    const group = match.group_name || t('Ukjent gruppe', 'Unknown group')
                     if (!acc[group]) acc[group] = []
                     acc[group].push(match)
                     return acc
@@ -1287,12 +1309,12 @@ export default function TournamentMatchesPage() {
                       <table className="w-max min-w-full text-sm table-fixed">
                         <thead className="text-xs text-slate-400">
                           <tr>
-                            <th className="py-2 px-2 text-left w-10">Velg</th>
-                            <th className="py-2 pr-3 text-right w-48">Lag 1</th>
+                            <th className="py-2 px-2 text-left w-10">{t('Velg', 'Select')}</th>
+                            <th className="py-2 pr-3 text-right w-48">{t('Lag 1', 'Team 1')}</th>
                             <th className="py-2 px-2 text-center w-12">Score</th>
                             <th className="py-2 px-2 text-center w-10">vs</th>
                             <th className="py-2 px-2 text-center w-12">Score</th>
-                            <th className="py-2 pl-3 text-left w-48">Lag 2</th>
+                            <th className="py-2 pl-3 text-left w-48">{t('Lag 2', 'Team 2')}</th>
                             <th className="py-2 px-2 text-left w-64">Innsendt</th>
                             <th className="py-2 px-2 text-left w-32">Info</th>
                             <th className="py-2 px-2 text-left w-28">Status</th>
@@ -1364,9 +1386,9 @@ export default function TournamentMatchesPage() {
                                         onChange={(e) => setEditForm({ ...editForm, status: e.target.value })}
                                         className="px-2 py-1 bg-slate-700 rounded text-sm w-full"
                                       >
-                                        <option value="scheduled">Planlagt</option>
+                                        <option value="scheduled">{t('Planlagt', 'Scheduled')}</option>
                                         <option value="live">LIVE</option>
-                                        <option value="completed">Ferdig</option>
+                                        <option value="completed">{t('Ferdig', 'Finished')}</option>
                                       </select>
                                     </td>
                                     <td className="py-3 px-2">
@@ -1374,14 +1396,14 @@ export default function TournamentMatchesPage() {
                                         <button
                                           onClick={() => saveMatch(match.id)}
                                           className="text-green-400 hover:text-green-300"
-                                          title="Lagre"
+                                          title={t('Lagre', 'Save')}
                                         >
                                           <Save className="w-4 h-4" />
                                         </button>
                                         <button
                                           onClick={cancelEditing}
                                           className="text-red-400 hover:text-red-300"
-                                          title="Avbryt"
+                                          title={t('Avbryt', 'Cancel')}
                                         >
                                           <X className="w-4 h-4" />
                                         </button>
@@ -1414,7 +1436,7 @@ export default function TournamentMatchesPage() {
                                       <button
                                         onClick={() => startEditing(match)}
                                         className="text-blue-400 hover:text-blue-300"
-                                        title="Rediger kamp"
+                                        title={t('Rediger kamp', 'Edit match')}
                                       >
                                         <Edit className="w-4 h-4" />
                                       </button>
@@ -1440,24 +1462,27 @@ export default function TournamentMatchesPage() {
                 <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
                   <h2 className="text-xl font-bold flex items-center space-x-2">
                     <Trophy className="w-5 h-5" />
-                    <span>Sluttspill - Kamper</span>
+                    <span>{t('Sluttspill - Kamper', 'Knockout - Matches')}</span>
                   </h2>
                   {!showBulkTool && (
                     <button
                       onClick={() => setShowBulkTool(true)}
                       className="pro11-button-secondary text-xs"
                     >
-                      Vis bulk
+                      {t('Vis bulk', 'Show bulk')}
                     </button>
                   )}
                 </div>
                 {!shouldShowKnockout && groupMatches.length > 0 ? (
                   <div className="pro11-card p-4 mb-4 bg-yellow-900/20 border border-yellow-600/30">
                     <p className="text-yellow-400">
-                      ⚠️ Sluttspill vil bli vist når alle gruppespillkamper er ferdig.
+                      {t(
+                        '⚠️ Sluttspill vil bli vist når alle gruppespillkamper er ferdig.',
+                        '⚠️ Knockout matches will be shown when all group stage matches are completed.'
+                      )}
                     </p>
                     <p className="text-slate-400 text-sm mt-2">
-                      Ferdig: {groupMatches.filter(m => m.status === 'completed').length} / {groupMatches.length} kamper
+                      {t('Ferdig', 'Completed')}: {groupMatches.filter(m => m.status === 'completed').length} / {groupMatches.length} {t('kamper', 'matches')}
                     </p>
                   </div>
                 ) : shouldShowKnockout ? (
@@ -1465,7 +1490,7 @@ export default function TournamentMatchesPage() {
               <div className="space-y-3">
                 {Object.entries(
                   knockoutMatches.reduce((acc, match) => {
-                    const round = match.round || 'Ukjent runde'
+                    const round = match.round || t('Ukjent runde', 'Unknown round')
                     if (!acc[round]) acc[round] = []
                     acc[round].push(match)
                     return acc
@@ -1477,15 +1502,15 @@ export default function TournamentMatchesPage() {
                       <table className="w-max min-w-full text-sm table-fixed">
                         <thead className="text-xs text-slate-400">
                           <tr>
-                            <th className="py-2 px-2 text-left w-10">Velg</th>
-                            <th className="py-2 pr-3 text-right w-48">Lag 1</th>
-                            <th className="py-2 px-2 text-center w-12">Score</th>
+                            <th className="py-2 px-2 text-left w-10">{t('Velg', 'Select')}</th>
+                            <th className="py-2 pr-3 text-right w-48">{t('Lag 1', 'Team 1')}</th>
+                            <th className="py-2 px-2 text-center w-12">{t('Score', 'Score')}</th>
                             <th className="py-2 px-2 text-center w-10">vs</th>
-                            <th className="py-2 px-2 text-center w-12">Score</th>
-                            <th className="py-2 pl-3 text-left w-48">Lag 2</th>
-                            <th className="py-2 px-2 text-left w-64">Innsendt</th>
-                            <th className="py-2 px-2 text-left w-32">Info</th>
-                            <th className="py-2 px-2 text-left w-28">Status</th>
+                            <th className="py-2 px-2 text-center w-12">{t('Score', 'Score')}</th>
+                            <th className="py-2 pl-3 text-left w-48">{t('Lag 2', 'Team 2')}</th>
+                            <th className="py-2 px-2 text-left w-64">{t('Innsendt', 'Submitted')}</th>
+                            <th className="py-2 px-2 text-left w-32">{t('Info', 'Info')}</th>
+                            <th className="py-2 px-2 text-left w-28">{t('Status', 'Status')}</th>
                             <th className="py-2 px-2 text-left w-10"></th>
                           </tr>
                         </thead>
@@ -1553,9 +1578,9 @@ export default function TournamentMatchesPage() {
                                         onChange={(e) => setEditForm({ ...editForm, status: e.target.value })}
                                         className="px-2 py-1 bg-slate-700 rounded text-sm w-full"
                                       >
-                                        <option value="scheduled">Planlagt</option>
+                                        <option value="scheduled">{t('Planlagt', 'Scheduled')}</option>
                                         <option value="live">LIVE</option>
-                                        <option value="completed">Ferdig</option>
+                                        <option value="completed">{t('Ferdig', 'Finished')}</option>
                                       </select>
                                     </td>
                                     <td className="py-3 px-2">
@@ -1563,14 +1588,14 @@ export default function TournamentMatchesPage() {
                                         <button
                                           onClick={() => saveMatch(match.id)}
                                           className="text-green-400 hover:text-green-300"
-                                          title="Lagre"
+                                          title={t('Lagre', 'Save')}
                                         >
                                           <Save className="w-4 h-4" />
                                         </button>
                                         <button
                                           onClick={cancelEditing}
                                           className="text-red-400 hover:text-red-300"
-                                          title="Avbryt"
+                                          title={t('Avbryt', 'Cancel')}
                                         >
                                           <X className="w-4 h-4" />
                                         </button>
@@ -1626,7 +1651,7 @@ export default function TournamentMatchesPage() {
 
         {matches.length === 0 && (
           <div className="pro11-card p-8 text-center">
-            <p className="text-slate-400 mb-2">Ingen kamper er generert for denne turneringen ennå.</p>
+            <p className="text-slate-400 mb-2">{t('Ingen kamper er generert for denne turneringen ennå.', 'No matches have been generated for this tournament yet.')}</p>
             <p className="text-slate-500 text-sm mb-4">Tournament ID: {tournamentId}</p>
             <div className="flex gap-4 justify-center mt-4">
               <button
@@ -1650,10 +1675,10 @@ export default function TournamentMatchesPage() {
                 }}
                 className="pro11-button-secondary"
               >
-                Oppdater kamper
+                {t('Oppdater kamper', 'Refresh matches')}
               </button>
               <Link href="/admin" className="pro11-button">
-                Gå til admin panel
+                {t('Gå til admin panel', 'Go to admin panel')}
               </Link>
             </div>
           </div>
@@ -1664,11 +1689,11 @@ export default function TournamentMatchesPage() {
             <div className="pro11-card p-4 mt-8 max-w-2xl w-full mx-auto">
               <div className="flex items-center justify-between mb-4">
                 <div>
-                  <h2 className="text-xl font-bold">Seeding (foreløpig)</h2>
+                  <h2 className="text-xl font-bold">{t('Seeding (foreløpig)', 'Seeding (preview)')}</h2>
                   <p className="text-slate-400 text-sm">
                     {preview.allGroupsComplete
-                      ? `Klar for sluttspill: ${preview.roundName}`
-                      : 'Oppdateres fortløpende når gruppene ferdigspilles.'}
+                      ? t(`Klar for sluttspill: ${preview.roundName}`, `Ready for knockout: ${preview.roundName}`)
+                      : t('Oppdateres fortløpende når gruppene ferdigspilles.', 'Updates continuously as groups finish.')}
                   </p>
                 </div>
               </div>
@@ -1697,7 +1722,7 @@ export default function TournamentMatchesPage() {
                 </div>
 
                 <div>
-                  <h3 className="text-sm font-semibold text-slate-300 mb-3">Matchups (seedet)</h3>
+                  <h3 className="text-sm font-semibold text-slate-300 mb-3">{t('Matchups (seedet)', 'Matchups (seeded)')}</h3>
                   <div className="space-y-2">
                     {preview.pairings.length > 0 ? (
                       preview.pairings.map((pair, index) => (
@@ -1710,7 +1735,7 @@ export default function TournamentMatchesPage() {
                         </div>
                       ))
                     ) : (
-                      <div className="text-sm text-slate-400">Ingen matchups ennå.</div>
+                      <div className="text-sm text-slate-400">{t('Ingen matchups ennå.', 'No matchups yet.')}</div>
                     )}
                   </div>
                 </div>

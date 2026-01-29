@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { Shield, Users, User, Mail, Gamepad2, Plus, Trash2 } from 'lucide-react'
 import Header from '../../components/Header'
 import { fetchTournamentById } from '../../lib/tournaments'
+import { useLanguage } from '@/components/LanguageProvider'
 
 interface TeamRegistration {
   teamName: string
@@ -27,6 +28,8 @@ export default function RegisterPage() {
     tournamentId: ''
   })
   const [tournament, setTournament] = useState<any>(null)
+  const { language } = useLanguage()
+  const isEnglish = language === 'en'
 
   // Fetch tournament from database
   useEffect(() => {
@@ -75,12 +78,12 @@ export default function RegisterPage() {
     
     // Validate form
     if (!formData.teamName || !formData.captainName || !formData.captainEmail) {
-      alert('Vennligst fyll ut alle påkrevde felter')
+      alert(isEnglish ? 'Please fill in all required fields' : 'Vennligst fyll ut alle påkrevde felter')
       return
     }
 
     if (formData.expectedPlayers < 2 || formData.expectedPlayers > 11) {
-      alert('Antall spillere må være mellom 2 og 11')
+      alert(isEnglish ? 'Number of players must be between 2 and 11' : 'Antall spillere må være mellom 2 og 11')
       return
     }
 
@@ -123,11 +126,11 @@ export default function RegisterPage() {
         window.location.href = '/registration-success'
       } else {
         const error = await response.json()
-        alert(`Registrering feilet: ${error.error || 'Ukjent feil'}`)
+        alert(`${isEnglish ? 'Registration failed' : 'Registrering feilet'}: ${error.error || (isEnglish ? 'Unknown error' : 'Ukjent feil')}`)
       }
     } catch (error) {
       console.error('Registration error:', error)
-      alert('Registrering feilet. Prøv igjen.')
+      alert(isEnglish ? 'Registration failed. Please try again.' : 'Registrering feilet. Prøv igjen.')
     }
   }
 
@@ -139,21 +142,21 @@ export default function RegisterPage() {
       <main className="container mx-auto px-4 py-8 flex flex-col items-center">
         <div className="max-w-4xl w-full">
           <div className="text-center mb-8">
-            <h2 className="text-4xl font-bold mb-4">Meld på lag</h2>
+            <h2 className="text-4xl font-bold mb-4">{isEnglish ? 'Register team' : 'Meld på lag'}</h2>
             <p className="text-slate-300 text-lg">
-              Registrer laget ditt for {tournament?.title || 'PRO11 FC 26 Launch Cup'}
+              {isEnglish ? 'Register your team for' : 'Registrer laget ditt for'} {tournament?.title || 'PRO11 FC 26 Launch Cup'}
             </p>
           </div>
 
           <form onSubmit={handleSubmit} className="pro11-card p-8">
             {/* Tournament Info */}
             <div className="mb-8 p-4 bg-blue-600/20 rounded-lg border border-blue-500/30">
-              <h3 className="text-xl font-semibold mb-2">Turnering</h3>
+              <h3 className="text-xl font-semibold mb-2">{isEnglish ? 'Tournament' : 'Turnering'}</h3>
               <p className="text-slate-300">{tournament?.title} - {tournament?.date}</p>
               <p className="text-slate-400 text-sm">
-                Premie: {tournament?.prize} | Påmeldingsgebyr:{' '}
+                {isEnglish ? 'Prize' : 'Premie'}: {tournament?.prize} | {isEnglish ? 'Entry fee' : 'Påmeldingsgebyr'}:{' '}
                 {tournament?.entryFee === 0 ? (
-                  <span className="text-green-400 font-semibold">GRATIS</span>
+                  <span className="text-green-400 font-semibold">{isEnglish ? 'FREE' : 'GRATIS'}</span>
                 ) : (
                   <span>{tournament?.entryFee} NOK</span>
                 )}
@@ -164,54 +167,54 @@ export default function RegisterPage() {
             <div className="mb-8">
               <h3 className="text-xl font-semibold mb-4 flex items-center space-x-2">
                 <Shield className="w-5 h-5" />
-                <span>Laginformasjon</span>
+                <span>{isEnglish ? 'Team information' : 'Laginformasjon'}</span>
               </h3>
               
               <div className="grid md:grid-cols-2 gap-6">
                 <div>
-                  <label className="block text-sm font-medium mb-2">Lagnavn *</label>
+                  <label className="block text-sm font-medium mb-2">{isEnglish ? 'Team name *' : 'Lagnavn *'}</label>
                   <input
                     type="text"
                     value={formData.teamName}
                     onChange={(e) => setFormData({...formData, teamName: e.target.value})}
                     className="pro11-input w-full"
-                    placeholder="F.eks. Oslo United"
+                    placeholder={isEnglish ? 'e.g. Oslo United' : 'F.eks. Oslo United'}
                     required
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium mb-2">Kaptein navn *</label>
+                  <label className="block text-sm font-medium mb-2">{isEnglish ? 'Captain name *' : 'Kaptein navn *'}</label>
                   <input
                     type="text"
                     value={formData.captainName}
                     onChange={(e) => setFormData({...formData, captainName: e.target.value})}
                     className="pro11-input w-full"
-                    placeholder="Ditt navn"
+                    placeholder={isEnglish ? 'Your name' : 'Ditt navn'}
                     required
                   />
                 </div>
               </div>
               
               <div className="mt-6">
-                <label className="block text-sm font-medium mb-2">Kaptein e-post *</label>
+                <label className="block text-sm font-medium mb-2">{isEnglish ? 'Captain email *' : 'Kaptein e-post *'}</label>
                 <input
                   type="email"
                   value={formData.captainEmail}
                   onChange={(e) => setFormData({...formData, captainEmail: e.target.value})}
                   className="pro11-input w-full"
-                  placeholder="din@email.com"
+                  placeholder={isEnglish ? 'you@email.com' : 'din@email.com'}
                   required
                 />
               </div>
 
               <div className="mt-6">
-                <label className="block text-sm font-medium mb-2">Discord brukernavn</label>
+                <label className="block text-sm font-medium mb-2">{isEnglish ? 'Discord username' : 'Discord brukernavn'}</label>
                 <input
                   type="text"
                   value={formData.discordUsername}
                   onChange={(e) => setFormData({...formData, discordUsername: e.target.value})}
                   className="pro11-input w-full"
-                  placeholder="f.eks. brukernavn#1234"
+                  placeholder={isEnglish ? 'e.g. username#1234' : 'f.eks. brukernavn#1234'}
                 />
               </div>
             </div>
@@ -220,29 +223,31 @@ export default function RegisterPage() {
             <div className="mb-8">
               <h3 className="text-xl font-semibold flex items-center space-x-2 mb-4">
                 <Users className="w-5 h-5" />
-                <span>Forventet antall spillere</span>
+                <span>{isEnglish ? 'Expected number of players' : 'Forventet antall spillere'}</span>
               </h3>
               <div>
-                <label className="block text-sm font-medium mb-2">Antall spillere på laget *</label>
+                <label className="block text-sm font-medium mb-2">{isEnglish ? 'Number of players on the team *' : 'Antall spillere på laget *'}</label>
                 <select
                   value={formData.expectedPlayers}
                   onChange={(e) => setFormData({...formData, expectedPlayers: parseInt(e.target.value)})}
                   className="pro11-input w-full"
                   required
                 >
-                  <option value="2">2 spillere</option>
-                  <option value="3">3 spillere</option>
-                  <option value="4">4 spillere</option>
-                  <option value="5">5 spillere</option>
-                  <option value="6">6 spillere</option>
-                  <option value="7">7 spillere</option>
-                  <option value="8">8 spillere</option>
-                  <option value="9">9 spillere</option>
-                  <option value="10">10 spillere</option>
-                  <option value="11">11 spillere</option>
+                  <option value="2">{isEnglish ? '2 players' : '2 spillere'}</option>
+                  <option value="3">{isEnglish ? '3 players' : '3 spillere'}</option>
+                  <option value="4">{isEnglish ? '4 players' : '4 spillere'}</option>
+                  <option value="5">{isEnglish ? '5 players' : '5 spillere'}</option>
+                  <option value="6">{isEnglish ? '6 players' : '6 spillere'}</option>
+                  <option value="7">{isEnglish ? '7 players' : '7 spillere'}</option>
+                  <option value="8">{isEnglish ? '8 players' : '8 spillere'}</option>
+                  <option value="9">{isEnglish ? '9 players' : '9 spillere'}</option>
+                  <option value="10">{isEnglish ? '10 players' : '10 spillere'}</option>
+                  <option value="11">{isEnglish ? '11 players' : '11 spillere'}</option>
                 </select>
                 <p className="text-slate-400 text-sm mt-2">
-                  Velg forventet antall spillere som vil delta i turneringen. Det er ikke krav om at laget stiller med tallet som oppgis her.
+                  {isEnglish
+                    ? 'Select how many players you expect to participate. The team is not required to field exactly this number.'
+                    : 'Velg forventet antall spillere som vil delta i turneringen. Det er ikke krav om at laget stiller med tallet som oppgis her.'}
                 </p>
               </div>
             </div>
@@ -251,10 +256,10 @@ export default function RegisterPage() {
             <div className="mb-8">
               <h3 className="text-xl font-semibold flex items-center space-x-2 mb-4">
                 <Shield className="w-5 h-5" />
-                <span>Klubb Logo (Valgfritt)</span>
+                <span>{isEnglish ? 'Club logo (optional)' : 'Klubb Logo (Valgfritt)'}</span>
               </h3>
               <div>
-                <label className="block text-sm font-medium mb-2">Last opp klubb logo</label>
+                <label className="block text-sm font-medium mb-2">{isEnglish ? 'Upload club logo' : 'Last opp klubb logo'}</label>
                 <input
                   type="file"
                   accept="image/*"
@@ -262,12 +267,12 @@ export default function RegisterPage() {
                   className="pro11-input w-full"
                 />
                 <p className="text-slate-400 text-sm mt-2">
-                  PNG, JPG eller GIF. Maksimal størrelse: 2MB
+                  {isEnglish ? 'PNG, JPG or GIF. Maximum size: 2MB' : 'PNG, JPG eller GIF. Maksimal størrelse: 2MB'}
                 </p>
                 {formData.clubLogo && (
                   <div className="mt-4 p-4 bg-slate-800/50 rounded-lg">
                     <p className="text-sm text-green-400">
-                      ✓ Logo valgt: {formData.clubLogo.name}
+                      ✓ {isEnglish ? 'Logo selected' : 'Logo valgt'}: {formData.clubLogo.name}
                     </p>
                   </div>
                 )}
@@ -277,10 +282,12 @@ export default function RegisterPage() {
             {/* Submit */}
             <div className="text-center">
               <button type="submit" className="pro11-button text-lg px-8 py-4">
-                Registrer lag
+                {isEnglish ? 'Register team' : 'Registrer lag'}
               </button>
               <p className="text-slate-400 text-sm mt-4">
-                Etter registrering vil du få se passordet ditt og kunne fortsette til betaling
+                {isEnglish
+                  ? 'After registration you will see your password and can proceed to payment'
+                  : 'Etter registrering vil du få se passordet ditt og kunne fortsette til betaling'}
               </p>
             </div>
           </form>

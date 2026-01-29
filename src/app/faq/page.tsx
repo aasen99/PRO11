@@ -3,6 +3,7 @@
 import React from 'react'
 import Link from 'next/link'
 import { ArrowLeft } from 'lucide-react'
+import { useLanguage } from '@/components/LanguageProvider'
 
 interface FAQItem {
   id: string
@@ -12,109 +13,50 @@ interface FAQItem {
 }
 
 export default function FAQPage() {
-  const faqItems: FAQItem[] = [
-    // General
-    {
-      id: '1',
-      question: 'Hva er PRO11?',
-      answer: 'PRO11 er en turneringsplattform for EA SPORTS FC Pro Clubs.',
-      category: 'general'
-    },
-    {
-      id: '2',
-      question: 'Hvem kan delta?',
-      answer: 'Alle Pro Clubs-lag kan delta så lenge laget følger kravene i turneringen.',
-      category: 'general'
-    },
-    {
-      id: '3',
-      question: 'Hvor får vi oppdateringer?',
-      answer: 'All informasjon publiseres på turneringssiden og i PRO11-Discorden.',
-      category: 'general'
-    },
+  const { language } = useLanguage()
+  const isEnglish = language === 'en'
 
-    // Account
-    {
-      id: '4',
-      question: 'Hvordan melder vi oss på?',
-      answer: 'Lagleder registrerer laget og fullfører påmeldingen på turneringssiden.',
-      category: 'account'
-    },
-
-    // Tournaments
-    {
-      id: '5',
-      question: 'Hvordan fungerer turneringene?',
-      answer: 'Turneringene spilles normalt med gruppespill etterfulgt av sluttspill. Endelig format vises alltid på turneringssiden.',
-      category: 'tournaments'
-    },
-    {
-      id: '6',
-      question: 'Hvordan settes sluttspillet opp?',
-      answer: 'Lag seedes basert på plassering i gruppespillet. Sluttspillet spilles som cup.',
-      category: 'tournaments'
-    },
-    {
-      id: '7',
-      question: 'Når spilles kampene?',
-      answer: 'Kampene spilles innenfor tidsrommet som er oppgitt på turneringssiden.',
-      category: 'tournaments'
-    },
-    {
-      id: '8',
-      question: 'Hvordan registreres resultater?',
-      answer: 'Begge lag registrerer kampresultatet. Når begge bekrefter samme resultat, registreres kampen automatisk. Ved uenighet varsles admin.',
-      category: 'tournaments'
-    },
-    {
-      id: '9',
-      question: 'Hva skjer ved uenighet eller feil?',
-      answer: 'Dersom lagene ikke er enige, varsles admin som avgjør saken.',
-      category: 'tournaments'
-    },
-    {
-      id: '10',
-      question: 'Føres det statistikk?',
-      answer: 'Ja. PRO11 bygger statistikk, rekorder og historikk på tvers av turneringer. Historikken starter fra første offisielle turnering.',
-      category: 'tournaments'
-    },
-
-    // Payment
-    {
-      id: '11',
-      question: 'Hva koster det å delta?',
-      answer: 'Påmeldingsavgift vises på turneringssiden før påmelding.',
-      category: 'payment'
-    },
-    {
-      id: '12',
-      question: 'Hvordan betaler vi?',
-      answer: 'Betaling skjer via nettsiden. Tilgjengelige betalingsmetoder vises ved betaling.',
-      category: 'payment'
-    },
-
-    // Support
-    {
-      id: '13',
-      question: 'Hvor finner vi reglene?',
-      answer: 'Reglene for hver turnering finner du på turneringssiden.',
-      category: 'support'
-    },
-    {
-      id: '14',
-      question: 'Hvordan kan vi kontakte dere?',
-      answer: 'Bli med i Discord-serveren -discordserveren-',
-      category: 'support'
-    }
-  ]
+  const faqItems: FAQItem[] = isEnglish
+    ? [
+        { id: '1', question: 'What is PRO11?', answer: 'PRO11 is a tournament platform for EA SPORTS FC Pro Clubs.', category: 'general' },
+        { id: '2', question: 'Who can participate?', answer: 'All Pro Clubs teams can participate as long as they meet the tournament requirements.', category: 'general' },
+        { id: '3', question: 'Where do we get updates?', answer: 'All information is published on the tournament page and in the PRO11 Discord.', category: 'general' },
+        { id: '4', question: 'How do we register?', answer: 'The captain registers the team and completes the signup on the tournament page.', category: 'account' },
+        { id: '5', question: 'How do the tournaments work?', answer: 'Tournaments are usually played with a group stage followed by a knockout stage. The final format is always shown on the tournament page.', category: 'tournaments' },
+        { id: '6', question: 'How is the knockout bracket set up?', answer: 'Teams are seeded based on their group stage placement. The knockout is played as a cup.', category: 'tournaments' },
+        { id: '7', question: 'When are matches played?', answer: 'Matches are played within the time window shown on the tournament page.', category: 'tournaments' },
+        { id: '8', question: 'How are results submitted?', answer: 'Both teams submit the match result. When both confirm the same result, the match is recorded automatically. If there is disagreement, an admin is notified.', category: 'tournaments' },
+        { id: '9', question: 'What happens in case of disputes or errors?', answer: 'If teams disagree, an admin is notified and resolves the case.', category: 'tournaments' },
+        { id: '10', question: 'Are statistics tracked?', answer: 'Yes. PRO11 builds statistics, records, and history across tournaments. History starts from the first official tournament.', category: 'tournaments' },
+        { id: '11', question: 'What does it cost to participate?', answer: 'The entry fee is shown on the tournament page before registration.', category: 'payment' },
+        { id: '12', question: 'How do we pay?', answer: 'Payment is done through the website. Available payment methods are shown at checkout.', category: 'payment' },
+        { id: '13', question: 'Where can we find the rules?', answer: 'Rules for each tournament can be found on the tournament page.', category: 'support' },
+        { id: '14', question: 'How can we contact you?', answer: 'Join the Discord server for support and updates.', category: 'support' }
+      ]
+    : [
+        { id: '1', question: 'Hva er PRO11?', answer: 'PRO11 er en turneringsplattform for EA SPORTS FC Pro Clubs.', category: 'general' },
+        { id: '2', question: 'Hvem kan delta?', answer: 'Alle Pro Clubs-lag kan delta så lenge laget følger kravene i turneringen.', category: 'general' },
+        { id: '3', question: 'Hvor får vi oppdateringer?', answer: 'All informasjon publiseres på turneringssiden og i PRO11-Discorden.', category: 'general' },
+        { id: '4', question: 'Hvordan melder vi oss på?', answer: 'Lagleder registrerer laget og fullfører påmeldingen på turneringssiden.', category: 'account' },
+        { id: '5', question: 'Hvordan fungerer turneringene?', answer: 'Turneringene spilles normalt med gruppespill etterfulgt av sluttspill. Endelig format vises alltid på turneringssiden.', category: 'tournaments' },
+        { id: '6', question: 'Hvordan settes sluttspillet opp?', answer: 'Lag seedes basert på plassering i gruppespillet. Sluttspillet spilles som cup.', category: 'tournaments' },
+        { id: '7', question: 'Når spilles kampene?', answer: 'Kampene spilles innenfor tidsrommet som er oppgitt på turneringssiden.', category: 'tournaments' },
+        { id: '8', question: 'Hvordan registreres resultater?', answer: 'Begge lag registrerer kampresultatet. Når begge bekrefter samme resultat, registreres kampen automatisk. Ved uenighet varsles admin.', category: 'tournaments' },
+        { id: '9', question: 'Hva skjer ved uenighet eller feil?', answer: 'Dersom lagene ikke er enige, varsles admin som avgjør saken.', category: 'tournaments' },
+        { id: '10', question: 'Føres det statistikk?', answer: 'Ja. PRO11 bygger statistikk, rekorder og historikk på tvers av turneringer. Historikken starter fra første offisielle turnering.', category: 'tournaments' },
+        { id: '11', question: 'Hva koster det å delta?', answer: 'Påmeldingsavgift vises på turneringssiden før påmelding.', category: 'payment' },
+        { id: '12', question: 'Hvordan betaler vi?', answer: 'Betaling skjer via nettsiden. Tilgjengelige betalingsmetoder vises ved betaling.', category: 'payment' },
+        { id: '13', question: 'Hvor finner vi reglene?', answer: 'Reglene for hver turnering finner du på turneringssiden.', category: 'support' },
+        { id: '14', question: 'Hvordan kan vi kontakte dere?', answer: 'Bli med i Discord-serveren -discordserveren-', category: 'support' }
+      ]
 
   const categoryOrder: FAQItem['category'][] = ['general', 'account', 'tournaments', 'payment', 'support']
   const categoryLabels: Record<FAQItem['category'], string> = {
-    general: 'Generelt',
-    account: 'Lag og konto',
-    tournaments: 'Turneringer',
-    payment: 'Betaling',
-    support: 'Support'
+    general: isEnglish ? 'General' : 'Generelt',
+    account: isEnglish ? 'Team & account' : 'Lag og konto',
+    tournaments: isEnglish ? 'Tournaments' : 'Turneringer',
+    payment: isEnglish ? 'Payment' : 'Betaling',
+    support: isEnglish ? 'Support' : 'Support'
   }
 
   return (
@@ -127,12 +69,14 @@ export default function FAQPage() {
               <img src="/logo.png" alt="PRO11 Logo" className="w-full h-full object-contain" />
             </Link>
             <div className="ml-4">
-              <p className="text-slate-400 text-sm">Pro Clubs Turneringer</p>
+              <p className="text-slate-400 text-sm">
+                {isEnglish ? 'Pro Clubs Tournaments' : 'Pro Clubs Turneringer'}
+              </p>
             </div>
           </div>
           <Link href="/" className="pro11-button-secondary flex items-center space-x-2">
             <ArrowLeft className="w-4 h-4" />
-            <span>Tilbake</span>
+            <span>{isEnglish ? 'Back' : 'Tilbake'}</span>
           </Link>
         </div>
       </header>
@@ -142,9 +86,11 @@ export default function FAQPage() {
           <div className="max-w-3xl w-full mx-auto">
           {/* Page Header */}
           <div className="text-center mb-12">
-            <h1 className="text-4xl font-semibold tracking-tight mb-3">Spørsmål og svar</h1>
+            <h1 className="text-4xl font-semibold tracking-tight mb-3">
+              {isEnglish ? 'Questions & answers' : 'Spørsmål og svar'}
+            </h1>
             <p className="text-slate-300 text-lg">
-              Klart og kort – alt du trenger å vite.
+              {isEnglish ? 'Clear and concise — everything you need to know.' : 'Klart og kort – alt du trenger å vite.'}
             </p>
           </div>
 
