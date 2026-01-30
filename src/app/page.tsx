@@ -229,7 +229,7 @@ export default function HomePage() {
                   </span>
                 </div>
               </div>
-              <div className="text-center">
+              <div className="text-center flex flex-col items-center gap-4">
                 {nextTournament.status === 'ongoing' ? (
                   <button disabled className="pro11-button-secondary text-lg px-8 py-4 inline-block opacity-50 cursor-not-allowed">
                     {isEnglish ? 'Registration closed' : 'Påmelding stengt'}
@@ -239,6 +239,15 @@ export default function HomePage() {
                     {isEnglish ? 'Register team' : 'Meld på lag'}
                   </Link>
                 )}
+                <a
+                  href="https://discord.gg/Es8UAkax8H"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="pro11-button-secondary text-lg px-8 py-3 inline-flex items-center space-x-2"
+                >
+                  <span>{isEnglish ? 'Join Discord' : 'Bli med på Discord'}</span>
+                  <ExternalLink className="w-4 h-4" />
+                </a>
               </div>
             </div>
           </div>
