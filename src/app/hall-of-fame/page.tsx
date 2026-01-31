@@ -97,7 +97,9 @@ export default function HallOfFamePage() {
           const tournamentMatches = matchesByTournament[t.id] || []
           const finalMatch = tournamentMatches.find((match: any) => {
             const round = (match.round || '').toString().toLowerCase()
-            return match.status === 'completed' && (round.includes('finale') || round.includes('final'))
+            const isFinal = /\bfinale?\b/i.test(round)
+            const isSemiFinal = /semi/i.test(round)
+            return match.status === 'completed' && isFinal && !isSemiFinal
           })
 
           if (!finalMatch) return []
