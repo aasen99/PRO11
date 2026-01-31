@@ -38,7 +38,7 @@ export default function HomePage() {
         // Find first open or ongoing tournament (prioritize open)
         const openTournament = tournaments.find(t => t.status === 'open')
         const ongoingTournament = tournaments.find(t => t.status === 'ongoing')
-        setNextTournament(openTournament || ongoingTournament || tournaments[0] || null)
+        setNextTournament(openTournament || ongoingTournament || null)
       } catch (error) {
         console.error('Error loading tournaments:', error)
         setNextTournament(null)
