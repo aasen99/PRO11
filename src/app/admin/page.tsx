@@ -53,7 +53,7 @@ interface Tournament {
   time: string
   registeredTeams: number
   maxTeams: number
-  status: 'open' | 'ongoing' | 'closed' | 'completed'
+  status: 'open' | 'ongoing' | 'closed' | 'completed' | 'archived'
   prize: string
   entryFee: number
   description: string
@@ -209,9 +209,10 @@ export default function AdminPage() {
               const date = startDate.toLocaleDateString('nb-NO', { day: 'numeric', month: 'long', year: 'numeric' })
               const time = startDate.toLocaleTimeString('nb-NO', { hour: '2-digit', minute: '2-digit' })
               
-              let status: 'open' | 'ongoing' | 'closed' | 'completed' = 'open'
+              let status: 'open' | 'ongoing' | 'closed' | 'completed' | 'archived' = 'open'
               if (t.status === 'active') status = 'ongoing'
               else if (t.status === 'completed') status = 'completed'
+              else if (t.status === 'archived') status = 'archived'
               else if (t.status === 'cancelled') status = 'closed'
               
               // Load matches for this tournament
@@ -237,13 +238,14 @@ export default function AdminPage() {
               }
               
               const perTeamPot = getPerTeamPotFromDescription(t.description || '')
-              const computedPrizePool = perTeamPot !== null ? perTeamPot * (t.current_teams || 0) : t.prize_pool
+              const eligibleTeams = t.eligible_teams ?? t.current_teams || 0
+              const computedPrizePool = perTeamPot !== null ? perTeamPot * eligibleTeams : t.prize_pool
               return {
                 id: t.id,
                 title: t.title,
                 date,
                 time,
-                registeredTeams: t.current_teams || 0,
+                registeredTeams: eligibleTeams,
                 maxTeams: t.max_teams,
                 status,
                 prize: `${computedPrizePool.toLocaleString('nb-NO')} NOK`,
@@ -625,7 +627,8 @@ PRO11 Team`)
         entry_fee: tournamentData.entryFee ?? 299,
         status: tournamentData.status === 'open' ? 'upcoming' : 
                 tournamentData.status === 'ongoing' ? 'active' :
-                tournamentData.status === 'completed' ? 'completed' : 'cancelled'
+                tournamentData.status === 'completed' ? 'completed' :
+                tournamentData.status === 'archived' ? 'archived' : 'cancelled'
       }
       
       console.log('Sending to API:', dbData)
@@ -660,21 +663,23 @@ PRO11 Team`)
           const startDate = new Date(newTournament.start_date)
           const date = startDate.toLocaleDateString('nb-NO', { day: 'numeric', month: 'long', year: 'numeric' })
           const time = startDate.toLocaleTimeString('nb-NO', { hour: '2-digit', minute: '2-digit' })
-          let status: 'open' | 'ongoing' | 'closed' | 'completed' = 'open'
+          let status: 'open' | 'ongoing' | 'closed' | 'completed' | 'archived' = 'open'
           if (newTournament.status === 'active') status = 'ongoing'
           else if (newTournament.status === 'completed') status = 'completed'
+          else if (newTournament.status === 'archived') status = 'archived'
           else if (newTournament.status === 'cancelled') status = 'closed'
           
           const perTeamPot = getPerTeamPotFromDescription(newTournament.description || '')
+          const eligibleTeams = newTournament.eligible_teams ?? newTournament.current_teams || 0
           const computedPrizePool = perTeamPot !== null
-            ? perTeamPot * (newTournament.current_teams || 0)
+            ? perTeamPot * eligibleTeams
             : newTournament.prize_pool
           const transformedNewTournament = {
             id: newTournament.id,
             title: newTournament.title,
             date,
             time,
-            registeredTeams: newTournament.current_teams || 0,
+            registeredTeams: eligibleTeams,
             maxTeams: newTournament.max_teams,
             status,
             prize: `${computedPrizePool.toLocaleString('nb-NO')} NOK`,
@@ -703,18 +708,20 @@ PRO11 Team`)
                 const startDate = new Date(t.start_date)
                 const date = startDate.toLocaleDateString('nb-NO', { day: 'numeric', month: 'long', year: 'numeric' })
                 const time = startDate.toLocaleTimeString('nb-NO', { hour: '2-digit', minute: '2-digit' })
-                let status: 'open' | 'ongoing' | 'closed' | 'completed' = 'open'
+                let status: 'open' | 'ongoing' | 'closed' | 'completed' | 'archived' = 'open'
                 if (t.status === 'active') status = 'ongoing'
                 else if (t.status === 'completed') status = 'completed'
+                else if (t.status === 'archived') status = 'archived'
                 else if (t.status === 'cancelled') status = 'closed'
                 const perTeamPot = getPerTeamPotFromDescription(t.description || '')
-                const computedPrizePool = perTeamPot !== null ? perTeamPot * (t.current_teams || 0) : t.prize_pool
+                const eligibleTeams = t.eligible_teams ?? t.current_teams || 0
+                const computedPrizePool = perTeamPot !== null ? perTeamPot * eligibleTeams : t.prize_pool
                 return {
                   id: t.id,
                   title: t.title,
                   date,
                   time,
-                  registeredTeams: t.current_teams || 0,
+                  registeredTeams: eligibleTeams,
                   maxTeams: t.max_teams,
                   status,
                   prize: `${computedPrizePool.toLocaleString('nb-NO')} NOK`,
@@ -757,18 +764,20 @@ PRO11 Team`)
                 const startDate = new Date(t.start_date)
                 const date = startDate.toLocaleDateString('nb-NO', { day: 'numeric', month: 'long', year: 'numeric' })
                 const time = startDate.toLocaleTimeString('nb-NO', { hour: '2-digit', minute: '2-digit' })
-                let status: 'open' | 'ongoing' | 'closed' | 'completed' = 'open'
+                let status: 'open' | 'ongoing' | 'closed' | 'completed' | 'archived' = 'open'
                 if (t.status === 'active') status = 'ongoing'
                 else if (t.status === 'completed') status = 'completed'
+                else if (t.status === 'archived') status = 'archived'
                 else if (t.status === 'cancelled') status = 'closed'
                 const perTeamPot = getPerTeamPotFromDescription(t.description || '')
-                const computedPrizePool = perTeamPot !== null ? perTeamPot * (t.current_teams || 0) : t.prize_pool
+                const eligibleTeams = t.eligible_teams ?? t.current_teams || 0
+                const computedPrizePool = perTeamPot !== null ? perTeamPot * eligibleTeams : t.prize_pool
                 return {
                   id: t.id,
                   title: t.title,
                   date,
                   time,
-                  registeredTeams: t.current_teams || 0,
+                  registeredTeams: eligibleTeams,
                   maxTeams: t.max_teams,
                   status,
                   prize: `${computedPrizePool.toLocaleString('nb-NO')} NOK`,
@@ -815,16 +824,17 @@ PRO11 Team`)
                 const startDate = new Date(t.start_date)
                 const date = startDate.toLocaleDateString('nb-NO', { day: 'numeric', month: 'long', year: 'numeric' })
                 const time = startDate.toLocaleTimeString('nb-NO', { hour: '2-digit', minute: '2-digit' })
-                let status: 'open' | 'ongoing' | 'closed' | 'completed' = 'open'
+                let status: 'open' | 'ongoing' | 'closed' | 'completed' | 'archived' = 'open'
                 if (t.status === 'active') status = 'ongoing'
                 else if (t.status === 'completed') status = 'completed'
+                else if (t.status === 'archived') status = 'archived'
                 else if (t.status === 'cancelled') status = 'closed'
                 return {
                   id: t.id,
                   title: t.title,
                   date,
                   time,
-                  registeredTeams: t.current_teams || 0,
+                  registeredTeams: t.eligible_teams ?? t.current_teams || 0,
                   maxTeams: t.max_teams,
                   status,
                   prize: `${t.prize_pool.toLocaleString('nb-NO')} NOK`,
@@ -1280,9 +1290,10 @@ PRO11 Team`)
                     const date = startDate.toLocaleDateString('nb-NO', { day: 'numeric', month: 'long', year: 'numeric' })
                     const time = startDate.toLocaleTimeString('nb-NO', { hour: '2-digit', minute: '2-digit' })
                     
-                    let status: 'open' | 'ongoing' | 'closed' | 'completed' = 'open'
+                    let status: 'open' | 'ongoing' | 'closed' | 'completed' | 'archived' = 'open'
                     if (t.status === 'active') status = 'ongoing'
                     else if (t.status === 'completed') status = 'completed'
+                    else if (t.status === 'archived') status = 'archived'
                     else if (t.status === 'cancelled') status = 'closed'
                     
                     return {
@@ -1290,7 +1301,7 @@ PRO11 Team`)
                       title: t.title,
                       date,
                       time,
-                      registeredTeams: t.current_teams || 0,
+                      registeredTeams: t.eligible_teams ?? t.current_teams || 0,
                       maxTeams: t.max_teams,
                       status,
                       prize: `${t.prize_pool.toLocaleString('nb-NO')} NOK`,
@@ -1309,9 +1320,10 @@ PRO11 Team`)
                 const date = startDate.toLocaleDateString('nb-NO', { day: 'numeric', month: 'long', year: 'numeric' })
                 const time = startDate.toLocaleTimeString('nb-NO', { hour: '2-digit', minute: '2-digit' })
                 
-                let status: 'open' | 'ongoing' | 'closed' | 'completed' = 'open'
+                let status: 'open' | 'ongoing' | 'closed' | 'completed' | 'archived' = 'open'
                 if (t.status === 'active') status = 'ongoing'
                 else if (t.status === 'completed') status = 'completed'
+                else if (t.status === 'archived') status = 'archived'
                 else if (t.status === 'cancelled') status = 'closed'
                 
                 return {
@@ -1319,7 +1331,7 @@ PRO11 Team`)
                   title: t.title,
                   date,
                   time,
-                  registeredTeams: t.current_teams || 0,
+                  registeredTeams: t.eligible_teams ?? t.current_teams || 0,
                   maxTeams: t.max_teams,
                   status,
                   prize: `${t.prize_pool.toLocaleString('nb-NO')} NOK`,
@@ -2324,6 +2336,7 @@ PRO11 Team`)
                   <option value="ongoing">{t('Pågår', 'Ongoing')}</option>
                   <option value="closed">{t('Stengt', 'Closed')}</option>
                   <option value="completed">{t('Fullført', 'Completed')}</option>
+                  <option value="archived">{t('Arkivert', 'Archived')}</option>
                 </select>
               </div>
 

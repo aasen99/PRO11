@@ -10,7 +10,7 @@ CREATE TABLE tournaments (
   end_date TIMESTAMP WITH TIME ZONE NOT NULL,
   max_teams INTEGER NOT NULL DEFAULT 16,
   current_teams INTEGER NOT NULL DEFAULT 0,
-  status VARCHAR(50) NOT NULL DEFAULT 'upcoming' CHECK (status IN ('upcoming', 'active', 'completed', 'cancelled')),
+  status VARCHAR(50) NOT NULL DEFAULT 'upcoming' CHECK (status IN ('upcoming', 'active', 'completed', 'cancelled', 'archived')),
   prize_pool INTEGER NOT NULL DEFAULT 0,
   entry_fee INTEGER NOT NULL DEFAULT 299,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),

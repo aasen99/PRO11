@@ -29,6 +29,12 @@ export default function HallOfFamePage() {
   const { language } = useLanguage()
   const isEnglish = language === 'en'
 
+  const getPerTeamPotFromDescription = (description?: string | null) => {
+    const match = description?.match(/\[POT_PER_TEAM:(\d+)\]/i)
+    const value = match?.[1]
+    return value ? Number(value) : null
+  }
+
   // Hall of Fame entries will be populated from completed tournaments in the future
   // For now, show empty state
 
@@ -64,13 +70,20 @@ export default function HallOfFamePage() {
         const matchesData = matchesResponse.ok ? await matchesResponse.json() : { matches: [] }
 
         const tournaments = tournamentsData.tournaments || []
-        const completedTournaments = tournaments.filter((t: any) => t.status === 'completed')
+        const completedTournaments = tournaments.filter((t: any) => t.status === 'completed' || t.status === 'archived')
         const completedTournamentIds = new Set(completedTournaments.map((t: any) => t.id))
 
         const participants = completedTournaments.reduce(
-          (sum: number, t: any) => sum + (t.current_teams || 0),
+          (sum: number, t: any) => sum + (t.eligible_teams ?? t.current_teams ?? 0),
           0
         )
+
+        const payouts = completedTournaments.reduce((sum: number, t: any) => {
+          const eligibleTeams = t.eligible_teams ?? t.current_teams ?? 0
+          const perTeamPot = getPerTeamPotFromDescription(t.description)
+          const computedPrizePool = perTeamPot !== null ? perTeamPot * eligibleTeams : (t.prize_pool || 0)
+          return sum + computedPrizePool
+        }, 0)
 
         const matchesCompleted = (matchesData.matches || []).filter((match: any) =>
           match.status === 'completed' && completedTournamentIds.has(match.tournament_id)
@@ -79,7 +92,7 @@ export default function HallOfFamePage() {
         setStats({
           tournaments: completedTournaments.length,
           participants,
-          payouts: 0,
+          payouts,
           matchesCompleted
         })
       } catch (error) {

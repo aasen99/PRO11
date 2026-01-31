@@ -22,7 +22,8 @@ interface DatabaseTournament {
   end_date: string
   max_teams: number
   current_teams: number
-  status: 'upcoming' | 'active' | 'completed' | 'cancelled'
+  eligible_teams?: number
+  status: 'upcoming' | 'active' | 'completed' | 'cancelled' | 'archived'
   prize_pool: number
   entry_fee: number
   created_at: string
@@ -65,6 +66,8 @@ function mapStatus(dbStatus: string): 'open' | 'ongoing' | 'closed' | 'completed
       return 'ongoing'
     case 'completed':
       return 'completed'
+    case 'archived':
+      return 'completed'
     case 'cancelled':
       return 'closed'
     default:
@@ -92,8 +95,9 @@ function transformTournament(dbTournament: DatabaseTournament): Tournament {
   const { date, time } = formatDate(dbTournament.start_date)
   const status = mapStatus(dbTournament.status)
   const perTeamPot = getPerTeamPotFromDescription(dbTournament.description)
+  const eligibleTeams = dbTournament.eligible_teams ?? dbTournament.current_teams
   const computedPrizePool =
-    perTeamPot !== null ? perTeamPot * (dbTournament.current_teams || 0) : dbTournament.prize_pool
+    perTeamPot !== null ? perTeamPot * (eligibleTeams || 0) : dbTournament.prize_pool
   
   return {
     id: dbTournament.id,
@@ -102,7 +106,7 @@ function transformTournament(dbTournament: DatabaseTournament): Tournament {
     time,
     prize: `${computedPrizePool.toLocaleString('nb-NO')} NOK`,
     entryFee: dbTournament.entry_fee,
-    registeredTeams: dbTournament.current_teams,
+    registeredTeams: eligibleTeams,
     maxTeams: dbTournament.max_teams,
     status,
     statusText: getStatusText(status),
@@ -125,7 +129,8 @@ export async function fetchTournaments(): Promise<Tournament[]> {
     const data = await response.json()
     
     if (data.tournaments && Array.isArray(data.tournaments)) {
-      return data.tournaments.map(transformTournament)
+      const visibleTournaments = data.tournaments.filter((t: any) => t.status !== 'archived')
+      return visibleTournaments.map(transformTournament)
     }
     
     return []

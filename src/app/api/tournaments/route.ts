@@ -27,7 +27,21 @@ export async function GET(request: NextRequest) {
         return NextResponse.json({ error: 'Tournament not found' }, { status: 404 })
       }
 
-      return NextResponse.json({ tournament })
+      const { data: teamsForTournament } = await supabase
+        .from('teams')
+        .select('status, payment_status')
+        .eq('tournament_id', id)
+
+      const eligibleTeamsCount = (teamsForTournament || []).filter((team: any) =>
+        team.status === 'approved' || team.payment_status === 'completed'
+      ).length
+
+      return NextResponse.json({
+        tournament: {
+          ...tournament,
+          eligible_teams: eligibleTeamsCount
+        }
+      })
     } else {
       // Get all tournaments
       console.log('Fetching all tournaments...')
@@ -44,7 +58,30 @@ export async function GET(request: NextRequest) {
 
       console.log('Fetched tournaments count:', tournaments?.length || 0)
       console.log('Tournaments:', tournaments?.map((t: any) => ({ id: t.id, title: t.title })))
-      return NextResponse.json({ tournaments: tournaments || [] })
+      const tournamentIds = (tournaments || []).map((t: any) => t.id)
+      let eligibleTeamsByTournament: Record<string, number> = {}
+
+      if (tournamentIds.length > 0) {
+        const { data: allTeams } = await supabase
+          .from('teams')
+          .select('tournament_id, status, payment_status')
+          .in('tournament_id', tournamentIds)
+
+        eligibleTeamsByTournament = (allTeams || []).reduce((acc: Record<string, number>, team: any) => {
+          const isEligible = team.status === 'approved' || team.payment_status === 'completed'
+          if (!isEligible) return acc
+          const tournamentId = team.tournament_id
+          acc[tournamentId] = (acc[tournamentId] || 0) + 1
+          return acc
+        }, {})
+      }
+
+      const enrichedTournaments = (tournaments || []).map((t: any) => ({
+        ...t,
+        eligible_teams: eligibleTeamsByTournament[t.id] || 0
+      }))
+
+      return NextResponse.json({ tournaments: enrichedTournaments })
     }
 
   } catch (error: any) {
