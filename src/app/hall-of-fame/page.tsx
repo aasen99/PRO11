@@ -85,6 +85,58 @@ export default function HallOfFamePage() {
           return sum + computedPrizePool
         }, 0)
 
+        const matchesByTournament = (matchesData.matches || []).reduce((acc: Record<string, any[]>, match: any) => {
+          const tournamentId = match.tournament_id
+          if (!tournamentId) return acc
+          if (!acc[tournamentId]) acc[tournamentId] = []
+          acc[tournamentId].push(match)
+          return acc
+        }, {})
+
+        const championEntries: HallOfFameEntry[] = completedTournaments.flatMap((t: any) => {
+          const tournamentMatches = matchesByTournament[t.id] || []
+          const finalMatch = tournamentMatches.find((match: any) => {
+            const round = (match.round || '').toString().toLowerCase()
+            return match.status === 'completed' && (round.includes('finale') || round.includes('final'))
+          })
+
+          if (!finalMatch) return []
+
+          const team1Name = finalMatch.team1_name || finalMatch.team1
+          const team2Name = finalMatch.team2_name || finalMatch.team2
+          const score1 = finalMatch.score1
+          const score2 = finalMatch.score2
+          if (!team1Name || !team2Name || score1 === null || score1 === undefined || score2 === null || score2 === undefined) {
+            return []
+          }
+
+          const winner = score1 >= score2 ? team1Name : team2Name
+          const runnerUp = score1 >= score2 ? team2Name : team1Name
+          const eligibleTeams = t.eligible_teams ?? t.current_teams ?? 0
+          const perTeamPot = getPerTeamPotFromDescription(t.description)
+          const computedPrizePool = perTeamPot !== null ? perTeamPot * eligibleTeams : (t.prize_pool || 0)
+          const endDate = t.end_date ? new Date(t.end_date).toLocaleDateString('nb-NO', {
+            day: 'numeric',
+            month: 'long',
+            year: 'numeric'
+          }) : ''
+          const highlight = isEnglish
+            ? `Final: ${team1Name} ${score1} - ${score2} ${team2Name}`
+            : `Finale: ${team1Name} ${score1} - ${score2} ${team2Name}`
+
+          return [{
+            id: t.id,
+            tournament: t.title,
+            winner,
+            runnerUp,
+            date: endDate,
+            prize: `${computedPrizePool.toLocaleString('nb-NO')} NOK`,
+            participants: eligibleTeams,
+            highlight,
+            category: 'champion'
+          }]
+        })
+
         const matchesCompleted = (matchesData.matches || []).filter((match: any) =>
           match.status === 'completed' && completedTournamentIds.has(match.tournament_id)
         ).length
@@ -95,6 +147,8 @@ export default function HallOfFamePage() {
           payouts,
           matchesCompleted
         })
+
+        setEntries(championEntries)
       } catch (error) {
         console.warn('Could not load Hall of Fame stats:', error)
       }
