@@ -282,17 +282,15 @@ th { font-weight: 600; color: #D1D5DB; }
   background-color: rgba(17, 24, 39, 0.7);
 }
 .standings-table {
-  table-layout: fixed;
+  table-layout: auto;
 }
 .standings-table th,
 .standings-table td {
   word-break: break-word;
 }
 .standings-team-cell {
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  max-width: 0;
+  white-space: normal;
+  min-width: 200px;
 }
 .standings-table tbody tr:nth-child(even) {
   background-color: rgba(15, 23, 42, 0.4);
