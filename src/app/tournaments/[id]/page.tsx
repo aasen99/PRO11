@@ -532,7 +532,7 @@ export default function TournamentDetailPage() {
                     {Object.entries(groupStandings).map(([groupName, standings]) => (
                       <div key={groupName} className="pro11-card p-4">
                         <h3 className="font-semibold mb-3 text-lg">{groupName}</h3>
-                        <div className="sm:hidden space-y-2">
+                        <div className="standings-mobile space-y-2">
                           {standings.map((team, index) => (
                             <div
                               key={team.id}
@@ -551,7 +551,7 @@ export default function TournamentDetailPage() {
                             </div>
                           ))}
                         </div>
-                        <div className="hidden sm:block overflow-x-auto">
+                        <div className="standings-desktop overflow-x-auto">
                           <table className="w-full text-xs sm:text-sm">
                             <thead>
                               <tr className="border-b border-slate-700">

@@ -234,6 +234,14 @@ nav a:hover {
   .md\:col-span-2 { grid-column: span 2 / span 2; }
 }
 
+/* Standings responsive helpers */
+.standings-mobile { display: block; }
+.standings-desktop { display: none; }
+@media (min-width: 640px) {
+  .standings-mobile { display: none; }
+  .standings-desktop { display: block; }
+}
+
 /* Enhanced heading */
 .text-5xl, .text-7xl {
   text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
