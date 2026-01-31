@@ -238,7 +238,7 @@ export default function AdminPage() {
               }
               
               const perTeamPot = getPerTeamPotFromDescription(t.description || '')
-              const eligibleTeams = t.eligible_teams ?? t.current_teams || 0
+              const eligibleTeams = (t.eligible_teams ?? t.current_teams) || 0
               const computedPrizePool = perTeamPot !== null ? perTeamPot * eligibleTeams : t.prize_pool
               return {
                 id: t.id,
@@ -670,7 +670,7 @@ PRO11 Team`)
           else if (newTournament.status === 'cancelled') status = 'closed'
           
           const perTeamPot = getPerTeamPotFromDescription(newTournament.description || '')
-          const eligibleTeams = newTournament.eligible_teams ?? newTournament.current_teams || 0
+          const eligibleTeams = (newTournament.eligible_teams ?? newTournament.current_teams) || 0
           const computedPrizePool = perTeamPot !== null
             ? perTeamPot * eligibleTeams
             : newTournament.prize_pool
@@ -714,7 +714,7 @@ PRO11 Team`)
                 else if (t.status === 'archived') status = 'archived'
                 else if (t.status === 'cancelled') status = 'closed'
                 const perTeamPot = getPerTeamPotFromDescription(t.description || '')
-                const eligibleTeams = t.eligible_teams ?? t.current_teams || 0
+                const eligibleTeams = (t.eligible_teams ?? t.current_teams) || 0
                 const computedPrizePool = perTeamPot !== null ? perTeamPot * eligibleTeams : t.prize_pool
                 return {
                   id: t.id,
@@ -770,7 +770,7 @@ PRO11 Team`)
                 else if (t.status === 'archived') status = 'archived'
                 else if (t.status === 'cancelled') status = 'closed'
                 const perTeamPot = getPerTeamPotFromDescription(t.description || '')
-                const eligibleTeams = t.eligible_teams ?? t.current_teams || 0
+                const eligibleTeams = (t.eligible_teams ?? t.current_teams) || 0
                 const computedPrizePool = perTeamPot !== null ? perTeamPot * eligibleTeams : t.prize_pool
                 return {
                   id: t.id,
@@ -834,7 +834,7 @@ PRO11 Team`)
                   title: t.title,
                   date,
                   time,
-                  registeredTeams: t.eligible_teams ?? t.current_teams || 0,
+                  registeredTeams: (t.eligible_teams ?? t.current_teams) || 0,
                   maxTeams: t.max_teams,
                   status,
                   prize: `${t.prize_pool.toLocaleString('nb-NO')} NOK`,
@@ -1301,7 +1301,7 @@ PRO11 Team`)
                       title: t.title,
                       date,
                       time,
-                      registeredTeams: t.eligible_teams ?? t.current_teams || 0,
+                      registeredTeams: (t.eligible_teams ?? t.current_teams) || 0,
                       maxTeams: t.max_teams,
                       status,
                       prize: `${t.prize_pool.toLocaleString('nb-NO')} NOK`,
@@ -1331,7 +1331,7 @@ PRO11 Team`)
                   title: t.title,
                   date,
                   time,
-                  registeredTeams: t.eligible_teams ?? t.current_teams || 0,
+                  registeredTeams: (t.eligible_teams ?? t.current_teams) || 0,
                   maxTeams: t.max_teams,
                   status,
                   prize: `${t.prize_pool.toLocaleString('nb-NO')} NOK`,
