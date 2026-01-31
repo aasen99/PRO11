@@ -197,7 +197,7 @@ export default function HallOfFamePage() {
               `record-most-goals-${mostGoals.team1}-${mostGoals.team2}`,
               'Flest mål i en kamp',
               'Most goals in a match',
-              `${mostGoals.total} mål`,
+              `${mostGoals.total} ${isEnglish ? 'goals' : 'mål'}`,
               `Kamp: ${mostGoals.team1} ${mostGoals.score1} - ${mostGoals.score2} ${mostGoals.team2}`,
               `Match: ${mostGoals.team1} ${mostGoals.score1} - ${mostGoals.score2} ${mostGoals.team2}`
             )
@@ -253,7 +253,7 @@ export default function HallOfFamePage() {
               'Longest win streak',
               `${bestStreak.team} (${bestStreak.streak})`,
               `Seiersrekke: ${bestStreak.streak} kamper`,
-              `Win streak: ${bestStreak.streak} matches`
+              `Win streak: ${bestStreak.streak} ${bestStreak.streak === 1 ? 'match' : 'matches'}`
             )
           }
         }
@@ -292,7 +292,7 @@ export default function HallOfFamePage() {
     }
 
     loadStats()
-  }, [])
+  }, [isEnglish])
 
   return (
     <div className="min-h-screen">
@@ -409,7 +409,6 @@ export default function HallOfFamePage() {
                     </div>
                     
                     <div className="flex items-center justify-between text-sm text-slate-400 mb-3">
-                      <span>{isEnglish ? 'Prize' : 'Premie'}: {entry.prize}</span>
                       {entry.participants > 1 && (
                         <span>
                           {entry.participants} {isEnglish ? 'participants' : 'deltakere'}
