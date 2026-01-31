@@ -288,6 +288,12 @@ th { font-weight: 600; color: #D1D5DB; }
 .standings-table td {
   word-break: break-word;
 }
+.standings-team-cell {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 0;
+}
 .standings-table tbody tr:nth-child(even) {
   background-color: rgba(15, 23, 42, 0.4);
 }

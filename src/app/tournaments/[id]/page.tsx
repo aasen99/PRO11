@@ -575,7 +575,7 @@ export default function TournamentDetailPage() {
                                   }`}
                                 >
                                   <td className="py-1.5 px-1 sm:py-2 sm:px-2 font-semibold">{index + 1}</td>
-                                  <td className="py-1.5 px-1 sm:py-2 sm:px-2 font-medium break-words">{team.name}</td>
+                                  <td className="py-1.5 px-1 sm:py-2 sm:px-2 font-medium standings-team-cell">{team.name}</td>
                                   <td className="text-center py-1.5 px-1 sm:py-2 sm:px-2">{team.played}</td>
                                   <td className="text-center py-1.5 px-1 sm:py-2 sm:px-2 text-green-400">{team.won}</td>
                                   <td className="text-center py-1.5 px-1 sm:py-2 sm:px-2 text-yellow-400">{team.drawn}</td>
