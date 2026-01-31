@@ -453,18 +453,18 @@ export default function TournamentDetailPage() {
           {/* Tournament Header */}
           <div className="pro11-card p-8 mb-8 text-center">
             <h1 className="text-4xl font-bold mb-4">{tournament.title}</h1>
-            <div className="flex items-center justify-center space-x-6 text-slate-300">
+            <div className="flex flex-wrap items-center justify-center gap-4 text-slate-300">
               <div className="flex items-center space-x-2">
                 <Calendar className="w-5 h-5 text-blue-400" />
-                <span>{tournament.date} - {tournament.time}</span>
+                <span className="text-sm sm:text-base">{tournament.date} - {tournament.time}</span>
               </div>
               <div className="flex items-center space-x-2">
                 <Trophy className="w-5 h-5 text-yellow-400" />
-                <span>{t('Premie', 'Prize')}: {tournament.prize}</span>
+                <span className="text-sm sm:text-base">{t('Premie', 'Prize')}: {tournament.prize}</span>
               </div>
               <div className="flex items-center space-x-2">
                 <Users className="w-5 h-5 text-green-400" />
-                <span>{tournament.registeredTeams}/{tournament.maxTeams} {t('lag', 'teams')}</span>
+                <span className="text-sm sm:text-base">{tournament.registeredTeams}/{tournament.maxTeams} {t('lag', 'teams')}</span>
               </div>
             </div>
             <div className="mt-4">
@@ -482,10 +482,10 @@ export default function TournamentDetailPage() {
 
           {/* Tabs */}
           <div className="pro11-card p-6 mb-8">
-            <div className="flex space-x-1 mb-6">
+            <div className="flex flex-wrap gap-2 mb-6">
               <button
                 onClick={() => setActiveTab('standings')}
-                className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                className={`px-3 py-2 sm:px-4 rounded-lg font-medium transition-colors ${
                   activeTab === 'standings' 
                     ? 'bg-blue-600 text-white' 
                     : 'text-slate-400 hover:text-white'
@@ -495,7 +495,7 @@ export default function TournamentDetailPage() {
               </button>
               <button
                 onClick={() => setActiveTab('matches')}
-                className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                className={`px-3 py-2 sm:px-4 rounded-lg font-medium transition-colors ${
                   activeTab === 'matches' 
                     ? 'bg-blue-600 text-white' 
                     : 'text-slate-400 hover:text-white'
@@ -505,7 +505,7 @@ export default function TournamentDetailPage() {
               </button>
               <button
                 onClick={() => setActiveTab('bracket')}
-                className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                className={`px-3 py-2 sm:px-4 rounded-lg font-medium transition-colors ${
                   activeTab === 'bracket' 
                     ? 'bg-blue-600 text-white' 
                     : 'text-slate-400 hover:text-white'
@@ -515,7 +515,7 @@ export default function TournamentDetailPage() {
               </button>
               <button
                 onClick={() => setActiveTab('info')}
-                className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                className={`px-3 py-2 sm:px-4 rounded-lg font-medium transition-colors ${
                   activeTab === 'info' 
                     ? 'bg-blue-600 text-white' 
                     : 'text-slate-400 hover:text-white'
@@ -601,53 +601,53 @@ export default function TournamentDetailPage() {
                 {sortedDisplayMatches.length > 0 ? (
                   <div className="space-y-4">
                     {sortedDisplayMatches.map(match => (
-                  <div key={match.id} className="pro11-card p-4">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center space-x-4 flex-1">
-                        <div className="text-right flex-1">
-                          <span className="font-medium">{match.homeTeam}</span>
-                        </div>
-                        <div className="text-center">
-                          {match.status === 'completed' ? (
-                            <div className="text-2xl font-bold">
-                              {match.homeScore} - {match.awayScore}
+                      <div key={match.id} className="pro11-card p-4">
+                        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                          <div className="flex items-center gap-3 flex-1 min-w-0">
+                            <div className="text-right flex-1 min-w-0">
+                              <span className="font-medium break-words">{match.homeTeam}</span>
                             </div>
-                          ) : match.status === 'live' ? (
-                            <div className="text-2xl font-bold text-red-400">
-                              {match.homeScore} - {match.awayScore}
+                            <div className="text-center">
+                              {match.status === 'completed' ? (
+                                <div className="text-2xl font-bold">
+                                  {match.homeScore} - {match.awayScore}
+                                </div>
+                              ) : match.status === 'live' ? (
+                                <div className="text-2xl font-bold text-red-400">
+                                  {match.homeScore} - {match.awayScore}
+                                </div>
+                              ) : (
+                                <div className="text-lg text-slate-400">vs</div>
+                              )}
                             </div>
-                          ) : (
-                            <div className="text-lg text-slate-400">vs</div>
-                          )}
-                        </div>
-                        <div className="text-left flex-1">
-                          <span className="font-medium">{match.awayTeam}</span>
+                            <div className="text-left flex-1 min-w-0">
+                              <span className="font-medium break-words">{match.awayTeam}</span>
+                            </div>
+                          </div>
+                          <div className="text-left md:text-right md:ml-4">
+                            <div className="text-sm text-slate-400">{match.date} {match.time}</div>
+                            <div className={`inline-block px-2 py-1 rounded text-xs font-semibold ${getStatusColor(match.status)}`}>
+                              {getStatusText(match.status)}
+                            </div>
+                            {match.group && (
+                              <div className="text-xs text-slate-500 mt-1">
+                                {match.group.startsWith('Gruppe')
+                                  ? (isEnglish ? match.group.replace('Gruppe', 'Group') : match.group)
+                                  : `${t('Gruppe', 'Group')} ${match.group}`}
+                              </div>
+                            )}
+                            {match.round && match.round !== 'Gruppespill' && (
+                              <div className="text-xs text-slate-500 mt-1">{translateRoundName(match.round)}</div>
+                            )}
+                            {match.round === 'Gruppespill' && match.group && (
+                              <div className="text-xs text-slate-500 mt-1">
+                                {t('Runde', 'Round')}{' '}
+                                {match.groupRound || groupRoundMaps[match.group]?.[buildKey(match.homeTeam, match.awayTeam)] || '?'}
+                              </div>
+                            )}
+                          </div>
                         </div>
                       </div>
-                      <div className="text-right ml-4">
-                        <div className="text-sm text-slate-400">{match.date} {match.time}</div>
-                        <div className={`inline-block px-2 py-1 rounded text-xs font-semibold ${getStatusColor(match.status)}`}>
-                          {getStatusText(match.status)}
-                        </div>
-                        {match.group && (
-                          <div className="text-xs text-slate-500 mt-1">
-                            {match.group.startsWith('Gruppe')
-                              ? (isEnglish ? match.group.replace('Gruppe', 'Group') : match.group)
-                              : `${t('Gruppe', 'Group')} ${match.group}`}
-                          </div>
-                        )}
-                        {match.round && match.round !== 'Gruppespill' && (
-                          <div className="text-xs text-slate-500 mt-1">{translateRoundName(match.round)}</div>
-                        )}
-                        {match.round === 'Gruppespill' && match.group && (
-                          <div className="text-xs text-slate-500 mt-1">
-                            {t('Runde', 'Round')}{' '}
-                            {match.groupRound || groupRoundMaps[match.group]?.[buildKey(match.homeTeam, match.awayTeam)] || '?'}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </div>
                     ))}
                   </div>
                 ) : (
