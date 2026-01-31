@@ -97,6 +97,9 @@ export default function HomePage() {
               <Link href="/hall-of-fame" className="text-slate-300 hover:text-white transition-colors whitespace-nowrap">
                 Hall of Fame
               </Link>
+              <Link href="/captain/login" className="text-slate-300 hover:text-white transition-colors whitespace-nowrap">
+                {isEnglish ? 'Captain' : 'Lagleder'}
+              </Link>
               <a href="https://discord.gg/Es8UAkax8H" target="_blank" rel="noopener noreferrer" className="text-slate-300 hover:text-white transition-colors flex items-center space-x-1 whitespace-nowrap">
                 <span>Discord</span>
                 <ExternalLink className="w-4 h-4" />
@@ -145,6 +148,13 @@ export default function HomePage() {
                 onClick={() => setIsMobileMenuOpen(false)}
               >
                 Hall of Fame
+              </Link>
+              <Link
+                href="/captain/login"
+                className="text-slate-300 hover:text-white transition-colors"
+                onClick={() => setIsMobileMenuOpen(false)}
+              >
+                {isEnglish ? 'Captain' : 'Lagleder'}
               </Link>
               <a
                 href="https://discord.gg/Es8UAkax8H"
