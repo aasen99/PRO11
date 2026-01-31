@@ -242,6 +242,14 @@ nav a:hover {
   .standings-desktop { display: block; }
 }
 
+/* Matches responsive helpers */
+.matches-mobile { display: block; }
+.matches-desktop { display: none; }
+@media (min-width: 640px) {
+  .matches-mobile { display: none; }
+  .matches-desktop { display: flex; }
+}
+
 /* Enhanced heading */
 .text-5xl, .text-7xl {
   text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);

@@ -621,7 +621,54 @@ export default function TournamentDetailPage() {
                   <div className="space-y-4">
                     {sortedDisplayMatches.map(match => (
                       <div key={match.id} className="pro11-card p-4">
-                        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                        <div className="matches-mobile space-y-3">
+                          <div className="flex items-center justify-between">
+                            <div className="text-sm text-slate-400">{match.date} {match.time}</div>
+                            <div className={`inline-block px-2 py-1 rounded text-xs font-semibold ${getStatusColor(match.status)}`}>
+                              {getStatusText(match.status)}
+                            </div>
+                          </div>
+                          <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-3">
+                            <div className="text-right min-w-0">
+                              <span className="font-medium break-words">{match.homeTeam}</span>
+                            </div>
+                            <div className="text-center">
+                              {match.status === 'completed' ? (
+                                <div className="text-2xl font-bold">
+                                  {match.homeScore} - {match.awayScore}
+                                </div>
+                              ) : match.status === 'live' ? (
+                                <div className="text-2xl font-bold text-red-400">
+                                  {match.homeScore} - {match.awayScore}
+                                </div>
+                              ) : (
+                                <div className="text-lg text-slate-400">vs</div>
+                              )}
+                            </div>
+                            <div className="text-left min-w-0">
+                              <span className="font-medium break-words">{match.awayTeam}</span>
+                            </div>
+                          </div>
+                          <div className="text-xs text-slate-500 space-y-1">
+                            {match.group && (
+                              <div>
+                                {match.group.startsWith('Gruppe')
+                                  ? (isEnglish ? match.group.replace('Gruppe', 'Group') : match.group)
+                                  : `${t('Gruppe', 'Group')} ${match.group}`}
+                              </div>
+                            )}
+                            {match.round && match.round !== 'Gruppespill' && (
+                              <div>{translateRoundName(match.round)}</div>
+                            )}
+                            {match.round === 'Gruppespill' && match.group && (
+                              <div>
+                                {t('Runde', 'Round')}{' '}
+                                {match.groupRound || groupRoundMaps[match.group]?.[buildKey(match.homeTeam, match.awayTeam)] || '?'}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                        <div className="matches-desktop flex items-center justify-between">
                           <div className="flex items-center gap-3 flex-1 min-w-0">
                             <div className="text-right flex-1 min-w-0">
                               <span className="font-medium break-words">{match.homeTeam}</span>
@@ -643,7 +690,7 @@ export default function TournamentDetailPage() {
                               <span className="font-medium break-words">{match.awayTeam}</span>
                             </div>
                           </div>
-                          <div className="text-left md:text-right md:ml-4">
+                          <div className="text-right ml-4">
                             <div className="text-sm text-slate-400">{match.date} {match.time}</div>
                             <div className={`inline-block px-2 py-1 rounded text-xs font-semibold ${getStatusColor(match.status)}`}>
                               {getStatusText(match.status)}
