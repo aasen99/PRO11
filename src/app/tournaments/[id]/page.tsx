@@ -551,7 +551,7 @@ export default function TournamentDetailPage() {
                             </div>
                           ))}
                         </div>
-                        <div className="standings-desktop">
+                        <div className="standings-desktop overflow-hidden">
                           <table className="standings-table w-full text-xs sm:text-sm">
                             <thead>
                               <tr className="border-b border-slate-700">
