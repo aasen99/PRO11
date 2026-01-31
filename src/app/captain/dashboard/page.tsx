@@ -47,6 +47,7 @@ interface Tournament {
   title: string
   status: 'upcoming' | 'live' | 'completed'
   matches: Match[]
+  allMatches?: Match[]
   startDate: string
   endDate: string
   position?: number
@@ -236,6 +237,7 @@ export default function CaptainDashboardPage() {
               
               let tournament = null
               let matches: Match[] = []
+              let allMatches: Match[] = []
               let teamDiscordByName: Record<string, string> = {}
               
               if (tournamentResponse.ok) {
@@ -256,7 +258,32 @@ export default function CaptainDashboardPage() {
               
               if (matchesResponse.ok) {
                 const matchesData = await matchesResponse.json()
-                matches = (matchesData.matches || []).map((m: any) => {
+                const rawMatches = matchesData.matches || []
+
+                allMatches = rawMatches.map((m: any) => ({
+                  id: m.id,
+                  team1: m.team1_name,
+                  team2: m.team2_name,
+                  score1: m.score1 ?? 0,
+                  score2: m.score2 ?? 0,
+                  status: m.status as 'scheduled' | 'live' | 'completed' | 'pending_result' | 'pending_confirmation',
+                  time: m.scheduled_time ? new Date(m.scheduled_time).toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' }) : '',
+                  scheduledTime: m.scheduled_time ?? null,
+                  round: m.round,
+                  group: m.group_name || undefined,
+                  groupRound: m.group_round ?? undefined,
+                  tournamentId: m.tournament_id,
+                  canSubmitResult: false,
+                  submittedBy: m.submitted_by || null,
+                  submittedScore1: null,
+                  submittedScore2: null,
+                  opponentSubmittedScore1: null,
+                  opponentSubmittedScore2: null,
+                  canConfirmResult: false,
+                  opponentDiscordUsername: null
+                }))
+
+                matches = rawMatches.map((m: any) => {
                   const isTeam1 = m.team1_name === parsedTeam.teamName
                   const isTeam2 = m.team2_name === parsedTeam.teamName
                   const isMyMatch = isTeam1 || isTeam2
@@ -320,7 +347,7 @@ export default function CaptainDashboardPage() {
                 }).filter((match: Match | null): match is Match => match !== null)
               }
               
-              return tournament ? { tournament, matches } : null
+              return tournament ? { tournament, matches, allMatches } : null
             } catch (error) {
               console.error(`Error loading tournament ${tournamentId}:`, error)
               return null
@@ -337,7 +364,7 @@ export default function CaptainDashboardPage() {
             const endDate = new Date(tournament.end_date)
             
               // Filter out knockout matches if group stage is not completed
-              const allMatches = t.matches || []
+              const allMatches = t.allMatches || []
               const groupMatches = allMatches.filter((m: Match) => m.round === 'Gruppespill')
               const knockoutMatches = allMatches.filter((m: Match) => m.round !== 'Gruppespill')
               
@@ -350,8 +377,8 @@ export default function CaptainDashboardPage() {
               
               // Filter matches based on knockout visibility
               const filteredMatches = shouldShowKnockout 
-                ? allMatches 
-                : allMatches.filter((m: Match) => m.round === 'Gruppespill')
+                ? t.matches || []
+                : (t.matches || []).filter((m: Match) => m.round === 'Gruppespill')
               
               return {
                 id: tournament.id,
@@ -361,7 +388,8 @@ export default function CaptainDashboardPage() {
                 endDate: endDate.toLocaleDateString(locale, { day: 'numeric', month: 'long', year: 'numeric' }),
                 position: 0, // TODO: Calculate position from standings
                 totalTeams: tournament.max_teams,
-                matches: filteredMatches
+                matches: filteredMatches,
+                allMatches
               }
           })
           
@@ -1336,7 +1364,7 @@ export default function CaptainDashboardPage() {
               ? tournament.matches 
               : tournament.matches.filter(m => m.round === 'Gruppespill')
 
-            const groupedMatches = tournament.matches.filter(m => m.round === 'Gruppespill' && m.group)
+            const groupedMatches = (tournament.allMatches || tournament.matches).filter(m => m.round === 'Gruppespill' && m.group)
             const standingsByGroup = calculateGroupStandings(groupedMatches)
             const teamGroup = groupedMatches.find(m => m.team1 === team.teamName || m.team2 === team.teamName)?.group
             const activeGroup = teamGroup && standingsByGroup[teamGroup]
