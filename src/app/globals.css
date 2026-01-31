@@ -283,7 +283,7 @@ th { font-weight: 600; color: #D1D5DB; }
   background-color: rgba(17, 24, 39, 0.7);
 }
 .standings-table {
-  table-layout: auto;
+  table-layout: fixed;
 }
 .standings-num-cell {
   white-space: nowrap;
@@ -292,7 +292,8 @@ th { font-weight: 600; color: #D1D5DB; }
 }
 .standings-team-cell {
   white-space: normal;
-  min-width: 200px;
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 .standings-table tbody tr:nth-child(even) {
   background-color: rgba(15, 23, 42, 0.4);
