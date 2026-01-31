@@ -164,22 +164,6 @@ export default function HomePage() {
 
       {/* Hero Section */}
       <main className="container mx-auto px-4 py-12 flex flex-col items-center">
-        <div className="text-center mb-16 w-full">
-          <h2 className="text-5xl md:text-7xl font-bold mb-6 text-white">
-            {isEnglish ? 'Next Tournament' : 'Neste Turnering'}
-          </h2>
-          {nextTournament ? (
-            <p className="text-xl text-slate-300 mb-8 max-w-3xl mx-auto">
-              {nextTournament.title}
-            </p>
-          ) : (
-            <p className="text-xl text-slate-300 mb-8 max-w-3xl mx-auto">
-              {isEnglish
-                ? 'Join the biggest Pro Clubs tournament in Norway'
-                : 'Vær med på den største Pro Clubs-turneringen i Norge'}
-            </p>
-          )}
-        </div>
 
         {/* Next Tournament Card or No Tournaments Message */}
         {isLoading ? (
