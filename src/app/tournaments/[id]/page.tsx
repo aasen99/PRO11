@@ -532,18 +532,37 @@ export default function TournamentDetailPage() {
                     {Object.entries(groupStandings).map(([groupName, standings]) => (
                       <div key={groupName} className="pro11-card p-4">
                         <h3 className="font-semibold mb-3 text-lg">{groupName}</h3>
-                        <div className="overflow-x-auto">
+                        <div className="sm:hidden space-y-2">
+                          {standings.map((team, index) => (
+                            <div
+                              key={team.id}
+                              className={`rounded-lg border border-slate-700/60 px-3 py-2 ${
+                                index < 2 ? 'bg-green-900/20' : 'bg-slate-800/40'
+                              }`}
+                            >
+                              <div className="flex items-center justify-between">
+                                <div className="text-sm font-semibold">{index + 1}</div>
+                                <div className="flex-1 px-3 text-sm font-medium break-words">{team.name}</div>
+                                <div className="text-sm font-bold text-blue-400">{team.points} {t('p', 'pts')}</div>
+                              </div>
+                              <div className="mt-1 text-xs text-slate-400">
+                                {t('K', 'P')}: {team.played} · {t('V', 'W')}: {team.won} · {t('U', 'D')}: {team.drawn} · {t('T', 'L')}: {team.lost}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                        <div className="hidden sm:block overflow-x-auto">
                           <table className="w-full text-xs sm:text-sm">
                             <thead>
                               <tr className="border-b border-slate-700">
                                 <th className="text-left py-1.5 px-1 sm:py-2 sm:px-2">{t('Pos', 'Pos')}</th>
                                 <th className="text-left py-1.5 px-1 sm:py-2 sm:px-2">{t('Lag', 'Team')}</th>
                                 <th className="text-center py-1.5 px-1 sm:py-2 sm:px-2">{t('K', 'P')}</th>
-                                <th className="text-center py-1.5 px-1 sm:py-2 sm:px-2 hidden sm:table-cell">{t('V', 'W')}</th>
-                                <th className="text-center py-1.5 px-1 sm:py-2 sm:px-2 hidden sm:table-cell">{t('U', 'D')}</th>
-                                <th className="text-center py-1.5 px-1 sm:py-2 sm:px-2 hidden sm:table-cell">{t('T', 'L')}</th>
-                                <th className="text-center py-1.5 px-1 sm:py-2 sm:px-2 hidden sm:table-cell">{t('M+', 'GF')}</th>
-                                <th className="text-center py-1.5 px-1 sm:py-2 sm:px-2 hidden sm:table-cell">{t('M-', 'GA')}</th>
+                                <th className="text-center py-1.5 px-1 sm:py-2 sm:px-2">{t('V', 'W')}</th>
+                                <th className="text-center py-1.5 px-1 sm:py-2 sm:px-2">{t('U', 'D')}</th>
+                                <th className="text-center py-1.5 px-1 sm:py-2 sm:px-2">{t('T', 'L')}</th>
+                                <th className="text-center py-1.5 px-1 sm:py-2 sm:px-2">{t('M+', 'GF')}</th>
+                                <th className="text-center py-1.5 px-1 sm:py-2 sm:px-2">{t('M-', 'GA')}</th>
                                 <th className="text-center py-1.5 px-1 sm:py-2 sm:px-2 font-bold">{t('P', 'Pts')}</th>
                               </tr>
                             </thead>
@@ -558,11 +577,11 @@ export default function TournamentDetailPage() {
                                   <td className="py-1.5 px-1 sm:py-2 sm:px-2 font-semibold">{index + 1}</td>
                                   <td className="py-1.5 px-1 sm:py-2 sm:px-2 font-medium break-words">{team.name}</td>
                                   <td className="text-center py-1.5 px-1 sm:py-2 sm:px-2">{team.played}</td>
-                                  <td className="text-center py-1.5 px-1 sm:py-2 sm:px-2 text-green-400 hidden sm:table-cell">{team.won}</td>
-                                  <td className="text-center py-1.5 px-1 sm:py-2 sm:px-2 text-yellow-400 hidden sm:table-cell">{team.drawn}</td>
-                                  <td className="text-center py-1.5 px-1 sm:py-2 sm:px-2 text-red-400 hidden sm:table-cell">{team.lost}</td>
-                                  <td className="text-center py-1.5 px-1 sm:py-2 sm:px-2 hidden sm:table-cell">{team.goalsFor}</td>
-                                  <td className="text-center py-1.5 px-1 sm:py-2 sm:px-2 hidden sm:table-cell">{team.goalsAgainst}</td>
+                                  <td className="text-center py-1.5 px-1 sm:py-2 sm:px-2 text-green-400">{team.won}</td>
+                                  <td className="text-center py-1.5 px-1 sm:py-2 sm:px-2 text-yellow-400">{team.drawn}</td>
+                                  <td className="text-center py-1.5 px-1 sm:py-2 sm:px-2 text-red-400">{team.lost}</td>
+                                  <td className="text-center py-1.5 px-1 sm:py-2 sm:px-2">{team.goalsFor}</td>
+                                  <td className="text-center py-1.5 px-1 sm:py-2 sm:px-2">{team.goalsAgainst}</td>
                                   <td className="text-center py-1.5 px-1 sm:py-2 sm:px-2 font-bold text-blue-400">{team.points}</td>
                                 </tr>
                               ))}
