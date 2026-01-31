@@ -137,9 +137,146 @@ export default function HallOfFamePage() {
           }]
         })
 
-        const matchesCompleted = (matchesData.matches || []).filter((match: any) =>
+        const completedMatches = (matchesData.matches || []).filter((match: any) =>
           match.status === 'completed' && completedTournamentIds.has(match.tournament_id)
-        ).length
+        )
+
+        const recordEntries: HallOfFameEntry[] = []
+
+        const formatRecord = (recordId: string, titleNo: string, titleEn: string, value: string, highlightNo: string, highlightEn: string) => {
+          recordEntries.push({
+            id: recordId,
+            tournament: isEnglish ? titleEn : titleNo,
+            winner: value,
+            runnerUp: 'N/A',
+            date: '',
+            prize: '',
+            participants: 0,
+            highlight: isEnglish ? highlightEn : highlightNo,
+            category: 'record'
+          })
+        }
+
+        if (completedMatches.length > 0) {
+          let biggestWin = null as null | { team: string; opponent: string; margin: number; score1: number; score2: number }
+          let mostGoals = null as null | { team1: string; team2: string; total: number; score1: number; score2: number }
+
+          completedMatches.forEach((match: any) => {
+            const team1 = match.team1_name || match.team1
+            const team2 = match.team2_name || match.team2
+            const score1 = match.score1
+            const score2 = match.score2
+            if (team1 == null || team2 == null || score1 == null || score2 == null) return
+
+            const margin = Math.abs(score1 - score2)
+            if (!biggestWin || margin > biggestWin.margin) {
+              const winner = score1 >= score2 ? team1 : team2
+              const opponent = score1 >= score2 ? team2 : team1
+              biggestWin = { team: winner, opponent, margin, score1, score2 }
+            }
+
+            const total = score1 + score2
+            if (!mostGoals || total > mostGoals.total) {
+              mostGoals = { team1, team2, total, score1, score2 }
+            }
+          })
+
+          if (biggestWin) {
+            formatRecord(
+              `record-biggest-win-${biggestWin.team}`,
+              'Største seier',
+              'Biggest win',
+              `${biggestWin.team} (+${biggestWin.margin})`,
+              `Resultat: ${biggestWin.team} ${biggestWin.score1} - ${biggestWin.score2} ${biggestWin.opponent}`,
+              `Result: ${biggestWin.team} ${biggestWin.score1} - ${biggestWin.score2} ${biggestWin.opponent}`
+            )
+          }
+
+          if (mostGoals) {
+            formatRecord(
+              `record-most-goals-${mostGoals.team1}-${mostGoals.team2}`,
+              'Flest mål i en kamp',
+              'Most goals in a match',
+              `${mostGoals.total} mål`,
+              `Kamp: ${mostGoals.team1} ${mostGoals.score1} - ${mostGoals.score2} ${mostGoals.team2}`,
+              `Match: ${mostGoals.team1} ${mostGoals.score1} - ${mostGoals.score2} ${mostGoals.team2}`
+            )
+          }
+
+          const matchesByTeam = completedMatches.reduce((acc: Record<string, any[]>, match: any) => {
+            const team1 = match.team1_name || match.team1
+            const team2 = match.team2_name || match.team2
+            if (!team1 || !team2) return acc
+            if (!acc[team1]) acc[team1] = []
+            if (!acc[team2]) acc[team2] = []
+            acc[team1].push({ ...match, teamKey: team1 })
+            acc[team2].push({ ...match, teamKey: team2 })
+            return acc
+          }, {})
+
+          let bestStreak = null as null | { team: string; streak: number }
+          Object.entries(matchesByTeam).forEach(([team, matches]) => {
+            const sorted = (matches as any[]).sort((a, b) => {
+              const dateA = a.scheduled_time ? new Date(a.scheduled_time).getTime() : 0
+              const dateB = b.scheduled_time ? new Date(b.scheduled_time).getTime() : 0
+              return dateA - dateB
+            })
+
+            let current = 0
+            let best = 0
+            sorted.forEach(match => {
+              const team1 = match.team1_name || match.team1
+              const team2 = match.team2_name || match.team2
+              const score1 = match.score1
+              const score2 = match.score2
+              if (score1 == null || score2 == null) return
+              const isTeam1 = team1 === team
+              const teamScore = isTeam1 ? score1 : score2
+              const oppScore = isTeam1 ? score2 : score1
+              if (teamScore > oppScore) {
+                current += 1
+                best = Math.max(best, current)
+              } else {
+                current = 0
+              }
+            })
+
+            if (!bestStreak || best > bestStreak.streak) {
+              bestStreak = { team, streak: best }
+            }
+          })
+
+          if (bestStreak && bestStreak.streak > 0) {
+            formatRecord(
+              `record-win-streak-${bestStreak.team}`,
+              'Lengste seiersrekke',
+              'Longest win streak',
+              `${bestStreak.team} (${bestStreak.streak})`,
+              `Seiersrekke: ${bestStreak.streak} kamper`,
+              `Win streak: ${bestStreak.streak} matches`
+            )
+          }
+        }
+
+        if (championEntries.length > 0) {
+          const trophyCounts = championEntries.reduce((acc: Record<string, number>, entry) => {
+            acc[entry.winner] = (acc[entry.winner] || 0) + 1
+            return acc
+          }, {})
+          const topTeam = Object.entries(trophyCounts).sort((a, b) => b[1] - a[1])[0]
+          if (topTeam) {
+            formatRecord(
+              `record-most-trophies-${topTeam[0]}`,
+              'Flest trofeer',
+              'Most trophies',
+              `${topTeam[0]} (${topTeam[1]})`,
+              `Troféer vunnet: ${topTeam[1]}`,
+              `Trophies won: ${topTeam[1]}`
+            )
+          }
+        }
+
+        const matchesCompleted = completedMatches.length
 
         setStats({
           tournaments: completedTournaments.length,
@@ -148,7 +285,7 @@ export default function HallOfFamePage() {
           matchesCompleted
         })
 
-        setEntries(championEntries)
+        setEntries([...championEntries, ...recordEntries])
       } catch (error) {
         console.warn('Could not load Hall of Fame stats:', error)
       }

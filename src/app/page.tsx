@@ -224,8 +224,12 @@ export default function HomePage() {
                   </div>
                 </div>
                 <div className="mt-6 text-center">
-                  <span className="inline-block bg-green-600 text-white px-6 py-2 rounded-full text-sm font-semibold">
-                    {nextTournament.status}
+                  <span
+                    className={`inline-block text-white px-6 py-2 rounded-full text-sm font-semibold ${
+                      nextTournament.status === 'ongoing' ? 'bg-red-600' : 'bg-green-600'
+                    }`}
+                  >
+                    {nextTournament.status === 'ongoing' ? 'LIVE' : nextTournament.status}
                   </span>
                 </div>
               </div>
