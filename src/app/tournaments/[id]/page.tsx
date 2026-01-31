@@ -448,8 +448,8 @@ export default function TournamentDetailPage() {
         </div>
       </header>
 
-      <main className="container mx-auto px-4 py-8 flex flex-col items-center">
-        <div className="max-w-7xl w-full">
+      <main className="w-full px-4 py-8 flex flex-col items-center">
+        <div className="w-full max-w-none">
           {/* Tournament Header */}
           <div className="pro11-card p-8 mb-8 text-center">
             <h1 className="text-4xl font-bold mb-4">{tournament.title}</h1>
