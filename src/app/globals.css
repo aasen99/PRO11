@@ -284,9 +284,10 @@ th { font-weight: 600; color: #D1D5DB; }
 .standings-table {
   table-layout: auto;
 }
-.standings-table th,
-.standings-table td {
-  word-break: break-word;
+.standings-num-cell {
+  white-space: nowrap;
+  min-width: 32px;
+  text-align: center;
 }
 .standings-team-cell {
   white-space: normal;
