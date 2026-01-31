@@ -30,6 +30,10 @@ export default function RegisterPage() {
   const [tournament, setTournament] = useState<any>(null)
   const { language } = useLanguage()
   const isEnglish = language === 'en'
+  const [loginEmail, setLoginEmail] = useState('')
+  const [loginPassword, setLoginPassword] = useState('')
+  const [loginError, setLoginError] = useState('')
+  const [isLoginLoading, setIsLoginLoading] = useState(false)
 
   // Fetch tournament from database
   useEffect(() => {
@@ -134,6 +138,133 @@ export default function RegisterPage() {
     }
   }
 
+  const handleCaptainSignup = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setLoginError('')
+
+    if (!loginEmail || !loginPassword) {
+      setLoginError(isEnglish ? 'Please enter email and password.' : 'Skriv inn e-post og passord.')
+      return
+    }
+
+    if (!formData.tournamentId) {
+      setLoginError(isEnglish ? 'No tournament selected.' : 'Ingen turnering valgt.')
+      return
+    }
+
+    setIsLoginLoading(true)
+
+    try {
+      const teamsResponse = await fetch('/api/teams')
+      if (!teamsResponse.ok) {
+        throw new Error('Could not load teams')
+      }
+
+      const teamsData = await teamsResponse.json()
+      const teams = teamsData.teams || []
+      const matchingTeams = teams.filter((t: any) => (t.captainEmail || t.captain_email) === loginEmail)
+      if (matchingTeams.length === 0) {
+        setLoginError(isEnglish ? 'Incorrect email or password.' : 'Feil e-post eller passord.')
+        return
+      }
+
+      const latestTeam = matchingTeams.sort((a: any, b: any) => {
+        const dateA = a.created_at ? new Date(a.created_at).getTime() : 0
+        const dateB = b.created_at ? new Date(b.created_at).getTime() : 0
+        return dateB - dateA
+      })[0]
+
+      const teamPassword = latestTeam.generatedPassword || latestTeam.generated_password
+      if (loginPassword !== teamPassword) {
+        setLoginError(isEnglish ? 'Incorrect email or password.' : 'Feil e-post eller passord.')
+        return
+      }
+
+      const isEligible =
+        latestTeam.status === 'approved' ||
+        latestTeam.paymentStatus === 'paid' ||
+        latestTeam.payment_status === 'completed'
+
+      if (!isEligible) {
+        setLoginError(
+          isEnglish
+            ? 'Your team must be approved/paid before you can join a new tournament.'
+            : 'Laget må være godkjent/betalt før dere kan melde dere på en ny turnering.'
+        )
+        return
+      }
+
+      const tournamentTeamsResponse = await fetch(`/api/teams?tournamentId=${formData.tournamentId}`)
+      if (tournamentTeamsResponse.ok) {
+        const tournamentTeamsData = await tournamentTeamsResponse.json()
+        const tournamentTeams = tournamentTeamsData.teams || []
+        const normalize = (value: string) => value.trim().toLowerCase()
+        const teamName = latestTeam.teamName || latestTeam.team_name || ''
+        const alreadyRegistered = tournamentTeams.some((team: any) => {
+          const existingName = team.teamName || team.team_name || ''
+          const existingEmail = team.captainEmail || team.captain_email || ''
+          return normalize(existingName) === normalize(teamName) || existingEmail === loginEmail
+        })
+        if (alreadyRegistered) {
+          setLoginError(isEnglish ? 'Team is already registered for this tournament.' : 'Laget er allerede påmeldt denne turneringen.')
+          return
+        }
+      }
+
+      const registrationPayload = {
+        teamName: latestTeam.teamName || latestTeam.team_name,
+        captainName: latestTeam.captainName || latestTeam.captain_name,
+        captainEmail: latestTeam.captainEmail || latestTeam.captain_email,
+        discordUsername: latestTeam.discordUsername || latestTeam.discord_username || '',
+        captainPhone: latestTeam.captainPhone || latestTeam.captain_phone || '',
+        expectedPlayers: latestTeam.expectedPlayers || latestTeam.expected_players || 11,
+        tournamentId: formData.tournamentId,
+        reusePassword: teamPassword
+      }
+
+      const response = await fetch('/api/teams', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(registrationPayload)
+      })
+
+      if (!response.ok) {
+        const error = await response.json()
+        setLoginError(`${isEnglish ? 'Signup failed' : 'Påmelding feilet'}: ${error.error || (isEnglish ? 'Unknown error' : 'Ukjent feil')}`)
+        return
+      }
+
+      const result = await response.json()
+      const registrationData = {
+        teamName: registrationPayload.teamName,
+        captainName: registrationPayload.captainName,
+        captainEmail: registrationPayload.captainEmail,
+        discordUsername: registrationPayload.discordUsername,
+        expectedPlayers: registrationPayload.expectedPlayers,
+        clubLogo: null,
+        tournamentId: formData.tournamentId,
+        teamId: result.team.id,
+        password: teamPassword,
+        entryFee: tournament?.entryFee ?? 0
+      }
+      localStorage.setItem('teamRegistration', JSON.stringify(registrationData))
+
+      const existingTeams = JSON.parse(localStorage.getItem('adminTeams') || '[]')
+      existingTeams.push(result.team)
+      localStorage.setItem('adminTeams', JSON.stringify(existingTeams))
+
+      const entryFee = tournament?.entryFee ?? 0
+      window.location.href = entryFee > 0 ? '/payment' : '/registration-success'
+    } catch (error) {
+      console.error('Captain signup error:', error)
+      setLoginError(isEnglish ? 'Signup failed. Please try again.' : 'Påmelding feilet. Prøv igjen.')
+    } finally {
+      setIsLoginLoading(false)
+    }
+  }
+
   return (
     <div className="min-h-screen">
       {/* Header */}
@@ -141,6 +272,63 @@ export default function RegisterPage() {
 
       <main className="container mx-auto px-4 py-8 flex flex-col items-center">
         <div className="max-w-4xl w-full">
+          <div className="pro11-card p-5 mb-6 border border-blue-600/30 bg-blue-900/10">
+            <div className="flex flex-col gap-4">
+              <div>
+                <h2 className="text-lg font-semibold text-slate-100">
+                  {isEnglish ? 'Captain login to join' : 'Lagleder login for påmelding'}
+                </h2>
+                <p className="text-slate-300 text-sm">
+                  {isEnglish
+                    ? 'Log in with your captain account to join the next tournament and keep team stats.'
+                    : 'Logg inn med laglederkontoen for å melde laget på neste turnering og beholde statistikken.'}
+                </p>
+              </div>
+              <form onSubmit={handleCaptainSignup} className="grid md:grid-cols-[1fr_1fr_auto] gap-3 items-end">
+                <div>
+                  <label className="block text-sm font-medium text-slate-300 mb-2">
+                    {isEnglish ? 'Captain email' : 'Lagleder e-post'}
+                  </label>
+                  <input
+                    type="email"
+                    value={loginEmail}
+                    onChange={(e) => setLoginEmail(e.target.value)}
+                    className="pro11-input w-full"
+                    placeholder={isEnglish ? 'name@email.com' : 'anders@email.com'}
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-300 mb-2">
+                    {isEnglish ? 'Password' : 'Passord'}
+                  </label>
+                  <input
+                    type="password"
+                    value={loginPassword}
+                    onChange={(e) => setLoginPassword(e.target.value)}
+                    className="pro11-input w-full"
+                    placeholder={isEnglish ? 'Password' : 'Passord'}
+                    required
+                  />
+                </div>
+                <button
+                  type="submit"
+                  disabled={isLoginLoading}
+                  className="pro11-button-secondary text-sm w-full md:w-auto"
+                >
+                  {isLoginLoading
+                    ? (isEnglish ? 'Signing up...' : 'Meldes på...')
+                    : (isEnglish ? 'Log in & join' : 'Logg inn og meld på')}
+                </button>
+              </form>
+              {loginError && (
+                <div className="text-red-400 text-sm">
+                  {loginError}
+                </div>
+              )}
+            </div>
+          </div>
+
           <div className="text-center mb-8">
             <h2 className="text-4xl font-bold mb-4">{isEnglish ? 'Register team' : 'Meld på lag'}</h2>
             <p className="text-slate-300 text-lg">

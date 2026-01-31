@@ -5,7 +5,7 @@ import { generatePassword } from '@/lib/utils'
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { teamName, captainName, captainEmail, captainPhone, expectedPlayers, tournamentId, discordUsername } = body
+    const { teamName, captainName, captainEmail, captainPhone, expectedPlayers, tournamentId, discordUsername, reusePassword } = body
 
     console.log('Team registration request:', body)
 
@@ -83,7 +83,9 @@ export async function POST(request: NextRequest) {
     }
 
     // Generate password for captain
-    const password = generatePassword()
+    const password = typeof reusePassword === 'string' && reusePassword.trim()
+      ? reusePassword.trim()
+      : generatePassword()
 
     // Insert team into database
     const { data: team, error: teamError } = await supabase

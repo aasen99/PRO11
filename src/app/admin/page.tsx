@@ -1526,14 +1526,31 @@ PRO11 Team`)
   const approvedTeams = teams.filter(t => t.status === 'approved').length
   const isTeamPaid = (team: Team) =>
     team.paymentStatus === 'paid' || team.payment_status === 'completed'
+  const isTeamEligible = (team: Team) =>
+    team.status === 'approved' || team.paymentStatus === 'paid' || team.payment_status === 'completed'
   const paidTeams = teams.filter(isTeamPaid).length
-  const totalRevenue = teams
-    .filter(isTeamPaid)
-    .reduce((sum, team) => {
-      const tournamentId = team.tournamentId || team.tournament_id
-      const tournament = tournaments.find(t => t.id === tournamentId)
-      return sum + (tournament?.entryFee ?? 0)
-    }, 0)
+  const eligibleTeamsByTournament = teams.reduce((acc: Record<string, number>, team) => {
+    if (!isTeamEligible(team)) return acc
+    const tournamentId = team.tournamentId || team.tournament_id
+    if (!tournamentId) return acc
+    acc[tournamentId] = (acc[tournamentId] || 0) + 1
+    return acc
+  }, {})
+
+  const parsePrizeNok = (value: string) => {
+    const digits = value.replace(/[^\d]/g, '')
+    return digits ? Number(digits) : 0
+  }
+
+  const totalRevenue = tournaments.reduce((sum, tournament) => {
+    const eligibleTeams = eligibleTeamsByTournament[tournament.id] || 0
+    const perTeamPot = getPerTeamPotFromDescription(tournament.description || '')
+    const prizePool = perTeamPot !== null
+      ? perTeamPot * eligibleTeams
+      : parsePrizeNok(tournament.prize || '0')
+    const entryFeeTotal = (tournament.entryFee || 0) * eligibleTeams
+    return sum + (entryFeeTotal - prizePool)
+  }, 0)
 
   // Login form
   if (!isAuthenticated) {
