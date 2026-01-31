@@ -539,11 +539,11 @@ export default function TournamentDetailPage() {
                                 <th className="text-left py-1.5 px-1 sm:py-2 sm:px-2">{t('Pos', 'Pos')}</th>
                                 <th className="text-left py-1.5 px-1 sm:py-2 sm:px-2">{t('Lag', 'Team')}</th>
                                 <th className="text-center py-1.5 px-1 sm:py-2 sm:px-2">{t('K', 'P')}</th>
-                                <th className="text-center py-1.5 px-1 sm:py-2 sm:px-2">{t('V', 'W')}</th>
-                                <th className="text-center py-1.5 px-1 sm:py-2 sm:px-2">{t('U', 'D')}</th>
-                                <th className="text-center py-1.5 px-1 sm:py-2 sm:px-2">{t('T', 'L')}</th>
-                                <th className="text-center py-1.5 px-1 sm:py-2 sm:px-2">{t('M+', 'GF')}</th>
-                                <th className="text-center py-1.5 px-1 sm:py-2 sm:px-2">{t('M-', 'GA')}</th>
+                                <th className="text-center py-1.5 px-1 sm:py-2 sm:px-2 hidden sm:table-cell">{t('V', 'W')}</th>
+                                <th className="text-center py-1.5 px-1 sm:py-2 sm:px-2 hidden sm:table-cell">{t('U', 'D')}</th>
+                                <th className="text-center py-1.5 px-1 sm:py-2 sm:px-2 hidden sm:table-cell">{t('T', 'L')}</th>
+                                <th className="text-center py-1.5 px-1 sm:py-2 sm:px-2 hidden sm:table-cell">{t('M+', 'GF')}</th>
+                                <th className="text-center py-1.5 px-1 sm:py-2 sm:px-2 hidden sm:table-cell">{t('M-', 'GA')}</th>
                                 <th className="text-center py-1.5 px-1 sm:py-2 sm:px-2 font-bold">{t('P', 'Pts')}</th>
                               </tr>
                             </thead>
@@ -558,11 +558,11 @@ export default function TournamentDetailPage() {
                                   <td className="py-1.5 px-1 sm:py-2 sm:px-2 font-semibold">{index + 1}</td>
                                   <td className="py-1.5 px-1 sm:py-2 sm:px-2 font-medium break-words">{team.name}</td>
                                   <td className="text-center py-1.5 px-1 sm:py-2 sm:px-2">{team.played}</td>
-                                  <td className="text-center py-1.5 px-1 sm:py-2 sm:px-2 text-green-400">{team.won}</td>
-                                  <td className="text-center py-1.5 px-1 sm:py-2 sm:px-2 text-yellow-400">{team.drawn}</td>
-                                  <td className="text-center py-1.5 px-1 sm:py-2 sm:px-2 text-red-400">{team.lost}</td>
-                                  <td className="text-center py-1.5 px-1 sm:py-2 sm:px-2">{team.goalsFor}</td>
-                                  <td className="text-center py-1.5 px-1 sm:py-2 sm:px-2">{team.goalsAgainst}</td>
+                                  <td className="text-center py-1.5 px-1 sm:py-2 sm:px-2 text-green-400 hidden sm:table-cell">{team.won}</td>
+                                  <td className="text-center py-1.5 px-1 sm:py-2 sm:px-2 text-yellow-400 hidden sm:table-cell">{team.drawn}</td>
+                                  <td className="text-center py-1.5 px-1 sm:py-2 sm:px-2 text-red-400 hidden sm:table-cell">{team.lost}</td>
+                                  <td className="text-center py-1.5 px-1 sm:py-2 sm:px-2 hidden sm:table-cell">{team.goalsFor}</td>
+                                  <td className="text-center py-1.5 px-1 sm:py-2 sm:px-2 hidden sm:table-cell">{team.goalsAgainst}</td>
                                   <td className="text-center py-1.5 px-1 sm:py-2 sm:px-2 font-bold text-blue-400">{team.points}</td>
                                 </tr>
                               ))}
