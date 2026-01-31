@@ -536,7 +536,7 @@ export default function TournamentDetailPage() {
                           {standings.map((team, index) => (
                             <div
                               key={team.id}
-                              className={`rounded-lg border border-slate-700/60 px-3 py-2 ${
+                              className={`standings-card rounded-lg border border-slate-700/60 px-3 py-2 ${
                                 index < 2 ? 'bg-green-900/20' : 'bg-slate-800/40'
                               }`}
                             >
@@ -551,8 +551,8 @@ export default function TournamentDetailPage() {
                             </div>
                           ))}
                         </div>
-                        <div className="standings-desktop overflow-x-auto">
-                          <table className="w-full text-xs sm:text-sm">
+                        <div className="standings-desktop">
+                          <table className="standings-table w-full text-xs sm:text-sm">
                             <thead>
                               <tr className="border-b border-slate-700">
                                 <th className="text-left py-1.5 px-1 sm:py-2 sm:px-2">{t('Pos', 'Pos')}</th>
