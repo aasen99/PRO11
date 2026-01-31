@@ -52,6 +52,9 @@ interface Tournament {
   endDate: string
   position?: number
   totalTeams?: number
+  checkInOpen?: boolean
+  captainCheckedIn?: boolean
+  captainTeamId?: string
 }
 
 interface GroupStandingRow {
@@ -239,6 +242,8 @@ export default function CaptainDashboardPage() {
               let matches: Match[] = []
               let allMatches: Match[] = []
               let teamDiscordByName: Record<string, string> = {}
+              let captainTeamId: string | null = null
+              let captainCheckedIn = false
               
               if (tournamentResponse.ok) {
                 const data = await tournamentResponse.json()
@@ -254,6 +259,17 @@ export default function CaptainDashboardPage() {
                   }
                   return acc
                 }, {})
+
+                const matchingTeam = (teamsData.teams || []).find((team: any) => {
+                  const name = team.teamName || team.team_name
+                  const email = team.captainEmail || team.captain_email
+                  const teamTournamentId = team.tournamentId || team.tournament_id
+                  return name === parsedTeam.teamName && email === parsedTeam.captainEmail && teamTournamentId === tournamentId
+                })
+                if (matchingTeam) {
+                  captainTeamId = matchingTeam.id
+                  captainCheckedIn = matchingTeam.checkedIn ?? matchingTeam.checked_in ?? false
+                }
               }
               
               if (matchesResponse.ok) {
@@ -347,7 +363,7 @@ export default function CaptainDashboardPage() {
                 }).filter((match: Match | null): match is Match => match !== null)
               }
               
-              return tournament ? { tournament, matches, allMatches } : null
+              return tournament ? { tournament, matches, allMatches, captainTeamId, captainCheckedIn } : null
             } catch (error) {
               console.error(`Error loading tournament ${tournamentId}:`, error)
               return null
@@ -389,7 +405,10 @@ export default function CaptainDashboardPage() {
                 position: 0, // TODO: Calculate position from standings
                 totalTeams: tournament.max_teams,
                 matches: filteredMatches,
-                allMatches
+                allMatches,
+                checkInOpen: tournament.check_in_open ?? false,
+                captainCheckedIn: t.captainCheckedIn ?? false,
+                captainTeamId: t.captainTeamId ?? undefined
               }
           })
           
@@ -963,6 +982,33 @@ export default function CaptainDashboardPage() {
     }
   }
 
+  const handleCheckIn = async (teamId: string, tournamentId: string) => {
+    try {
+      const response = await fetch('/api/teams', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: teamId, checkedIn: true })
+      })
+
+      if (!response.ok) {
+        const error = await response.json()
+        alert(t(`Kunne ikke sjekke inn: ${error.error || 'Ukjent feil'}`, `Could not check in: ${error.error || 'Unknown error'}`))
+        return
+      }
+
+      setTournaments(prev =>
+        prev.map(tournament =>
+          tournament.id === tournamentId
+            ? { ...tournament, captainCheckedIn: true }
+            : tournament
+        )
+      )
+    } catch (error) {
+      console.error('Check-in error:', error)
+      alert(t('Noe gikk galt ved innsjekk.', 'Something went wrong during check-in.'))
+    }
+  }
+
   if (!team) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -1404,6 +1450,24 @@ export default function CaptainDashboardPage() {
               </div>
 
               <div className="space-y-6">
+                {tournament.checkInOpen && !tournament.captainCheckedIn && tournament.captainTeamId && (
+                  <div className="p-4 bg-blue-900/20 border border-blue-600/30 rounded-lg md:col-span-2">
+                    <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+                      <p className="text-blue-300 text-sm">
+                        {t(
+                          '⚠️ Innsjekk er åpen. Sjekk inn laget ditt for å bli med i trekningen.',
+                          '⚠️ Check-in is open. Check in your team to be included in the draw.'
+                        )}
+                      </p>
+                      <button
+                        onClick={() => handleCheckIn(tournament.captainTeamId as string, tournament.id)}
+                        className="pro11-button-secondary text-sm"
+                      >
+                        {t('Sjekk inn', 'Check in')}
+                      </button>
+                    </div>
+                  </div>
+                )}
                 {didNotAdvance && (
                   <div className="p-4 bg-slate-800/50 border border-slate-700/60 rounded-lg md:col-span-2">
                     <p className="text-slate-300 text-sm">

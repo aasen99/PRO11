@@ -97,6 +97,7 @@ export async function POST(request: NextRequest) {
         captain_email: captainEmail,
         captain_phone: captainPhone || null,
         discord_username: discordUsername || null,
+        checked_in: false,
         expected_players: expectedPlayers,
         status: 'pending',
         payment_status: 'pending',
@@ -162,6 +163,8 @@ export async function POST(request: NextRequest) {
       captain_phone: team.captain_phone || '',
       discordUsername: team.discord_username || '',
       discord_username: team.discord_username || '',
+      checkedIn: team.checked_in ?? false,
+      checked_in: team.checked_in ?? false,
       expectedPlayers: team.expected_players,
       expected_players: team.expected_players,
       status: team.status,
@@ -237,6 +240,8 @@ export async function GET(request: NextRequest) {
       captain_phone: team.captain_phone || '',
       discordUsername: team.discord_username || '',
       discord_username: team.discord_username || '',
+      checkedIn: team.checked_in ?? false,
+      checked_in: team.checked_in ?? false,
       expectedPlayers: team.expected_players,
       expected_players: team.expected_players,
       status: team.status,
@@ -259,7 +264,7 @@ export async function GET(request: NextRequest) {
 export async function PUT(request: NextRequest) {
   try {
     const body = await request.json()
-    const { id, status, discordUsername } = body
+    const { id, status, discordUsername, checkedIn } = body
 
     if (!id) {
       return NextResponse.json({ error: 'Team ID is required' }, { status: 400 })
@@ -274,6 +279,7 @@ export async function PUT(request: NextRequest) {
     const updateData: any = {}
     if (status) updateData.status = status
     if (discordUsername !== undefined) updateData.discord_username = discordUsername || null
+    if (checkedIn !== undefined) updateData.checked_in = Boolean(checkedIn)
 
     const { data: team, error } = await supabase
       .from('teams')
@@ -300,6 +306,8 @@ export async function PUT(request: NextRequest) {
       captain_email: team.captain_email,
       discordUsername: team.discord_username || '',
       discord_username: team.discord_username || '',
+      checkedIn: team.checked_in ?? false,
+      checked_in: team.checked_in ?? false,
       status: team.status,
       paymentStatus: team.payment_status,
       payment_status: team.payment_status

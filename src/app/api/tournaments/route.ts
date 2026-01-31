@@ -176,7 +176,7 @@ export async function POST(request: NextRequest) {
 export async function PUT(request: NextRequest) {
   try {
     const body = await request.json()
-    const { id, title, description, start_date, end_date, max_teams, prize_pool, entry_fee, status } = body
+    const { id, title, description, start_date, end_date, max_teams, prize_pool, entry_fee, status, check_in_open } = body
 
     if (!id) {
       return NextResponse.json({ error: 'Tournament ID is required' }, { status: 400 })
@@ -205,6 +205,7 @@ export async function PUT(request: NextRequest) {
       updateData.entry_fee = Number.isFinite(normalizedEntryFee) ? normalizedEntryFee : 299
     }
     if (status) updateData.status = status
+    if (check_in_open !== undefined) updateData.check_in_open = Boolean(check_in_open)
 
     const { data: tournament, error } = await supabase
       .from('tournaments')

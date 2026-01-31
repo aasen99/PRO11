@@ -21,6 +21,8 @@ interface Team {
   captain_email?: string
   discordUsername?: string
   discord_username?: string
+  checkedIn?: boolean
+  checked_in?: boolean
   expectedPlayers?: number
   expected_players?: number
   players?: Player[]
@@ -60,6 +62,7 @@ interface Tournament {
   format: 'group_stage' | 'knockout' | 'mixed'
   matches?: Match[]
   groups?: string[][]
+  checkInOpen?: boolean
 }
 
 interface AdminMessage {
@@ -252,6 +255,7 @@ export default function AdminPage() {
                 entryFee: t.entry_fee,
                 description: t.description || '',
                 format: 'mixed' as const,
+                checkInOpen: t.check_in_open ?? false,
                 matches
               }
             })
@@ -454,6 +458,50 @@ export default function AdminPage() {
     } catch (error) {
       console.error('Error updating team status:', error)
       alert(t('Noe gikk galt ved oppdatering av lag-status', 'Something went wrong updating team status'))
+    }
+  }
+
+  const updateTeamCheckIn = async (teamId: string, checkedIn: boolean) => {
+    try {
+      const response = await fetch('/api/teams', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: teamId, checkedIn })
+      })
+
+      if (response.ok) {
+        setTeams(prevTeams =>
+          prevTeams.map(team =>
+            team.id === teamId ? { ...team, checkedIn } : team
+          )
+        )
+      } else {
+        const error = await response.json()
+        alert(t(`Kunne ikke oppdatere innsjekk: ${error.error || 'Ukjent feil'}`, `Could not update check-in: ${error.error || 'Unknown error'}`))
+      }
+    } catch (error) {
+      console.error('Error updating team check-in:', error)
+      alert(t('Noe gikk galt ved oppdatering av innsjekk', 'Something went wrong updating check-in'))
+    }
+  }
+
+  const updateTournamentCheckIn = async (tournamentId: string, checkInOpen: boolean) => {
+    try {
+      const response = await fetch('/api/tournaments', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: tournamentId, check_in_open: checkInOpen })
+      })
+
+      if (response.ok) {
+        setTournaments(prev => prev.map(t => t.id === tournamentId ? { ...t, checkInOpen } : t))
+      } else {
+        const error = await response.json()
+        alert(t(`Kunne ikke oppdatere innsjekk: ${error.error || 'Ukjent feil'}`, `Could not update check-in: ${error.error || 'Unknown error'}`))
+      }
+    } catch (error) {
+      console.error('Error updating tournament check-in:', error)
+      alert(t('Noe gikk galt ved oppdatering av innsjekk', 'Something went wrong updating check-in'))
     }
   }
 
@@ -685,7 +733,8 @@ PRO11 Team`)
             prize: `${computedPrizePool.toLocaleString('nb-NO')} NOK`,
             entryFee: newTournament.entry_fee,
             description: newTournament.description || '',
-            format: 'mixed' as const
+            format: 'mixed' as const,
+            checkInOpen: newTournament.check_in_open ?? false
           }
           
           // Update tournaments list immediately
@@ -727,7 +776,8 @@ PRO11 Team`)
                   prize: `${computedPrizePool.toLocaleString('nb-NO')} NOK`,
                   entryFee: t.entry_fee,
                   description: t.description || '',
-                  format: 'mixed' as const
+                  format: 'mixed' as const,
+                  checkInOpen: t.check_in_open ?? false
                 }
               })
               setTournaments(transformed)
@@ -1002,12 +1052,12 @@ PRO11 Team`)
     }
 
     const approvedTeams = teams
-      .filter(team => team.status === 'approved' && (team.tournamentId === tournamentId || team.tournament_id === tournamentId))
+      .filter(team => isTeamEligibleForMatches(team) && (team.tournamentId === tournamentId || team.tournament_id === tournamentId))
       .map(team => team.teamName || team.team_name)
       .filter((name): name is string => name !== undefined && name !== null)
 
     if (approvedTeams.length < 4) {
-      alert(t('Du trenger minst 4 godkjente lag for å generere kamper!', 'You need at least 4 approved teams to generate matches!'))
+      alert(t('Du trenger minst 4 godkjente lag som er sjekket inn for å generere kamper!', 'You need at least 4 approved and checked-in teams to generate matches!'))
       return
     }
 
@@ -1040,12 +1090,12 @@ PRO11 Team`)
     }
 
     const approvedTeams = teams
-      .filter(team => team.status === 'approved' && (team.tournamentId === tournamentId || team.tournament_id === tournamentId))
+      .filter(team => isTeamEligibleForMatches(team) && (team.tournamentId === tournamentId || team.tournament_id === tournamentId))
       .map(team => team.teamName || team.team_name)
       .filter((name): name is string => name !== undefined && name !== null)
 
     if (approvedTeams.length < 4) {
-      alert(t('Du trenger minst 4 godkjente lag for å generere kamper!', 'You need at least 4 approved teams to generate matches!'))
+      alert(t('Du trenger minst 4 godkjente lag som er sjekket inn for å generere kamper!', 'You need at least 4 approved and checked-in teams to generate matches!'))
       return
     }
 
@@ -1309,7 +1359,8 @@ PRO11 Team`)
                       description: t.description || '',
                       format: 'mixed' as const,
                       matches: loadedMatches,
-                      groups: t.id === tournamentId ? groups : undefined
+                      groups: t.id === tournamentId ? groups : undefined,
+                      checkInOpen: t.check_in_open ?? false
                     }
                   }
                 } catch (error) {
@@ -1339,7 +1390,8 @@ PRO11 Team`)
                   description: t.description || '',
                   format: 'mixed' as const,
                   matches: [],
-                  groups: t.id === tournamentId ? groups : undefined
+                  groups: t.id === tournamentId ? groups : undefined,
+                  checkInOpen: t.check_in_open ?? false
                 }
               })
             )
@@ -1528,6 +1580,8 @@ PRO11 Team`)
     team.paymentStatus === 'paid' || team.payment_status === 'completed'
   const isTeamEligible = (team: Team) =>
     team.status === 'approved' || team.paymentStatus === 'paid' || team.payment_status === 'completed'
+  const isTeamCheckedIn = (team: Team) => team.checkedIn ?? team.checked_in ?? false
+  const isTeamEligibleForMatches = (team: Team) => isTeamEligible(team) && isTeamCheckedIn(team)
   const paidTeams = teams.filter(isTeamPaid).length
   const eligibleTeamsByTournament = teams.reduce((acc: Record<string, number>, team) => {
     if (!isTeamEligible(team)) return acc
@@ -1792,6 +1846,7 @@ PRO11 Team`)
                         <th className="py-2 px-3 text-left text-sm">{t('Forventet', 'Expected')}</th>
                         <th className="py-2 px-3 text-left text-sm">{t('Status', 'Status')}</th>
                         <th className="py-2 px-3 text-left text-sm">{t('Betaling', 'Payment')}</th>
+                        <th className="py-2 px-3 text-left text-sm">{t('Innsjekk', 'Check-in')}</th>
                         <th className="py-2 px-3 text-left text-sm">{t('Registrert', 'Registered')}</th>
                         <th className="py-2 px-3 text-left text-sm">{t('Handlinger', 'Actions')}</th>
                       </tr>
@@ -1807,7 +1862,7 @@ PRO11 Team`)
                           </td>
                           <td className="py-2 px-3 text-sm">{team.captainName || team.captain_name}</td>
                           <td className="py-2 px-3 text-sm">
-                            {team.expectedPlayers || team.expected_players || team.players?.length || 0} spillere
+                            {team.expectedPlayers || team.expected_players || team.players?.length || 0} {t('spillere', 'players')}
                           </td>
                           <td className="py-2 px-3">
                             <span className={`inline-flex items-center px-4 py-2 rounded-full text-xs font-medium ${getStatusColor(team.status)}`}>
@@ -1818,6 +1873,13 @@ PRO11 Team`)
                             <span className={`text-xs ${getPaymentStatusColor(team.paymentStatus || team.payment_status)}`}>
                               {getPaymentStatusText(team.paymentStatus || team.payment_status)}
                             </span>
+                          </td>
+                          <td className="py-2 px-3">
+                            {isTeamCheckedIn(team) ? (
+                              <span className="text-xs text-green-400">{t('Sjekket inn', 'Checked in')}</span>
+                            ) : (
+                              <span className="text-xs text-slate-400">{t('Ikke sjekket inn', 'Not checked in')}</span>
+                            )}
                           </td>
                           <td className="py-2 px-3 text-xs text-slate-400">{team.registeredAt || team.created_at}</td>
                           <td className="py-2 px-3">
@@ -1843,6 +1905,23 @@ PRO11 Team`)
                               >
                                 <XCircle className="w-3 h-3" />
                               </button>
+                              {isTeamCheckedIn(team) ? (
+                                <button
+                                  onClick={() => updateTeamCheckIn(team.id, false)}
+                                  className="text-orange-400 hover:text-orange-300"
+                                  title={t('Fjern innsjekk', 'Remove check-in')}
+                                >
+                                  <XCircle className="w-3 h-3" />
+                                </button>
+                              ) : (
+                                <button
+                                  onClick={() => updateTeamCheckIn(team.id, true)}
+                                  className="text-blue-400 hover:text-blue-300"
+                                  title={t('Sjekk inn', 'Check in')}
+                                >
+                                  <CheckCircle className="w-3 h-3" />
+                                </button>
+                              )}
                               <button
                                 onClick={() => sendEmailToTeam(team)}
                                 className="text-purple-400 hover:text-purple-300"
@@ -1944,6 +2023,20 @@ PRO11 Team`)
                               >
                                 <BarChart3 className="w-3 h-3" />
                                 <span>{t('Sluttspill', 'Knockout')}</span>
+                              </button>
+                            )}
+                            {tournament.status !== 'archived' && (
+                              <button
+                                onClick={() => updateTournamentCheckIn(tournament.id, !tournament.checkInOpen)}
+                                className="pro11-button-secondary flex items-center space-x-1 text-xs"
+                                title={t('Innsjekk', 'Check-in')}
+                              >
+                                <Users className="w-3 h-3" />
+                                <span>
+                                  {tournament.checkInOpen
+                                    ? t('Steng innsjekk', 'Close check-in')
+                                    : t('Åpne innsjekk', 'Open check-in')}
+                                </span>
                               </button>
                             )}
                             <button 
@@ -2570,7 +2663,7 @@ PRO11 Team`)
               {tournamentForMatchGeneration && (() => {
                 const tournament = tournaments.find(t => t.id === tournamentForMatchGeneration)
                 const approvedTeams = teams
-                  .filter(team => team.status === 'approved' && (team.tournamentId === tournamentForMatchGeneration || team.tournament_id === tournamentForMatchGeneration))
+                  .filter(team => isTeamEligibleForMatches(team) && (team.tournamentId === tournamentForMatchGeneration || team.tournament_id === tournamentForMatchGeneration))
                   .map(team => team.teamName || team.team_name)
                   .filter((name): name is string => name !== undefined && name !== null)
                 
@@ -2583,7 +2676,7 @@ PRO11 Team`)
                   <div className="pro11-card p-4 bg-slate-800/50">
                     <h3 className="font-semibold mb-2 text-sm">{t('Oversikt', 'Overview')}</h3>
                     <div className="space-y-1 text-xs text-slate-300">
-                      <p>{t('Totalt antall godkjente lag', 'Total approved teams')}: <span className="font-semibold text-white">{totalTeams}</span></p>
+                      <p>{t('Godkjente og sjekket inn', 'Approved and checked in')}: <span className="font-semibold text-white">{totalTeams}</span></p>
                       <p>{t('Lag per gruppe', 'Teams per group')}: <span className="font-semibold text-white">{teamsPerGroup}</span></p>
                       <p>{t('Totalt i grupper', 'Total in groups')}: <span className="font-semibold text-white">{totalInGroups}</span></p>
                       {totalInGroups < totalTeams && (
