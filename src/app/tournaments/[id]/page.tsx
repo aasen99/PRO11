@@ -631,8 +631,7 @@ export default function TournamentDetailPage() {
                           <div className="space-y-2">
                             <div className="flex items-center justify-between gap-3">
                               <div className="min-w-0">
-                                <div className="text-xs text-slate-500">{t('Hjemme', 'Home')}</div>
-                                <div className="font-medium break-words">{match.homeTeam}</div>
+                                <div className="text-base font-semibold break-words">{match.homeTeam}</div>
                               </div>
                               <div
                                 className={`text-2xl font-bold ${
@@ -648,8 +647,7 @@ export default function TournamentDetailPage() {
                             </div>
                             <div className="flex items-center justify-between gap-3">
                               <div className="min-w-0">
-                                <div className="text-xs text-slate-500">{t('Borte', 'Away')}</div>
-                                <div className="font-medium break-words">{match.awayTeam}</div>
+                                <div className="text-base font-semibold break-words">{match.awayTeam}</div>
                               </div>
                               <div
                                 className={`text-2xl font-bold ${
