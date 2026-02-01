@@ -628,25 +628,40 @@ export default function TournamentDetailPage() {
                               {getStatusText(match.status)}
                             </div>
                           </div>
-                          <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-3">
-                            <div className="text-right min-w-0">
-                              <span className="font-medium break-words">{match.homeTeam}</span>
+                          <div className="space-y-2">
+                            <div className="flex items-center justify-between gap-3">
+                              <div className="min-w-0">
+                                <div className="text-xs text-slate-500">{t('Hjemme', 'Home')}</div>
+                                <div className="font-medium break-words">{match.homeTeam}</div>
+                              </div>
+                              <div
+                                className={`text-2xl font-bold ${
+                                  match.status === 'completed' || match.status === 'live'
+                                    ? match.status === 'live'
+                                      ? 'text-red-400'
+                                      : 'text-white'
+                                    : 'text-slate-400'
+                                }`}
+                              >
+                                {match.status === 'completed' || match.status === 'live' ? match.homeScore : '-'}
+                              </div>
                             </div>
-                            <div className="text-center">
-                              {match.status === 'completed' ? (
-                                <div className="text-2xl font-bold">
-                                  {match.homeScore} - {match.awayScore}
-                                </div>
-                              ) : match.status === 'live' ? (
-                                <div className="text-2xl font-bold text-red-400">
-                                  {match.homeScore} - {match.awayScore}
-                                </div>
-                              ) : (
-                                <div className="text-lg text-slate-400">vs</div>
-                              )}
-                            </div>
-                            <div className="text-left min-w-0">
-                              <span className="font-medium break-words">{match.awayTeam}</span>
+                            <div className="flex items-center justify-between gap-3">
+                              <div className="min-w-0">
+                                <div className="text-xs text-slate-500">{t('Borte', 'Away')}</div>
+                                <div className="font-medium break-words">{match.awayTeam}</div>
+                              </div>
+                              <div
+                                className={`text-2xl font-bold ${
+                                  match.status === 'completed' || match.status === 'live'
+                                    ? match.status === 'live'
+                                      ? 'text-red-400'
+                                      : 'text-white'
+                                    : 'text-slate-400'
+                                }`}
+                              >
+                                {match.status === 'completed' || match.status === 'live' ? match.awayScore : '-'}
+                              </div>
                             </div>
                           </div>
                           <div className="text-xs text-slate-500 space-y-1">
