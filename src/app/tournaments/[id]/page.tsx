@@ -551,38 +551,38 @@ export default function TournamentDetailPage() {
                             </div>
                           ))}
                         </div>
-                        <div className="standings-desktop overflow-hidden">
-                          <table className="standings-table w-full text-xs sm:text-sm">
+                        <div className="standings-desktop overflow-x-auto">
+                          <table className="w-full">
                             <thead>
                               <tr className="border-b border-slate-700">
-                                <th className="text-left py-1.5 px-1 sm:py-2 sm:px-2 standings-num-cell">{t('Pos', 'Pos')}</th>
-                                <th className="text-left py-1.5 px-1 sm:py-2 sm:px-2">{t('Lag', 'Team')}</th>
-                                <th className="text-center py-1.5 px-1 sm:py-2 sm:px-2 standings-num-cell">{t('K', 'P')}</th>
-                                <th className="text-center py-1.5 px-1 sm:py-2 sm:px-2 standings-num-cell">{t('V', 'W')}</th>
-                                <th className="text-center py-1.5 px-1 sm:py-2 sm:px-2 standings-num-cell">{t('U', 'D')}</th>
-                                <th className="text-center py-1.5 px-1 sm:py-2 sm:px-2 standings-num-cell">{t('T', 'L')}</th>
-                                <th className="text-center py-1.5 px-1 sm:py-2 sm:px-2 standings-num-cell">{t('M+', 'GF')}</th>
-                                <th className="text-center py-1.5 px-1 sm:py-2 sm:px-2 standings-num-cell">{t('M-', 'GA')}</th>
-                                <th className="text-center py-1.5 px-1 sm:py-2 sm:px-2 font-bold standings-num-cell">{t('P', 'Pts')}</th>
+                                <th className="py-2 px-3 text-left text-sm">{t('Pos', 'Pos')}</th>
+                                <th className="py-2 px-3 text-left text-sm">{t('Lag', 'Team')}</th>
+                                <th className="py-2 px-3 text-center text-sm">{t('K', 'P')}</th>
+                                <th className="py-2 px-3 text-center text-sm">{t('V', 'W')}</th>
+                                <th className="py-2 px-3 text-center text-sm">{t('U', 'D')}</th>
+                                <th className="py-2 px-3 text-center text-sm">{t('T', 'L')}</th>
+                                <th className="py-2 px-3 text-center text-sm">{t('M+', 'GF')}</th>
+                                <th className="py-2 px-3 text-center text-sm">{t('M-', 'GA')}</th>
+                                <th className="py-2 px-3 text-center text-sm font-semibold">{t('P', 'Pts')}</th>
                               </tr>
                             </thead>
                             <tbody>
                               {standings.map((team, index) => (
                                 <tr 
                                   key={team.id} 
-                                  className={`border-b border-slate-700/50 ${
+                                  className={`border-b border-slate-700 ${
                                     index < 2 ? 'bg-green-900/20' : ''
                                   }`}
                                 >
-                                  <td className="py-1.5 px-1 sm:py-2 sm:px-2 font-semibold standings-num-cell">{index + 1}</td>
-                                  <td className="py-1.5 px-1 sm:py-2 sm:px-2 font-medium standings-team-cell">{team.name}</td>
-                                  <td className="text-center py-1.5 px-1 sm:py-2 sm:px-2 standings-num-cell">{team.played}</td>
-                                  <td className="text-center py-1.5 px-1 sm:py-2 sm:px-2 text-green-400 standings-num-cell">{team.won}</td>
-                                  <td className="text-center py-1.5 px-1 sm:py-2 sm:px-2 text-yellow-400 standings-num-cell">{team.drawn}</td>
-                                  <td className="text-center py-1.5 px-1 sm:py-2 sm:px-2 text-red-400 standings-num-cell">{team.lost}</td>
-                                  <td className="text-center py-1.5 px-1 sm:py-2 sm:px-2 standings-num-cell">{team.goalsFor}</td>
-                                  <td className="text-center py-1.5 px-1 sm:py-2 sm:px-2 standings-num-cell">{team.goalsAgainst}</td>
-                                  <td className="text-center py-1.5 px-1 sm:py-2 sm:px-2 font-bold text-blue-400 standings-num-cell">{team.points}</td>
+                                  <td className="py-2 px-3 text-sm font-semibold">{index + 1}</td>
+                                  <td className="py-2 px-3 text-sm font-medium">{team.name}</td>
+                                  <td className="py-2 px-3 text-center text-sm">{team.played}</td>
+                                  <td className="py-2 px-3 text-center text-sm text-green-400">{team.won}</td>
+                                  <td className="py-2 px-3 text-center text-sm text-yellow-400">{team.drawn}</td>
+                                  <td className="py-2 px-3 text-center text-sm text-red-400">{team.lost}</td>
+                                  <td className="py-2 px-3 text-center text-sm">{team.goalsFor}</td>
+                                  <td className="py-2 px-3 text-center text-sm">{team.goalsAgainst}</td>
+                                  <td className="py-2 px-3 text-center text-sm font-semibold text-blue-400">{team.points}</td>
                                 </tr>
                               ))}
                             </tbody>

@@ -278,29 +278,6 @@ th { font-weight: 600; color: #D1D5DB; }
 .border-b { border-bottom-width: 1px; }
 .border-slate-700 { border-color: #374151; }
 
-/* Standings table polish */
-.standings-table thead th {
-  background-color: rgba(17, 24, 39, 0.7);
-}
-.standings-table {
-  table-layout: fixed;
-}
-.standings-num-cell {
-  white-space: nowrap;
-  min-width: 32px;
-  text-align: center;
-}
-.standings-team-cell {
-  white-space: normal;
-  min-width: 0;
-  overflow-wrap: anywhere;
-}
-.standings-table tbody tr:nth-child(even) {
-  background-color: rgba(15, 23, 42, 0.4);
-}
-.standings-table tbody tr:hover {
-  background-color: rgba(30, 41, 59, 0.5);
-}
 .standings-card {
   transition: background-color 0.2s ease, border-color 0.2s ease;
 }
