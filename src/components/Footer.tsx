@@ -12,14 +12,14 @@ import LanguageToggle from './LanguageToggle'
    return (
      <footer className="py-8 text-center text-xs text-slate-500">
        <div className="flex flex-wrap items-center justify-center gap-4 mb-3">
-         <Link href="/faq" className="hover:text-slate-300 transition-colors">FAQ</Link>
-         <Link href="/rules" className="hover:text-slate-300 transition-colors">
+        <Link href="/faq" className="text-white hover:text-slate-200 transition-colors">FAQ</Link>
+        <Link href="/rules" className="text-white hover:text-slate-200 transition-colors">
            {isEnglish ? 'Rules' : 'Regler'}
          </Link>
-         <Link href="/kjopsvilkar" className="hover:text-slate-300 transition-colors">
+        <Link href="/kjopsvilkar" className="text-white hover:text-slate-200 transition-colors">
            {isEnglish ? 'Terms of Purchase' : 'Kjøpsvilkår'}
          </Link>
-         <Link href="/personvern" className="hover:text-slate-300 transition-colors">
+        <Link href="/personvern" className="text-white hover:text-slate-200 transition-colors">
            {isEnglish ? 'Privacy' : 'Personvern'}
          </Link>
         <LanguageToggle />

@@ -272,6 +272,12 @@ export default function RegisterPage() {
 
       <main className="container mx-auto px-4 py-8 flex flex-col items-center">
         <div className="max-w-4xl w-full">
+          <div className="text-center mb-8">
+            <h2 className="text-4xl font-bold mb-2">{isEnglish ? 'Register team' : 'Meld på lag'}</h2>
+            <p className="text-slate-300 text-base">
+              {isEnglish ? 'Log in or register a new team' : 'Logg inn eller registrer nytt lag'}
+            </p>
+          </div>
           <div className="pro11-card p-5 mb-6 border border-blue-600/30 bg-blue-900/10">
             <div className="flex flex-col gap-4">
               <div className="text-center">
@@ -327,18 +333,6 @@ export default function RegisterPage() {
                 </div>
               )}
             </div>
-          </div>
-
-          <div className="flex items-center justify-center gap-3 mb-8 text-xs uppercase tracking-wider text-slate-400">
-            <span className="h-px w-14 bg-slate-700"></span>
-            <span>{isEnglish ? 'Or register a new team' : 'ELLER registrer nytt lag'}</span>
-            <span className="h-px w-14 bg-slate-700"></span>
-          </div>
-          <div className="text-center mb-8">
-            <h2 className="text-4xl font-bold mb-4">{isEnglish ? 'Register team' : 'Meld på lag'}</h2>
-            <p className="text-slate-300 text-lg">
-              {isEnglish ? 'Register your team for' : 'Registrer laget ditt for'} {tournament?.title || 'PRO11 FC 26 Launch Cup'}
-            </p>
           </div>
 
           <form onSubmit={handleSubmit} className="pro11-card p-8">
