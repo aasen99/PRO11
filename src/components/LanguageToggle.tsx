@@ -12,7 +12,7 @@
       <button
         type="button"
         onClick={() => setLanguage('no')}
-        className={`p-0 leading-none rounded-sm bg-transparent border-0 transition-opacity focus-visible:outline-none ${!isEnglish ? 'opacity-100' : 'opacity-80 hover:opacity-100'}`}
+        className={`p-0 leading-none bg-transparent border-0 shadow-none appearance-none transition-opacity focus-visible:outline-none ${!isEnglish ? 'opacity-100' : 'opacity-80 hover:opacity-100'}`}
         aria-pressed={!isEnglish}
         aria-label="Norsk"
         title="Norsk"
@@ -33,7 +33,7 @@
       <button
         type="button"
         onClick={() => setLanguage('en')}
-        className={`p-0 leading-none rounded-sm bg-transparent border-0 transition-opacity focus-visible:outline-none ${isEnglish ? 'opacity-100' : 'opacity-80 hover:opacity-100'}`}
+        className={`p-0 leading-none bg-transparent border-0 shadow-none appearance-none transition-opacity focus-visible:outline-none ${isEnglish ? 'opacity-100' : 'opacity-80 hover:opacity-100'}`}
         aria-pressed={isEnglish}
         aria-label="English"
         title="English"

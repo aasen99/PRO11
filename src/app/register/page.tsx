@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react'
 import Link from 'next/link'
+import { useSearchParams } from 'next/navigation'
 import { Shield, Users, User, Mail, Gamepad2, Plus, Trash2 } from 'lucide-react'
 import Header from '../../components/Header'
 import { fetchTournamentById } from '../../lib/tournaments'
@@ -18,6 +19,7 @@ interface TeamRegistration {
 }
 
 export default function RegisterPage() {
+  const searchParams = useSearchParams()
   const [formData, setFormData] = useState<TeamRegistration>({
     teamName: '',
     captainName: '',
@@ -35,6 +37,13 @@ export default function RegisterPage() {
   const [loginError, setLoginError] = useState('')
   const [isLoginLoading, setIsLoginLoading] = useState(false)
 
+  useEffect(() => {
+    const tournamentParam = searchParams.get('tournament')
+    if (tournamentParam && tournamentParam !== formData.tournamentId) {
+      setFormData(prev => ({ ...prev, tournamentId: tournamentParam }))
+    }
+  }, [searchParams, formData.tournamentId])
+
   // Fetch tournament from database
   useEffect(() => {
     const loadTournament = async () => {
@@ -44,7 +53,10 @@ export default function RegisterPage() {
         if (response.ok) {
           const data = await response.json()
           if (data.tournaments && data.tournaments.length > 0) {
-            const t = data.tournaments[0]
+            const preferredTournament =
+              data.tournaments.find((t: any) => ['open', 'ongoing', 'upcoming'].includes(t.status)) ||
+              data.tournaments[0]
+            const t = preferredTournament
             setFormData(prev => ({ ...prev, tournamentId: t.id }))
             // Transform to frontend format
             const startDate = new Date(t.start_date)
