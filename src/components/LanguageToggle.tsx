@@ -40,19 +40,19 @@
       >
         <svg
           className="w-4 h-4"
-          viewBox="0 0 22 16"
+          viewBox="0 0 60 30"
           aria-hidden="true"
           focusable="false"
         >
-          <rect width="22" height="16" fill="#012169" />
-          <polygon points="0,0 2.5,0 22,12.5 22,16 19.5,16 0,3.5" fill="#FFFFFF" />
-          <polygon points="22,0 19.5,0 0,12.5 0,16 2.5,16 22,3.5" fill="#FFFFFF" />
-          <polygon points="0,0 1.6,0 22,11.4 22,16 20.4,16 0,4.6" fill="#C8102E" />
-          <polygon points="22,0 20.4,0 0,11.4 0,16 1.6,16 22,4.6" fill="#C8102E" />
-          <rect x="9" width="4" height="16" fill="#FFFFFF" />
-          <rect y="6" width="22" height="4" fill="#FFFFFF" />
-          <rect x="10" width="2" height="16" fill="#C8102E" />
-          <rect y="7" width="22" height="2" fill="#C8102E" />
+          <rect width="60" height="30" fill="#012169" />
+          <polygon points="0,0 7,0 60,23 60,30 53,30 0,7" fill="#FFFFFF" />
+          <polygon points="60,0 53,0 0,23 0,30 7,30 60,7" fill="#FFFFFF" />
+          <polygon points="0,0 3.5,0 60,26.5 60,30 56.5,30 0,3.5" fill="#C8102E" />
+          <polygon points="60,0 56.5,0 0,26.5 0,30 3.5,30 60,3.5" fill="#C8102E" />
+          <rect x="24" width="12" height="30" fill="#FFFFFF" />
+          <rect y="9" width="60" height="12" fill="#FFFFFF" />
+          <rect x="26" width="8" height="30" fill="#C8102E" />
+          <rect y="11" width="60" height="8" fill="#C8102E" />
         </svg>
       </button>
      </div>
