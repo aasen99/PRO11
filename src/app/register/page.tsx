@@ -215,7 +215,10 @@ export default function RegisterPage() {
         const alreadyRegistered = tournamentTeams.some((team: any) => {
           const existingName = team.teamName || team.team_name || ''
           const existingEmail = team.captainEmail || team.captain_email || ''
-          return normalize(existingName) === normalize(teamName) || existingEmail === loginEmail
+          return (
+            normalize(existingName) === normalize(teamName) ||
+            normalize(existingEmail) === normalize(loginEmail)
+          )
         })
         if (alreadyRegistered) {
           setLoginError(isEnglish ? 'Team is already registered for this tournament.' : 'Laget er allerede påmeldt denne turneringen.')

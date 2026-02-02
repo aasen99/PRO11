@@ -40,35 +40,48 @@ export default function CaptainLoginPage() {
       const data = await response.json()
       const teams = data.teams || []
       
-      // Finn lag med matchende e-post
-      const team = teams.find((t: any) => 
-        (t.captainEmail || t.captain_email) === email
-      )
+      // Finn lag med matchende e-post (case-insensitive)
+      const normalizeEmail = (value: string) => value.trim().toLowerCase()
+      const matchingTeams = teams.filter((t: any) => {
+        const captainEmail = t.captainEmail || t.captain_email || ''
+        return normalizeEmail(captainEmail) === normalizeEmail(email)
+      })
       
-      if (!team) {
+      if (matchingTeams.length === 0) {
         setError(isEnglish ? 'Incorrect email or password. Please try again.' : 'Feil e-post eller passord. Prøv igjen.')
         setPassword('')
         setIsLoading(false)
         return
       }
+
+      const latestTeam = matchingTeams.sort((a: any, b: any) => {
+        const dateA = a.created_at ? new Date(a.created_at).getTime() : 0
+        const dateB = b.created_at ? new Date(b.created_at).getTime() : 0
+        return dateB - dateA
+      })[0]
       
       // Sjekk passord (generert passord fra database)
-      const teamPassword = team.generatedPassword || team.generated_password
+      const teamPassword = latestTeam.generatedPassword || latestTeam.generated_password
       const isCorrectPassword = password === teamPassword
       
       if (isCorrectPassword) {
         // Lagre team data for dashboard
-        const tournamentId = team.tournamentId || team.tournament_id || ''
+        const tournamentId = latestTeam.tournamentId || latestTeam.tournament_id || ''
+        const tournaments = Array.from(new Set(
+          matchingTeams
+            .map((t: any) => t.tournamentId || t.tournament_id)
+            .filter(Boolean)
+        ))
         const teamData = {
-          id: team.id,
-          teamName: team.teamName || team.team_name,
-          captainEmail: team.captainEmail || team.captain_email,
-          captainName: team.captainName || team.captain_name,
-          discordUsername: team.discordUsername || team.discord_username || '',
-          tournaments: tournamentId ? [tournamentId] : [],
+          id: latestTeam.id,
+          teamName: latestTeam.teamName || latestTeam.team_name,
+          captainEmail: latestTeam.captainEmail || latestTeam.captain_email,
+          captainName: latestTeam.captainName || latestTeam.captain_name,
+          discordUsername: latestTeam.discordUsername || latestTeam.discord_username || '',
+          tournaments,
           tournamentId,
-          expectedPlayers: team.expectedPlayers || team.expected_players || 0,
-          paymentStatus: team.paymentStatus || team.payment_status || 'pending'
+          expectedPlayers: latestTeam.expectedPlayers || latestTeam.expected_players || 0,
+          paymentStatus: latestTeam.paymentStatus || latestTeam.payment_status || 'pending'
         }
         localStorage.setItem('captainTeam', JSON.stringify(teamData))
         window.location.href = '/captain/dashboard'

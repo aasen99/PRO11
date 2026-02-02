@@ -1231,6 +1231,17 @@ export default function CaptainDashboardPage() {
                               {t('Ingen ventende handlinger', 'No pending actions')}
                             </div>
                           )}
+                          {tournament.checkInOpen && !tournament.captainCheckedIn && tournament.captainTeamId && (
+                            <div className="flex justify-center">
+                              <button
+                                onClick={() => handleCheckIn(tournament.captainTeamId as string, tournament.id)}
+                                className="pro11-button-secondary text-xs px-3 py-1"
+                              >
+                                <CheckCircle className="w-3 h-3 mr-1" />
+                                {t('Sjekk inn', 'Check in')}
+                              </button>
+                            </div>
+                          )}
                         </div>
                       </div>
                     )
