@@ -2,7 +2,6 @@
 
 import React, { useState, useEffect } from 'react'
 import Link from 'next/link'
-import { useSearchParams } from 'next/navigation'
 import { Shield, Users, User, Mail, Gamepad2, Plus, Trash2 } from 'lucide-react'
 import Header from '../../components/Header'
 import { fetchTournamentById } from '../../lib/tournaments'
@@ -19,7 +18,6 @@ interface TeamRegistration {
 }
 
 export default function RegisterPage() {
-  const searchParams = useSearchParams()
   const [formData, setFormData] = useState<TeamRegistration>({
     teamName: '',
     captainName: '',
@@ -38,11 +36,13 @@ export default function RegisterPage() {
   const [isLoginLoading, setIsLoginLoading] = useState(false)
 
   useEffect(() => {
-    const tournamentParam = searchParams.get('tournament')
+    if (typeof window === 'undefined') return
+    const params = new URLSearchParams(window.location.search)
+    const tournamentParam = params.get('tournament')
     if (tournamentParam && tournamentParam !== formData.tournamentId) {
       setFormData(prev => ({ ...prev, tournamentId: tournamentParam }))
     }
-  }, [searchParams, formData.tournamentId])
+  }, [formData.tournamentId])
 
   // Fetch tournament from database
   useEffect(() => {
