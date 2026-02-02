@@ -82,10 +82,28 @@ export async function POST(request: NextRequest) {
       }, { status: 400 })
     }
 
-    // Generate password for captain
-    const password = typeof reusePassword === 'string' && reusePassword.trim()
+    // Generate password for captain (reuse when possible)
+    let password = typeof reusePassword === 'string' && reusePassword.trim()
       ? reusePassword.trim()
-      : generatePassword()
+      : ''
+
+    if (!password && typeof captainEmail === 'string' && captainEmail.trim()) {
+      const { data: previousTeams } = await supabase
+        .from('teams')
+        .select('generated_password')
+        .eq('captain_email', captainEmail.trim())
+        .order('created_at', { ascending: false })
+        .limit(1)
+
+      const previousPassword = previousTeams?.[0]?.generated_password
+      if (previousPassword) {
+        password = previousPassword
+      }
+    }
+
+    if (!password) {
+      password = generatePassword()
+    }
 
     // Insert team into database
     const { data: team, error: teamError } = await supabase
