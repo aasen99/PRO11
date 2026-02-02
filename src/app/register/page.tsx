@@ -274,11 +274,11 @@ export default function RegisterPage() {
         <div className="max-w-4xl w-full">
           <div className="pro11-card p-5 mb-6 border border-blue-600/30 bg-blue-900/10">
             <div className="flex flex-col gap-4">
-              <div>
-                <h2 className="text-base font-semibold text-slate-100">
+              <div className="text-center">
+                <h2 className="text-sm font-semibold text-slate-100">
                   {isEnglish ? 'Captain login to join' : 'Lagleder login for påmelding'}
                 </h2>
-                <p className="text-slate-300 text-sm">
+                <p className="text-slate-300 text-xs">
                   {isEnglish
                     ? 'Log in with your captain account to join the next tournament and keep team stats.'
                     : 'Logg inn med laglederkontoen for å melde laget på neste turnering og beholde statistikken.'}
