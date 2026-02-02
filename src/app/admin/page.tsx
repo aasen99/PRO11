@@ -1998,61 +1998,65 @@ PRO11 Team`)
                             <p className="text-xs text-slate-400">{t('Lag', 'Teams')}</p>
                             <p className="font-medium text-sm">{tournament.registeredTeams}/{tournament.maxTeams}</p>
                           </div>
-                          <div className="flex space-x-1">
-                            <Link
-                              href={`/admin/matches/${tournament.id}`}
-                              className="pro11-button-secondary flex items-center space-x-1 text-xs"
-                              title={t('Se kamper', 'View matches')}
-                            >
-                              <Trophy className="w-3 h-3" />
-                              <span>{t('Se kamper', 'View matches')}</span>
-                            </Link>
-                            <button 
-                              onClick={() => openMatchConfigModal(tournament.id)}
-                              className="pro11-button flex items-center space-x-1 text-xs"
-                              title={t('Generer kamper', 'Generate matches')}
-                            >
-                              <Trophy className="w-3 h-3" />
-                              <span>{t('Generer kamper', 'Generate matches')}</span>
-                            </button>
-                            {tournament.format === 'mixed' && tournament.groups && (
+                          <div className="flex flex-col items-end gap-2">
+                            <div className="flex flex-wrap justify-end gap-2">
+                              <Link
+                                href={`/admin/matches/${tournament.id}`}
+                                className="pro11-button-secondary flex items-center space-x-1 text-xs"
+                                title={t('Se kamper', 'View matches')}
+                              >
+                                <Trophy className="w-3 h-3" />
+                                <span>{t('Se kamper', 'View matches')}</span>
+                              </Link>
                               <button 
-                                onClick={() => generateKnockoutFromGroups(tournament.id)}
-                                className="pro11-button-secondary flex items-center space-x-1 text-xs"
-                                title={t('Generer sluttspill', 'Generate knockout')}
+                                onClick={() => openMatchConfigModal(tournament.id)}
+                                className="pro11-button flex items-center space-x-1 text-xs"
+                                title={t('Generer kamper', 'Generate matches')}
                               >
-                                <BarChart3 className="w-3 h-3" />
-                                <span>{t('Sluttspill', 'Knockout')}</span>
+                                <Trophy className="w-3 h-3" />
+                                <span>{t('Generer kamper', 'Generate matches')}</span>
                               </button>
-                            )}
-                            {tournament.status !== 'archived' && (
+                              {tournament.format === 'mixed' && tournament.groups && (
+                                <button 
+                                  onClick={() => generateKnockoutFromGroups(tournament.id)}
+                                  className="pro11-button-secondary flex items-center space-x-1 text-xs"
+                                  title={t('Generer sluttspill', 'Generate knockout')}
+                                >
+                                  <BarChart3 className="w-3 h-3" />
+                                  <span>{t('Sluttspill', 'Knockout')}</span>
+                                </button>
+                              )}
+                            </div>
+                            <div className="flex flex-wrap justify-end gap-2">
+                              {tournament.status !== 'archived' && (
+                                <button
+                                  onClick={() => updateTournamentCheckIn(tournament.id, !tournament.checkInOpen)}
+                                  className="pro11-button-secondary flex items-center space-x-1 text-xs"
+                                  title={t('Innsjekk', 'Check-in')}
+                                >
+                                  <Users className="w-3 h-3" />
+                                  <span>
+                                    {tournament.checkInOpen
+                                      ? t('Steng innsjekk', 'Close check-in')
+                                      : t('Åpne innsjekk', 'Open check-in')}
+                                  </span>
+                                </button>
+                              )}
+                              <button 
+                                onClick={() => openTournamentModal(tournament)}
+                                className="pro11-button-secondary flex items-center space-x-1 text-xs"
+                              >
+                                <Edit className="w-3 h-3" />
+                                <span>{t('Rediger', 'Edit')}</span>
+                              </button>
                               <button
-                                onClick={() => updateTournamentCheckIn(tournament.id, !tournament.checkInOpen)}
-                                className="pro11-button-secondary flex items-center space-x-1 text-xs"
-                                title={t('Innsjekk', 'Check-in')}
+                                onClick={() => deleteTournament(tournament.id)}
+                                className="text-red-400 hover:text-red-300"
+                                title={t('Slett turnering', 'Delete tournament')}
                               >
-                                <Users className="w-3 h-3" />
-                                <span>
-                                  {tournament.checkInOpen
-                                    ? t('Steng innsjekk', 'Close check-in')
-                                    : t('Åpne innsjekk', 'Open check-in')}
-                                </span>
+                                <Trash2 className="w-3 h-3" />
                               </button>
-                            )}
-                            <button 
-                              onClick={() => openTournamentModal(tournament)}
-                              className="pro11-button-secondary flex items-center space-x-1 text-xs"
-                            >
-                              <Edit className="w-3 h-3" />
-                              <span>{t('Rediger', 'Edit')}</span>
-                            </button>
-                            <button
-                              onClick={() => deleteTournament(tournament.id)}
-                              className="text-red-400 hover:text-red-300"
-                              title={t('Slett turnering', 'Delete tournament')}
-                            >
-                              <Trash2 className="w-3 h-3" />
-                            </button>
+                            </div>
                           </div>
                         </div>
                       </div>
