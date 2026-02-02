@@ -8,11 +8,11 @@
    const isEnglish = language === 'en'
  
    return (
-    <div className="flex items-center gap-1 rounded-full p-1 text-xs">
+    <div className="flex items-center gap-2 text-xs">
       <button
         type="button"
         onClick={() => setLanguage('no')}
-        className={`px-2.5 py-1.5 rounded-full transition-colors ${!isEnglish ? 'bg-blue-600 text-white' : 'text-slate-300 hover:text-white'}`}
+        className={`px-2.5 py-1.5 rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 ${!isEnglish ? 'bg-blue-600 text-white' : 'text-slate-300 hover:text-white'}`}
         aria-pressed={!isEnglish}
         aria-label="Norsk"
         title="Norsk"
@@ -33,7 +33,7 @@
       <button
         type="button"
         onClick={() => setLanguage('en')}
-        className={`px-2.5 py-1.5 rounded-full transition-colors ${isEnglish ? 'bg-blue-600 text-white' : 'text-slate-300 hover:text-white'}`}
+        className={`px-2.5 py-1.5 rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 ${isEnglish ? 'bg-blue-600 text-white' : 'text-slate-300 hover:text-white'}`}
         aria-pressed={isEnglish}
         aria-label="English"
         title="English"
