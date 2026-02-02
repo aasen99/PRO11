@@ -8,17 +8,17 @@
    const isEnglish = language === 'en'
  
    return (
-     <div className="flex items-center gap-1 rounded-full bg-slate-800/80 p-1 text-xs">
+    <div className="flex items-center gap-1 rounded-full p-1 text-xs">
       <button
         type="button"
         onClick={() => setLanguage('no')}
-        className={`px-2 py-1 rounded-full transition-colors ${!isEnglish ? 'bg-blue-600 text-white' : 'text-slate-300 hover:text-white'}`}
+        className={`px-2.5 py-1.5 rounded-full transition-colors ${!isEnglish ? 'bg-blue-600 text-white' : 'text-slate-300 hover:text-white'}`}
         aria-pressed={!isEnglish}
         aria-label="Norsk"
         title="Norsk"
       >
         <svg
-          className="w-4 h-4"
+          className="w-5 h-5"
           viewBox="0 0 22 16"
           aria-hidden="true"
           focusable="false"
@@ -33,13 +33,13 @@
       <button
         type="button"
         onClick={() => setLanguage('en')}
-        className={`px-2 py-1 rounded-full transition-colors ${isEnglish ? 'bg-blue-600 text-white' : 'text-slate-300 hover:text-white'}`}
+        className={`px-2.5 py-1.5 rounded-full transition-colors ${isEnglish ? 'bg-blue-600 text-white' : 'text-slate-300 hover:text-white'}`}
         aria-pressed={isEnglish}
         aria-label="English"
         title="English"
       >
         <svg
-          className="w-4 h-4"
+          className="w-5 h-5"
           viewBox="0 0 60 30"
           aria-hidden="true"
           focusable="false"
