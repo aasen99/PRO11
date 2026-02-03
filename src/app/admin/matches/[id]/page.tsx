@@ -983,6 +983,57 @@ export default function TournamentMatchesPage() {
     }
   }
 
+  const setWalkover = async (match: Match, winner: 'team1' | 'team2') => {
+    const winnerName = winner === 'team1' ? match.team1_name : match.team2_name
+    const loserName = winner === 'team1' ? match.team2_name : match.team1_name
+    if (!confirm(t(`Sett WO 3-0 til ${winnerName}?`, `Set walkover 3-0 to ${winnerName}?`))) {
+      return
+    }
+
+    const score1 = winner === 'team1' ? 3 : 0
+    const score2 = winner === 'team1' ? 0 : 3
+
+    try {
+      const response = await fetch('/api/matches', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: match.id,
+          status: 'completed',
+          score1,
+          score2
+        })
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: t('Ukjent feil', 'Unknown error') }))
+        addToast({
+          message: t(
+            `Kunne ikke sette WO: ${errorData.error || 'Ukjent feil'}`,
+            `Could not set walkover: ${errorData.error || 'Unknown error'}`
+          ),
+          type: 'error'
+        })
+        return
+      }
+
+      addToast({
+        message: t(
+          `WO registrert: ${winnerName} 3-0 ${loserName}.`,
+          `Walkover recorded: ${winnerName} 3-0 ${loserName}.`
+        ),
+        type: 'success'
+      })
+      await loadData()
+    } catch (error) {
+      console.error('Error setting walkover:', error)
+      addToast({
+        message: t('Noe gikk galt ved WO-registrering.', 'Something went wrong recording the walkover.'),
+        type: 'error'
+      })
+    }
+  }
+
   const applyBulkSchedule = async () => {
     if (!bulkScheduledTime) {
       addToast({ message: t('Velg dato og klokkeslett først.', 'Select date and time first.'), type: 'warning' })
@@ -1433,13 +1484,29 @@ export default function TournamentMatchesPage() {
                                       </span>
                                     </td>
                                     <td className="py-3 px-2">
-                                      <button
-                                        onClick={() => startEditing(match)}
-                                        className="text-blue-400 hover:text-blue-300"
-                                        title={t('Rediger kamp', 'Edit match')}
-                                      >
-                                        <Edit className="w-4 h-4" />
-                                      </button>
+                                      <div className="flex items-center gap-2">
+                                        <button
+                                          onClick={() => startEditing(match)}
+                                          className="text-blue-400 hover:text-blue-300"
+                                          title={t('Rediger kamp', 'Edit match')}
+                                        >
+                                          <Edit className="w-4 h-4" />
+                                        </button>
+                                        <button
+                                          onClick={() => setWalkover(match, 'team1')}
+                                          className="text-slate-300 hover:text-white text-xs"
+                                          title={t('Sett WO til lag 1', 'Set walkover to team 1')}
+                                        >
+                                          {t('WO 1', 'WO 1')}
+                                        </button>
+                                        <button
+                                          onClick={() => setWalkover(match, 'team2')}
+                                          className="text-slate-300 hover:text-white text-xs"
+                                          title={t('Sett WO til lag 2', 'Set walkover to team 2')}
+                                        >
+                                          {t('WO 2', 'WO 2')}
+                                        </button>
+                                      </div>
                                     </td>
                                   </>
                                 )}
@@ -1625,13 +1692,29 @@ export default function TournamentMatchesPage() {
                                       </span>
                                     </td>
                                     <td className="py-3 px-2">
-                                      <button
-                                        onClick={() => startEditing(match)}
-                                        className="text-blue-400 hover:text-blue-300"
-                                        title="Rediger kamp"
-                                      >
-                                        <Edit className="w-4 h-4" />
-                                      </button>
+                                      <div className="flex items-center gap-2">
+                                        <button
+                                          onClick={() => startEditing(match)}
+                                          className="text-blue-400 hover:text-blue-300"
+                                          title={t('Rediger kamp', 'Edit match')}
+                                        >
+                                          <Edit className="w-4 h-4" />
+                                        </button>
+                                        <button
+                                          onClick={() => setWalkover(match, 'team1')}
+                                          className="text-slate-300 hover:text-white text-xs"
+                                          title={t('Sett WO til lag 1', 'Set walkover to team 1')}
+                                        >
+                                          {t('WO 1', 'WO 1')}
+                                        </button>
+                                        <button
+                                          onClick={() => setWalkover(match, 'team2')}
+                                          className="text-slate-300 hover:text-white text-xs"
+                                          title={t('Sett WO til lag 2', 'Set walkover to team 2')}
+                                        >
+                                          {t('WO 2', 'WO 2')}
+                                        </button>
+                                      </div>
                                     </td>
                                   </>
                                 )}
