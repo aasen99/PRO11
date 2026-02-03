@@ -129,6 +129,15 @@ export default function AdminPage() {
   const [error, setError] = useState('')
   const [activeTab, setActiveTab] = useState<'teams' | 'tournaments' | 'prizes' | 'statistics' | 'settings' | 'messages'>('teams')
   const [selectedTournament, setSelectedTournament] = useState('')
+  const getLatestTournamentId = (list: any[]) => {
+    if (!list.length) return ''
+    return [...list]
+      .sort((a, b) => {
+        const aTime = a.startDateRaw ? new Date(a.startDateRaw).getTime() : 0
+        const bTime = b.startDateRaw ? new Date(b.startDateRaw).getTime() : 0
+        return bTime - aTime
+      })[0].id
+  }
   
   // Modal states
   const [showTeamModal, setShowTeamModal] = useState(false)
@@ -256,6 +265,7 @@ export default function AdminPage() {
                 description: t.description || '',
                 format: 'mixed' as const,
                 checkInOpen: t.check_in_open ?? false,
+                startDateRaw: t.start_date,
                 matches
               }
             })
@@ -264,7 +274,8 @@ export default function AdminPage() {
             setTournaments(transformed)
             // Set first tournament as selected if none selected
             if (transformed.length > 0 && !selectedTournament) {
-              setSelectedTournament(transformed[0].id)
+              const latestId = getLatestTournamentId(transformed)
+              if (latestId) setSelectedTournament(latestId)
             }
           }
         }
@@ -734,7 +745,8 @@ PRO11 Team`)
             entryFee: newTournament.entry_fee,
             description: newTournament.description || '',
             format: 'mixed' as const,
-            checkInOpen: newTournament.check_in_open ?? false
+            checkInOpen: newTournament.check_in_open ?? false,
+            startDateRaw: newTournament.start_date
           }
           
           // Update tournaments list immediately
@@ -777,12 +789,14 @@ PRO11 Team`)
                   entryFee: t.entry_fee,
                   description: t.description || '',
                   format: 'mixed' as const,
-                  checkInOpen: t.check_in_open ?? false
+                  checkInOpen: t.check_in_open ?? false,
+                  startDateRaw: t.start_date
                 }
               })
               setTournaments(transformed)
               if (transformed.length > 0 && !selectedTournament) {
-                setSelectedTournament(transformed[0].id)
+                const latestId = getLatestTournamentId(transformed)
+                if (latestId) setSelectedTournament(latestId)
               }
               setShowTournamentModal(false)
               setEditingTournament(null)
@@ -833,10 +847,16 @@ PRO11 Team`)
                   prize: `${computedPrizePool.toLocaleString('nb-NO')} NOK`,
                   entryFee: t.entry_fee,
                   description: t.description || '',
-                  format: 'mixed' as const
+                  format: 'mixed' as const,
+                  checkInOpen: t.check_in_open ?? false,
+                  startDateRaw: t.start_date
                 }
               })
               setTournaments(transformed)
+              if (transformed.length > 0 && !selectedTournament) {
+                const latestId = getLatestTournamentId(transformed)
+                if (latestId) setSelectedTournament(latestId)
+              }
               setShowTournamentModal(false)
               setEditingTournament(null)
               setIsNewTournament(false)
@@ -890,14 +910,15 @@ PRO11 Team`)
                   prize: `${t.prize_pool.toLocaleString('nb-NO')} NOK`,
                   entryFee: t.entry_fee,
                   description: t.description || '',
-                  format: 'mixed' as const
+                  format: 'mixed' as const,
+                  checkInOpen: t.check_in_open ?? false,
+                  startDateRaw: t.start_date
                 }
               })
               setTournaments(transformed)
-              if (selectedTournament === tournamentId && transformed.length > 0) {
-                setSelectedTournament(transformed[0].id)
-              } else if (selectedTournament === tournamentId) {
-                setSelectedTournament('')
+              if (selectedTournament === tournamentId) {
+                const latestId = getLatestTournamentId(transformed)
+                setSelectedTournament(latestId)
               }
             }
           }
