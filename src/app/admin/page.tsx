@@ -724,7 +724,7 @@ PRO11 Team`)
         if (response.ok) {
           if (!responseData.tournament) {
             console.error('Response OK but no tournament in response:', responseData)
-            alert('Turnering ble ikke opprettet. Sjekk konsollen for detaljer.')
+            alert(t('Turnering ble ikke opprettet. Sjekk konsollen for detaljer.', 'Tournament was not created. Check the console for details.'))
             return
           }
           
@@ -941,11 +941,11 @@ PRO11 Team`)
             }
           }
         } else {
-          alert('Kunne ikke slette turnering')
+          alert(t('Kunne ikke slette turnering', 'Could not delete tournament'))
         }
       } catch (error) {
         console.error('Error deleting tournament:', error)
-        alert('Noe gikk galt ved sletting av turnering')
+        alert(t('Noe gikk galt ved sletting av turnering', 'Something went wrong deleting the tournament'))
       }
     }
   }
@@ -1232,7 +1232,7 @@ PRO11 Team`)
         console.log('Generated matches:', matches.slice(0, 3).map(m => ({ team1: m.team1, team2: m.team2, round: m.round, group: m.group })))
         
         if (matches.length === 0) {
-          alert('Ingen kamper ble generert! Sjekk at turneringen har riktig format og at det er nok lag.')
+          alert(t('Ingen kamper ble generert! Sjekk at turneringen har riktig format og at det er nok lag.', 'No matches were generated! Check that the tournament format is correct and there are enough teams.'))
           return
         }
         
@@ -1333,7 +1333,7 @@ PRO11 Team`)
         }
         
         if (successfulMatches.length === 0) {
-          alert('Ingen kamper ble lagret! Sjekk konsollen for feilmeldinger.')
+          alert(t('Ingen kamper ble lagret! Sjekk konsollen for feilmeldinger.', 'No matches were saved! Check the console for errors.'))
           return
         }
 
@@ -1540,7 +1540,7 @@ PRO11 Team`)
     }
 
     if (knockoutTeams.length < 2) {
-      alert('Du trenger minst 2 lag for sluttspill!')
+      alert(t('Du trenger minst 2 lag for sluttspill!', 'You need at least 2 teams for knockout.'))
       return
     }
 
@@ -2421,7 +2421,7 @@ PRO11 Team`)
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-slate-300 mb-1">
-                    Tid *
+                    {t('Tid', 'Time')} *
                   </label>
                   <input
                     type="time"
@@ -2436,7 +2436,7 @@ PRO11 Team`)
               <div className="grid md:grid-cols-3 gap-3">
                 <div>
                   <label className="block text-sm font-medium text-slate-300 mb-1">
-                    Maks lag
+                    {t('Maks lag', 'Max teams')}
                   </label>
                   <input
                     type="number"
@@ -2449,7 +2449,7 @@ PRO11 Team`)
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-slate-300 mb-1">
-                    Premiepott per lag (NOK)
+                    {t('Premiepott per lag (NOK)', 'Prize per team (NOK)')}
                   </label>
                   <input
                     type="number"
@@ -2463,7 +2463,7 @@ PRO11 Team`)
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-slate-300 mb-1">
-                    Fast premiepott (NOK)
+                    {t('Fast premiepott (NOK)', 'Fixed prize pool (NOK)')}
                   </label>
                   <input
                     type="number"
