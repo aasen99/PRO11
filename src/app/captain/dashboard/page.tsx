@@ -996,13 +996,14 @@ export default function CaptainDashboardPage() {
         return
       }
 
-      setTournaments(prev =>
-        prev.map(tournament =>
-          tournament.id === tournamentId
-            ? { ...tournament, captainCheckedIn: true }
-            : tournament
+        const shouldUpdate = response.ok
+        setTournaments(prev =>
+          prev.map(tournament =>
+            tournament.id === tournamentId
+              ? { ...tournament, captainCheckedIn: shouldUpdate ? true : tournament.captainCheckedIn }
+              : tournament
+          )
         )
-      )
     } catch (error) {
       console.error('Check-in error:', error)
       alert(t('Noe gikk galt ved innsjekk.', 'Something went wrong during check-in.'))

@@ -327,8 +327,9 @@ export async function PUT(request: NextRequest) {
     await updateRequest(updateData)
 
     if (error && typeof error.message === 'string' && error.message.includes('checked_in')) {
-      delete updateData.checked_in
-      await updateRequest(updateData)
+      return NextResponse.json({
+        error: 'Database mangler checked_in-kolonnen. Kjør migrering: ALTER TABLE teams ADD COLUMN checked_in boolean NOT NULL DEFAULT false;'
+      }, { status: 400 })
     }
 
     if (error && typeof error.message === 'string' && error.message.includes('cannot coerce the result to a single JSON object')) {
