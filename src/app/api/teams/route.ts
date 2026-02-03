@@ -299,12 +299,26 @@ export async function PUT(request: NextRequest) {
     if (discordUsername !== undefined) updateData.discord_username = discordUsername || null
     if (checkedIn !== undefined) updateData.checked_in = Boolean(checkedIn)
 
-    const { data: team, error } = await supabase
-      .from('teams')
-      .update(updateData)
-      .eq('id', id)
-      .select()
-      .single()
+    let team: any = null
+    let error: any = null
+
+    const updateRequest = async (data: any) => {
+      const result = await supabase
+        .from('teams')
+        .update(data)
+        .eq('id', id)
+        .select()
+        .single()
+      team = result.data
+      error = result.error
+    }
+
+    await updateRequest(updateData)
+
+    if (error && typeof error.message === 'string' && error.message.includes('checked_in')) {
+      delete updateData.checked_in
+      await updateRequest(updateData)
+    }
 
     if (error) {
       console.error('Database error:', error)
