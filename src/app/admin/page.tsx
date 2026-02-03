@@ -57,12 +57,14 @@ interface Tournament {
   maxTeams: number
   status: 'open' | 'ongoing' | 'closed' | 'completed' | 'archived'
   prize: string
+  prizePoolRaw?: number
   entryFee: number
   description: string
   format: 'group_stage' | 'knockout' | 'mixed'
   matches?: Match[]
   groups?: string[][]
   checkInOpen?: boolean
+  startDateRaw?: string
 }
 
 interface AdminMessage {
@@ -114,12 +116,13 @@ const buildDescriptionWithGen = (
   description: string,
   gen: 'new' | 'old' | 'both',
   formatText: string,
-  perTeamPot: number | null
+  perTeamPot: number | null,
+  fixedPrize: number | null
 ) => {
   const cleaned = stripGenFromDescription(description)
   const tag = gen === 'new' ? '[GEN: New Gen]' : gen === 'old' ? '[GEN: Old Gen]' : '[GEN: Both]'
   const formatTag = formatText.trim() ? `[FORMAT]\n${formatText.trim()}\n[/FORMAT]` : ''
-  const potTag = perTeamPot && perTeamPot > 0 ? `[POT_PER_TEAM:${perTeamPot}]` : ''
+  const potTag = !fixedPrize && perTeamPot && perTeamPot > 0 ? `[POT_PER_TEAM:${perTeamPot}]` : ''
   return [cleaned, formatTag, potTag, tag].filter(Boolean).join(' ').trim()
 }
 
@@ -152,6 +155,7 @@ export default function AdminPage() {
   const [tournamentGen, setTournamentGen] = useState<'new' | 'old' | 'both'>('both')
   const [tournamentFormatText, setTournamentFormatText] = useState('')
   const [tournamentPotPerTeam, setTournamentPotPerTeam] = useState('')
+  const [tournamentFixedPrize, setTournamentFixedPrize] = useState('')
 
   const { language } = useLanguage()
   const isEnglish = language === 'en'
@@ -261,6 +265,7 @@ export default function AdminPage() {
                 maxTeams: t.max_teams,
                 status,
                 prize: `${computedPrizePool.toLocaleString('nb-NO')} NOK`,
+                prizePoolRaw: t.prize_pool,
                 entryFee: t.entry_fee,
                 description: t.description || '',
                 format: 'mixed' as const,
@@ -627,12 +632,14 @@ PRO11 Team`)
       setTournamentFormatText(getFormatFromDescription(tournament.description || ''))
       const perTeamPot = getPerTeamPotFromDescription(tournament.description || '')
       setTournamentPotPerTeam(perTeamPot ? String(perTeamPot) : '')
+      setTournamentFixedPrize(!perTeamPot && tournament.prizePoolRaw ? String(tournament.prizePoolRaw) : '')
     } else {
       setEditingTournament(null)
       setIsNewTournament(true)
       setTournamentGen('both')
       setTournamentFormatText('')
       setTournamentPotPerTeam('')
+      setTournamentFixedPrize('')
     }
     setShowTournamentModal(true)
   }
@@ -668,8 +675,14 @@ PRO11 Team`)
       
       const perTeamPotValue = Number(tournamentPotPerTeam)
       const safePerTeamPot = Number.isFinite(perTeamPotValue) ? perTeamPotValue : 0
+      const fixedPrizeValue = Number(tournamentFixedPrize)
+      const safeFixedPrize = Number.isFinite(fixedPrizeValue) ? fixedPrizeValue : 0
       const currentTeamsCount = editingTournament?.registeredTeams ?? 0
-      const prizePool = safePerTeamPot > 0 ? safePerTeamPot * currentTeamsCount : 0
+      const prizePool = safeFixedPrize > 0
+        ? safeFixedPrize
+        : safePerTeamPot > 0
+          ? safePerTeamPot * currentTeamsCount
+          : 0
       
       const dbData: any = {
         title: tournamentData.title,
@@ -677,7 +690,8 @@ PRO11 Team`)
           tournamentData.description || '',
           tournamentGen,
           tournamentFormatText,
-          safePerTeamPot
+          safePerTeamPot,
+          safeFixedPrize > 0 ? safeFixedPrize : null
         ),
         start_date: startDate.toISOString(),
         end_date: endDate.toISOString(),
@@ -742,6 +756,7 @@ PRO11 Team`)
             maxTeams: newTournament.max_teams,
             status,
             prize: `${computedPrizePool.toLocaleString('nb-NO')} NOK`,
+            prizePoolRaw: newTournament.prize_pool,
             entryFee: newTournament.entry_fee,
             description: newTournament.description || '',
             format: 'mixed' as const,
@@ -786,6 +801,7 @@ PRO11 Team`)
                   maxTeams: t.max_teams,
                   status,
                   prize: `${computedPrizePool.toLocaleString('nb-NO')} NOK`,
+                  prizePoolRaw: t.prize_pool,
                   entryFee: t.entry_fee,
                   description: t.description || '',
                   format: 'mixed' as const,
@@ -845,6 +861,7 @@ PRO11 Team`)
                   maxTeams: t.max_teams,
                   status,
                   prize: `${computedPrizePool.toLocaleString('nb-NO')} NOK`,
+                  prizePoolRaw: t.prize_pool,
                   entryFee: t.entry_fee,
                   description: t.description || '',
                   format: 'mixed' as const,
@@ -908,6 +925,7 @@ PRO11 Team`)
                   maxTeams: t.max_teams,
                   status,
                   prize: `${t.prize_pool.toLocaleString('nb-NO')} NOK`,
+                  prizePoolRaw: t.prize_pool,
                   entryFee: t.entry_fee,
                   description: t.description || '',
                   format: 'mixed' as const,
@@ -1189,7 +1207,7 @@ PRO11 Team`)
         const gen = getGenFromDescription(tournament.description || '')
         const baseDescription = stripGenFromDescription(tournament.description || '')
         const perTeamPot = getPerTeamPotFromDescription(tournament.description || '')
-        const descriptionWithFormat = buildDescriptionWithGen(baseDescription, gen, formatText, perTeamPot)
+        const descriptionWithFormat = buildDescriptionWithGen(baseDescription, gen, formatText, perTeamPot, null)
         const response = await fetch('/api/tournaments', {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
@@ -2440,6 +2458,20 @@ PRO11 Team`)
                     onChange={(e) => setTournamentPotPerTeam(e.target.value)}
                     className="pro11-input"
                     placeholder="500"
+                    min="0"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-300 mb-1">
+                    Fast premiepott (NOK)
+                  </label>
+                  <input
+                    type="number"
+                    name="fixedPrizePool"
+                    value={tournamentFixedPrize}
+                    onChange={(e) => setTournamentFixedPrize(e.target.value)}
+                    className="pro11-input"
+                    placeholder="10000"
                     min="0"
                   />
                 </div>

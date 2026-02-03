@@ -28,10 +28,11 @@ export default function FAQPage() {
         { id: '8', question: 'How are results submitted?', answer: 'Both teams submit the match result. When both confirm the same result, the match is recorded automatically. If there is disagreement, an admin is notified.', category: 'tournaments' },
         { id: '9', question: 'What happens in case of disputes or errors?', answer: 'If teams disagree, an admin is notified and resolves the case.', category: 'tournaments' },
         { id: '10', question: 'Are statistics tracked?', answer: 'Yes. PRO11 builds statistics, records, and history across tournaments. History starts from the first official tournament.', category: 'tournaments' },
-        { id: '11', question: 'What does it cost to participate?', answer: 'The entry fee is shown on the tournament page before registration.', category: 'payment' },
-        { id: '12', question: 'How do we pay?', answer: 'Payment is done through the website. Available payment methods are shown at checkout.', category: 'payment' },
-        { id: '13', question: 'Where can we find the rules?', answer: 'Rules for each tournament can be found on the tournament page.', category: 'support' },
-        { id: '14', question: 'How can we contact you?', answer: 'Join the Discord server for support and updates.', category: 'support' }
+        { id: '11', question: 'When do we need to check in?', answer: 'Teams must check in no later than 10 minutes before the tournament start.', category: 'tournaments' },
+        { id: '12', question: 'What does it cost to participate?', answer: 'The entry fee is shown on the tournament page before registration.', category: 'payment' },
+        { id: '13', question: 'How do we pay?', answer: 'Payment is done through the website. Available payment methods are shown at checkout.', category: 'payment' },
+        { id: '14', question: 'Where can we find the rules?', answer: 'Rules for each tournament can be found on the tournament page.', category: 'support' },
+        { id: '15', question: 'How can we contact you?', answer: 'Join the Discord server for support and updates.', category: 'support' }
       ]
     : [
         { id: '1', question: 'Hva er PRO11?', answer: 'PRO11 er en turneringsplattform for EA SPORTS FC Pro Clubs.', category: 'general' },
@@ -44,10 +45,11 @@ export default function FAQPage() {
         { id: '8', question: 'Hvordan registreres resultater?', answer: 'Begge lag registrerer kampresultatet. Når begge bekrefter samme resultat, registreres kampen automatisk. Ved uenighet varsles admin.', category: 'tournaments' },
         { id: '9', question: 'Hva skjer ved uenighet eller feil?', answer: 'Dersom lagene ikke er enige, varsles admin som avgjør saken.', category: 'tournaments' },
         { id: '10', question: 'Føres det statistikk?', answer: 'Ja. PRO11 bygger statistikk, rekorder og historikk på tvers av turneringer. Historikken starter fra første offisielle turnering.', category: 'tournaments' },
-        { id: '11', question: 'Hva koster det å delta?', answer: 'Påmeldingsavgift vises på turneringssiden før påmelding.', category: 'payment' },
-        { id: '12', question: 'Hvordan betaler vi?', answer: 'Betaling skjer via nettsiden. Tilgjengelige betalingsmetoder vises ved betaling.', category: 'payment' },
-        { id: '13', question: 'Hvor finner vi reglene?', answer: 'Reglene for hver turnering finner du på turneringssiden.', category: 'support' },
-        { id: '14', question: 'Hvordan kan vi kontakte dere?', answer: 'Bli med i Discord-serveren -discordserveren-', category: 'support' }
+        { id: '11', question: 'Når må vi sjekke inn?', answer: 'Lag må sjekke inn senest 10 minutter før turneringsstart.', category: 'tournaments' },
+        { id: '12', question: 'Hva koster det å delta?', answer: 'Påmeldingsavgift vises på turneringssiden før påmelding.', category: 'payment' },
+        { id: '13', question: 'Hvordan betaler vi?', answer: 'Betaling skjer via nettsiden. Tilgjengelige betalingsmetoder vises ved betaling.', category: 'payment' },
+        { id: '14', question: 'Hvor finner vi reglene?', answer: 'Reglene for hver turnering finner du på turneringssiden.', category: 'support' },
+        { id: '15', question: 'Hvordan kan vi kontakte dere?', answer: 'Bli med i Discord-serveren -discordserveren-', category: 'support' }
       ]
 
   const categoryOrder: FAQItem['category'][] = ['general', 'account', 'tournaments', 'payment', 'support']

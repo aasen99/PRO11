@@ -54,6 +54,11 @@ export default function RulesPage() {
                   ? 'If the match has not started 10 minutes after the scheduled time, a walkover can be claimed.'
                   : 'Hvis kampen ikke har startet 10 min etter oppsatt tid, kan det kreves WO.'}
               </li>
+              <li>
+                {isEnglish
+                  ? 'Teams must check in no later than 10 minutes before tournament start.'
+                  : 'Lag må sjekke inn senest 10 minutter før turneringsstart.'}
+              </li>
               <li>{isEnglish ? 'WO (walkover) results in a 3-0 loss.' : 'WO (walkover) gir tap 3-0.'}</li>
             </ul>
           </section>
