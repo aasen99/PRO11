@@ -52,15 +52,18 @@ export async function POST(request: NextRequest) {
     const normalizedTeamName = typeof teamName === 'string'
       ? teamName.trim().replace(/\\s+/g, ' ')
       : teamName
+    const normalizedCaptainEmail = typeof captainEmail === 'string'
+      ? captainEmail.trim().toLowerCase()
+      : ''
 
     if (!normalizedTeamName) {
       return NextResponse.json({ error: 'Team name is required' }, { status: 400 })
     }
 
-    // Check for duplicate team name in the same tournament (case-insensitive, trimmed)
+    // Check for duplicate team name or captain email in the same tournament
     const { data: existingTeams, error: existingError } = await supabase
       .from('teams')
-      .select('team_name')
+      .select('team_name, captain_email')
       .eq('tournament_id', tournamentUuid)
 
     if (existingError) {
@@ -73,12 +76,23 @@ export async function POST(request: NextRequest) {
       const existingName = typeof team.team_name === 'string'
         ? team.team_name.trim().replace(/\\s+/g, ' ').toLowerCase()
         : ''
-      return existingName === normalizedLower
+      const existingEmail = typeof team.captain_email === 'string'
+        ? team.captain_email.trim().toLowerCase()
+        : ''
+      return existingName === normalizedLower || (normalizedCaptainEmail && existingEmail === normalizedCaptainEmail)
     })
 
     if (hasDuplicate) {
-      return NextResponse.json({ 
-        error: 'Et lag med dette navnet er allerede registrert i turneringen.' 
+      const duplicateEmail = (existingTeams || []).some((team: any) => {
+        const existingEmail = typeof team.captain_email === 'string'
+          ? team.captain_email.trim().toLowerCase()
+          : ''
+        return normalizedCaptainEmail && existingEmail === normalizedCaptainEmail
+      })
+      return NextResponse.json({
+        error: duplicateEmail
+          ? 'Dette laget er allerede påmeldt turneringen (samme e-post).'
+          : 'Et lag med dette navnet er allerede registrert i turneringen.'
       }, { status: 400 })
     }
 
