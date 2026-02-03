@@ -303,6 +303,17 @@ export async function PUT(request: NextRequest) {
     let error: any = null
 
     const updateRequest = async (data: any) => {
+      if (Object.keys(data).length === 0) {
+        const result = await supabase
+          .from('teams')
+          .select()
+          .eq('id', id)
+          .single()
+        team = result.data
+        error = result.error
+        return
+      }
+
       const result = await supabase
         .from('teams')
         .update(data)
@@ -318,6 +329,16 @@ export async function PUT(request: NextRequest) {
     if (error && typeof error.message === 'string' && error.message.includes('checked_in')) {
       delete updateData.checked_in
       await updateRequest(updateData)
+    }
+
+    if (error && typeof error.message === 'string' && error.message.includes('cannot coerce the result to a single JSON object')) {
+      const result = await supabase
+        .from('teams')
+        .select()
+        .eq('id', id)
+        .single()
+      team = result.data
+      error = result.error
     }
 
     if (error) {
