@@ -99,6 +99,7 @@ export default function CaptainDashboardPage() {
   const [toasts, setToasts] = useState<ToastMessage[]>([])
   const [selectedTournamentId, setSelectedTournamentId] = useState('')
   const [showHistory, setShowHistory] = useState(false)
+  const [expandedHistoryId, setExpandedHistoryId] = useState<string | null>(null)
   const previousMatchesRef = useRef<Match[]>([])
   const { language } = useLanguage()
   const isEnglish = language === 'en'
@@ -1399,24 +1400,54 @@ export default function CaptainDashboardPage() {
             {showHistory && (
               <div className="space-y-4">
                 {tournaments.filter(t => t.status === 'completed').map(tournament => (
-                  <div key={tournament.id} className="flex items-center justify-between p-4 bg-slate-800/50 rounded-lg">
-                    <div className="flex-1">
-                      <h3 className="font-semibold">{tournament.title}</h3>
-                      <p className="text-slate-400 text-sm">{tournament.startDate} - {tournament.endDate}</p>
-                    </div>
-                    <div className="flex items-center space-x-4">
-                      <div className="text-center">
-                        <div className="text-2xl font-bold text-blue-400">{tournament.position}</div>
-                        <div className="text-xs text-slate-400">{t('av', 'of')} {tournament.totalTeams}</div>
+                  <div key={tournament.id} className="bg-slate-800/50 rounded-lg">
+                    <div className="flex items-center justify-between p-4">
+                      <div className="flex-1">
+                        <h3 className="font-semibold">{tournament.title}</h3>
+                        <p className="text-slate-400 text-sm">{tournament.startDate} - {tournament.endDate}</p>
                       </div>
-                      <div className="text-center">
-                        <div className="text-sm font-medium text-green-400">
-                          {tournament.matches.filter(m => m.status === 'completed').length} {t('kamper', 'matches')}
+                      <div className="flex items-center space-x-4">
+                        <div className="text-center">
+                          <div className="text-2xl font-bold text-blue-400">{tournament.position}</div>
+                          <div className="text-xs text-slate-400">{t('av', 'of')} {tournament.totalTeams}</div>
                         </div>
-                        <div className="text-xs text-slate-400">{t('spilt', 'played')}</div>
+                        <div className="text-center">
+                          <div className="text-sm font-medium text-green-400">
+                            {tournament.matches.filter(m => m.status === 'completed').length} {t('kamper', 'matches')}
+                          </div>
+                          <div className="text-xs text-slate-400">{t('spilt', 'played')}</div>
+                        </div>
+                        <Trophy className={`w-6 h-6 ${tournament.position === 1 ? 'text-yellow-400' : 'text-slate-400'}`} />
+                        <button
+                          type="button"
+                          onClick={() => setExpandedHistoryId(prev => prev === tournament.id ? null : tournament.id)}
+                          className="text-slate-300 hover:text-white transition-colors"
+                          aria-label={expandedHistoryId === tournament.id ? t('Skjul resultater', 'Hide results') : t('Vis resultater', 'Show results')}
+                        >
+                          <span className="text-lg">{expandedHistoryId === tournament.id ? '▾' : '▸'}</span>
+                        </button>
                       </div>
-                      <Trophy className={`w-6 h-6 ${tournament.position === 1 ? 'text-yellow-400' : 'text-slate-400'}`} />
                     </div>
+                    {expandedHistoryId === tournament.id && (
+                      <div className="px-4 pb-4 border-t border-slate-700/60">
+                        <div className="pt-4 space-y-3">
+                          {tournament.matches.filter(m => m.status === 'completed').length === 0 ? (
+                            <div className="text-sm text-slate-400">
+                              {t('Ingen spilte kamper', 'No completed matches')}
+                            </div>
+                          ) : (
+                            tournament.matches
+                              .filter(m => m.status === 'completed')
+                              .map(match => (
+                                <div key={match.id} className="flex items-center justify-between text-sm">
+                                  <div className="text-slate-300">{match.team1} - {match.team2}</div>
+                                  <div className="font-semibold text-slate-200">{match.score1} - {match.score2}</div>
+                                </div>
+                              ))
+                          )}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
