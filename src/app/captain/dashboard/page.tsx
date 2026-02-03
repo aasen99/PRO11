@@ -33,6 +33,7 @@ interface Match {
   groupRound?: number
   tournamentId: string
   canSubmitResult: boolean
+  canClaimWalkover?: boolean
   submittedBy: string | null
   submittedScore1: number | null
   submittedScore2: number | null
@@ -322,6 +323,14 @@ export default function CaptainDashboardPage() {
                                     !opponentHasSubmitted &&
                                     m.status !== 'completed'
                   
+                  const scheduledMs = m.scheduled_time ? new Date(m.scheduled_time).getTime() : null
+                  const canClaimWalkover =
+                    m.status === 'scheduled' &&
+                    scheduledMs !== null &&
+                    Date.now() >= scheduledMs + 10 * 60 * 1000 &&
+                    !hasTeam1Submitted &&
+                    !hasTeam2Submitted
+                  
                   // Can confirm if:
                   // 1. Opponent has submitted their result (checked via team1/team2_submitted_score1)
                   // 2. This team hasn't submitted yet
@@ -354,6 +363,7 @@ export default function CaptainDashboardPage() {
                     groupRound: m.group_round ?? undefined,
                     tournamentId: m.tournament_id,
                     canSubmitResult: canSubmit,
+                    canClaimWalkover,
                     submittedBy: m.submitted_by || null,
                     submittedScore1: isTeam1 ? (m.team1_submitted_score1 ?? m.submitted_score1 ?? null) : (m.team2_submitted_score1 ?? m.submitted_score1 ?? null),
                     submittedScore2: isTeam1 ? (m.team1_submitted_score2 ?? m.submitted_score2 ?? null) : (m.team2_submitted_score2 ?? m.submitted_score2 ?? null),
@@ -1018,6 +1028,42 @@ export default function CaptainDashboardPage() {
     }
   }
 
+  const claimWalkover = async (match: Match) => {
+    if (!team) return
+    if (!confirm(t('Vil du kreve WO for denne kampen?', 'Do you want to claim a walkover for this match?'))) {
+      return
+    }
+
+    const isTeam1 = match.team1 === team.teamName
+    const score1 = isTeam1 ? 3 : 0
+    const score2 = isTeam1 ? 0 : 3
+
+    try {
+      const response = await fetch('/api/matches', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: match.id,
+          status: 'completed',
+          score1,
+          score2
+        })
+      })
+
+      if (!response.ok) {
+        const error = await response.json()
+        alert(t(`Kunne ikke kreve WO: ${error.error || 'Ukjent feil'}`, `Could not claim walkover: ${error.error || 'Unknown error'}`))
+        return
+      }
+
+      alert(t('WO registrert (3-0).', 'Walkover recorded (3-0).'))
+      window.location.reload()
+    } catch (error) {
+      console.error('Walkover error:', error)
+      alert(t('Noe gikk galt ved WO-krav. Prøv igjen.', 'Something went wrong claiming walkover. Please try again.'))
+    }
+  }
+
   if (!team) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -1212,6 +1258,14 @@ export default function CaptainDashboardPage() {
                                     >
                                       <Edit className="w-3 h-3 mr-1" />
                                       {t('Legg inn', 'Submit')}
+                                    </button>
+                                  )}
+                                  {nextMatch.canClaimWalkover && (
+                                    <button
+                                      onClick={() => claimWalkover(nextMatch)}
+                                      className="bg-slate-700 hover:bg-slate-600 text-white px-3 py-1 rounded text-xs font-medium transition-colors"
+                                    >
+                                      {t('Krev WO', 'Claim walkover')}
                                     </button>
                                   )}
                                   {nextMatch.canConfirmResult && (
@@ -1610,6 +1664,14 @@ export default function CaptainDashboardPage() {
                             >
                               <Edit className="w-3 h-3" />
                               <span>{t('Legg inn resultat', 'Submit result')}</span>
+                            </button>
+                          )}
+                          {match.canClaimWalkover && (
+                            <button
+                              onClick={() => claimWalkover(match)}
+                              className="bg-slate-700 hover:bg-slate-600 text-white px-3 py-1.5 rounded text-xs font-medium transition-colors max-sm:w-full"
+                            >
+                              {t('Krev WO', 'Claim walkover')}
                             </button>
                           )}
                           
