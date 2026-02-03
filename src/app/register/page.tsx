@@ -34,6 +34,11 @@ export default function RegisterPage() {
   const [loginPassword, setLoginPassword] = useState('')
   const [loginError, setLoginError] = useState('')
   const [isLoginLoading, setIsLoginLoading] = useState(false)
+  const [pendingRegistration, setPendingRegistration] = useState<{
+    registrationPayload: any
+    teamPassword: string
+  } | null>(null)
+  const [isConfirming, setIsConfirming] = useState(false)
 
   useEffect(() => {
     if (typeof window === 'undefined') return
@@ -153,6 +158,7 @@ export default function RegisterPage() {
   const handleCaptainSignup = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoginError('')
+    setPendingRegistration(null)
 
     if (!loginEmail || !loginPassword) {
       setLoginError(isEnglish ? 'Please enter email and password.' : 'Skriv inn e-post og passord.')
@@ -237,6 +243,12 @@ export default function RegisterPage() {
         reusePassword: teamPassword
       }
 
+      const entryFee = tournament?.entryFee ?? 0
+      if (entryFee === 0) {
+        setPendingRegistration({ registrationPayload, teamPassword })
+        return
+      }
+
       const response = await fetch('/api/teams', {
         method: 'POST',
         headers: {
@@ -262,7 +274,8 @@ export default function RegisterPage() {
         tournamentId: formData.tournamentId,
         teamId: result.team.id,
         password: teamPassword,
-        entryFee: tournament?.entryFee ?? 0
+        entryFee,
+        existingTeam: true
       }
       localStorage.setItem('teamRegistration', JSON.stringify(registrationData))
 
@@ -270,13 +283,57 @@ export default function RegisterPage() {
       existingTeams.push(result.team)
       localStorage.setItem('adminTeams', JSON.stringify(existingTeams))
 
-      const entryFee = tournament?.entryFee ?? 0
       window.location.href = entryFee > 0 ? '/payment' : '/registration-success'
     } catch (error) {
       console.error('Captain signup error:', error)
       setLoginError(isEnglish ? 'Signup failed. Please try again.' : 'Påmelding feilet. Prøv igjen.')
     } finally {
       setIsLoginLoading(false)
+    }
+  }
+
+  const confirmRegistration = async () => {
+    if (!pendingRegistration) return
+    setIsConfirming(true)
+    try {
+      const { registrationPayload, teamPassword } = pendingRegistration
+      const response = await fetch('/api/teams', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(registrationPayload)
+      })
+
+      if (!response.ok) {
+        const error = await response.json()
+        setLoginError(`${isEnglish ? 'Signup failed' : 'Påmelding feilet'}: ${error.error || (isEnglish ? 'Unknown error' : 'Ukjent feil')}`)
+        return
+      }
+
+      const result = await response.json()
+      const entryFee = tournament?.entryFee ?? 0
+      const registrationData = {
+        teamName: registrationPayload.teamName,
+        captainName: registrationPayload.captainName,
+        captainEmail: registrationPayload.captainEmail,
+        discordUsername: registrationPayload.discordUsername,
+        expectedPlayers: registrationPayload.expectedPlayers,
+        clubLogo: null,
+        tournamentId: formData.tournamentId,
+        teamId: result.team.id,
+        password: teamPassword,
+        entryFee,
+        existingTeam: true
+      }
+      localStorage.setItem('teamRegistration', JSON.stringify(registrationData))
+      window.location.href = entryFee > 0 ? '/payment' : '/registration-success'
+    } catch (error) {
+      console.error('Captain signup error:', error)
+      setLoginError(isEnglish ? 'Signup failed. Please try again.' : 'Påmelding feilet. Prøv igjen.')
+    } finally {
+      setIsConfirming(false)
+      setPendingRegistration(null)
     }
   }
 
@@ -345,6 +402,25 @@ export default function RegisterPage() {
               {loginError && (
                 <div className="text-red-400 text-sm">
                   {loginError}
+                </div>
+              )}
+              {pendingRegistration && (
+                <div className="bg-slate-800/60 border border-slate-700 rounded-lg p-4 text-center">
+                  <p className="text-sm text-slate-300 mb-3">
+                    {isEnglish
+                      ? 'Confirm registration for this free tournament.'
+                      : 'Bekreft påmelding til denne gratis turneringen.'}
+                  </p>
+                  <button
+                    type="button"
+                    onClick={confirmRegistration}
+                    disabled={isConfirming}
+                    className="pro11-button-secondary text-sm"
+                  >
+                    {isConfirming
+                      ? (isEnglish ? 'Confirming...' : 'Bekrefter...')
+                      : (isEnglish ? 'Confirm registration' : 'Bekreft påmelding')}
+                  </button>
                 </div>
               )}
             </div>

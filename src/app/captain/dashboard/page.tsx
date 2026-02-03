@@ -1387,7 +1387,7 @@ export default function CaptainDashboardPage() {
 
           {/* Tournament History */}
           <div className="pro11-card p-6 mb-6">
-            <div className="flex items-center justify-between mb-4">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-4">
               <h2 className="text-xl font-bold">{t('Turneringshistorikk', 'Tournament history')}</h2>
               <button
                 type="button"
@@ -1507,13 +1507,20 @@ export default function CaptainDashboardPage() {
                     {tournament.startDate} - {tournament.endDate}
                   </p>
                 </div>
-                                 <span className={`inline-flex items-center px-4 py-2 rounded-full text-xs font-medium ${
-                   tournament.status === 'live' ? 'bg-green-600' : 
-                   tournament.status === 'completed' ? 'bg-blue-600' : 'bg-yellow-600'
-                 }`}>
-                   {tournament.status === 'live' ? t('Live', 'Live') : 
-                    tournament.status === 'completed' ? t('Fullført', 'Completed') : t('Kommende', 'Upcoming')}
-                 </span>
+                <div className="flex items-center gap-2">
+                  <span className={`inline-flex items-center px-4 py-2 rounded-full text-xs font-medium ${
+                    tournament.status === 'live' ? 'bg-green-600' : 
+                    tournament.status === 'completed' ? 'bg-blue-600' : 'bg-yellow-600'
+                  }`}>
+                    {tournament.status === 'live' ? t('Live', 'Live') : 
+                     tournament.status === 'completed' ? t('Fullført', 'Completed') : t('Kommende', 'Upcoming')}
+                  </span>
+                  {tournament.captainCheckedIn && (
+                    <span className="inline-flex items-center px-3 py-2 rounded-full text-xs font-medium bg-emerald-600/20 text-emerald-300 border border-emerald-500/30">
+                      {t('Innsjekket', 'Checked in')}
+                    </span>
+                  )}
+                </div>
               </div>
 
               <div className="space-y-6">
