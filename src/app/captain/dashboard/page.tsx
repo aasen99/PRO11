@@ -1064,6 +1064,15 @@ export default function CaptainDashboardPage() {
     }
   }
 
+  const canShowWalkoverInModal = (match: Match) => {
+    if (match.canClaimWalkover) return true
+    if (!match.scheduledTime) return false
+    const scheduledMs = new Date(match.scheduledTime).getTime()
+    if (Number.isNaN(scheduledMs)) return false
+    if (match.status === 'completed') return false
+    return Date.now() >= scheduledMs + 10 * 60 * 1000
+  }
+
   if (!team) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -1075,7 +1084,9 @@ export default function CaptainDashboardPage() {
     )
   }
 
-  const liveTournaments = tournaments.filter(t => t.status === 'live')
+  const liveTournaments = tournaments.filter(
+    t => t.status === 'live' || t.checkInOpen || (t.matches && t.matches.length > 0)
+  )
   const allMatchesForForm = tournaments.flatMap(t => t.matches)
   const formResults = getFormSummary(allMatchesForForm, team.teamName)
 
@@ -1818,6 +1829,14 @@ export default function CaptainDashboardPage() {
                   <CheckCircle className="w-4 h-4" />
                   <span>{t('Send inn', 'Submit')}</span>
                 </button>
+                {canShowWalkoverInModal(selectedMatch) && (
+                  <button
+                    onClick={() => claimWalkover(selectedMatch)}
+                    className="pro11-button-secondary flex items-center justify-center flex-1 rounded text-base py-4 text-center"
+                  >
+                    <span>{t('Krev WO (3-0)', 'Claim walkover (3-0)')}</span>
+                  </button>
+                )}
                 <button
                   onClick={() => setShowResultModal(false)}
                   className="pro11-button-secondary flex items-center space-x-2 flex-1"

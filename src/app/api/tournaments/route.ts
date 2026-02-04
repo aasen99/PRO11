@@ -27,6 +27,23 @@ export async function GET(request: NextRequest) {
         return NextResponse.json({ error: 'Tournament not found' }, { status: 404 })
       }
 
+      // Auto-activate tournament when start_date has passed
+      if (tournament.status === 'upcoming' && tournament.start_date) {
+        const startMs = new Date(tournament.start_date).getTime()
+        if (!Number.isNaN(startMs) && Date.now() >= startMs) {
+          const { data: updatedTournament, error: updateError } = await supabase
+            .from('tournaments')
+            .update({ status: 'active' })
+            .eq('id', id)
+            .select('*')
+            .single()
+
+          if (!updateError && updatedTournament) {
+            tournament.status = updatedTournament.status
+          }
+        }
+      }
+
       const { data: teamsForTournament } = await supabase
         .from('teams')
         .select('status, payment_status')
@@ -60,6 +77,33 @@ export async function GET(request: NextRequest) {
       console.log('Tournaments:', tournaments?.map((t: any) => ({ id: t.id, title: t.title })))
       const tournamentIds = (tournaments || []).map((t: any) => t.id)
       let eligibleTeamsByTournament: Record<string, number> = {}
+
+      // Auto-activate tournaments when start_date has passed
+      const nowMs = Date.now()
+      const toActivate = (tournaments || []).filter((t: any) => {
+        if (t.status !== 'upcoming' || !t.start_date) return false
+        const startMs = new Date(t.start_date).getTime()
+        return !Number.isNaN(startMs) && nowMs >= startMs
+      })
+
+      if (toActivate.length > 0) {
+        const activateIds = toActivate.map((t: any) => t.id)
+        const { data: activated } = await supabase
+          .from('tournaments')
+          .update({ status: 'active' })
+          .in('id', activateIds)
+          .select('*')
+
+        if (activated && activated.length > 0) {
+          const activatedMap = new Map(activated.map((t: any) => [t.id, t]))
+          tournaments.forEach((t: any, index: number) => {
+            const updated = activatedMap.get(t.id)
+            if (updated) {
+              tournaments[index] = updated
+            }
+          })
+        }
+      }
 
       if (tournamentIds.length > 0) {
         const { data: allTeams } = await supabase
