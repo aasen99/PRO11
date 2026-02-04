@@ -2049,7 +2049,7 @@ PRO11 Team`)
                               </Link>
                               <button 
                                 onClick={() => openMatchConfigModal(tournament.id)}
-                                className="pro11-button flex items-center space-x-1 text-xs"
+                                className="pro11-button-secondary flex items-center space-x-1 text-xs"
                                 title={t('Generer kamper', 'Generate matches')}
                               >
                                 <Trophy className="w-3 h-3" />
