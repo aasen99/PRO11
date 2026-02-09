@@ -106,7 +106,7 @@ function transformTournament(dbTournament: DatabaseTournament): Tournament {
     time,
     prize: `${computedPrizePool.toLocaleString('nb-NO')} NOK`,
     entryFee: dbTournament.entry_fee,
-    registeredTeams: eligibleTeams,
+    registeredTeams: dbTournament.current_teams ?? eligibleTeams ?? 0,
     maxTeams: dbTournament.max_teams,
     status,
     statusText: getStatusText(status),

@@ -49,6 +49,22 @@ export async function POST(request: NextRequest) {
       }, { status: 400 })
     }
 
+    const { data: tournamentMeta, error: tournamentMetaError } = await supabase
+      .from('tournaments')
+      .select('entry_fee')
+      .eq('id', tournamentUuid)
+      .single()
+
+    if (tournamentMetaError) {
+      console.error('Error fetching tournament meta:', tournamentMetaError)
+      return NextResponse.json({
+        error: 'Failed to read tournament settings.'
+      }, { status: 400 })
+    }
+
+    const entryFee = Number(tournamentMeta?.entry_fee ?? 0)
+    const isFreeTournament = Number.isFinite(entryFee) && entryFee <= 0
+
     const normalizedTeamName = typeof teamName === 'string'
       ? teamName.trim().replace(/\\s+/g, ' ')
       : teamName
@@ -131,8 +147,8 @@ export async function POST(request: NextRequest) {
         discord_username: discordUsername || null,
         // checked_in column not guaranteed in older schemas
         expected_players: expectedPlayers,
-        status: 'pending',
-        payment_status: 'pending',
+        status: isFreeTournament ? 'approved' : 'pending',
+        payment_status: isFreeTournament ? 'completed' : 'pending',
         generated_password: password
       })
       .select()
