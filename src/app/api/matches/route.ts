@@ -444,56 +444,149 @@ export async function PUT(request: NextRequest) {
           const nextRoundName = getNextRoundName(currentRound)
           
           if (nextRoundName) {
-            // Get winners from completed matches
+            const BYE_TEAM = '__BYE__'
+            const sortedRoundMatches = [...roundMatches].sort((a: any, b: any) =>
+              (a.created_at || a.id || '').localeCompare(b.created_at || b.id || '', undefined, { numeric: true })
+            )
             const winners: string[] = []
-            roundMatches.forEach((m: any) => {
-              if (m.status === 'completed' && m.score1 !== null && m.score1 !== undefined && 
-                  m.score2 !== null && m.score2 !== undefined) {
-                if (m.score1 > m.score2) {
-                  winners.push(m.team1_name)
-                } else if (m.score2 > m.score1) {
-                  winners.push(m.team2_name)
-                } else {
-                  // Draw - use team1 as winner (could be improved with penalty shootout logic)
-                  winners.push(m.team1_name)
-                }
+            sortedRoundMatches.forEach((m: any) => {
+              if (m.team2_name === BYE_TEAM) {
+                if (m.status === 'completed') winners.push(m.team1_name)
+                return
+              }
+              if (m.status === 'completed' && m.score1 != null && m.score2 != null) {
+                if (m.score1 > m.score2) winners.push(m.team1_name)
+                else if (m.score2 > m.score1) winners.push(m.team2_name)
+                else winners.push(m.team1_name)
               }
             })
-            
-            // Check if next round matches already exist
+
             const { data: existingNextRoundMatches, error: nextRoundError } = await supabase
               .from('matches')
               .select('*')
               .eq('tournament_id', tournamentId)
               .eq('round', nextRoundName)
-            
-            // Only generate if next round doesn't exist yet
-            if (!nextRoundError && (!existingNextRoundMatches || existingNextRoundMatches.length === 0)) {
-              // Generate matches for next round
-              const nextRoundMatches: any[] = []
-              for (let i = 0; i < winners.length; i += 2) {
-                if (i + 1 < winners.length) {
-                  nextRoundMatches.push({
-                    tournament_id: tournamentId,
-                    team1_name: winners[i],
-                    team2_name: winners[i + 1],
-                    round: nextRoundName,
-                    status: 'scheduled'
-                  })
+
+            const noExistingNextRound = !nextRoundError && (!existingNextRoundMatches || existingNextRoundMatches.length === 0)
+
+            if (noExistingNextRound) {
+              let nextRoundMatches: any[] = []
+
+              if (currentRound === 'Kvartfinaler' && winners.length === 2) {
+                const { data: tournamentRow } = await supabase
+                  .from('tournaments')
+                  .select('description')
+                  .eq('id', tournamentId)
+                  .single()
+                const desc = (tournamentRow?.description || '') as string
+                const byeMatch = desc.match(/\[KNOCKOUT_BYES:Semifinaler:([^\]]+)\]/)
+                if (byeMatch && byeMatch[1]) {
+                  const byes = byeMatch[1].split('§').map((s: string) => s.trim()).filter(Boolean)
+                  if (byes.length === 2) {
+                    nextRoundMatches = [
+                      { tournament_id: tournamentId, team1_name: byes[0], team2_name: winners[1], round: 'Semifinaler', status: 'scheduled' },
+                      { tournament_id: tournamentId, team1_name: byes[1], team2_name: winners[0], round: 'Semifinaler', status: 'scheduled' }
+                    ]
+                  }
                 }
               }
-              
-              // Insert next round matches
+
+              if (nextRoundMatches.length === 0) {
+                const numWinners = winners.length
+                if (numWinners % 2 === 1) {
+                  for (let i = 0; i < numWinners - 1; i += 2) {
+                    nextRoundMatches.push({
+                      tournament_id: tournamentId,
+                      team1_name: winners[i],
+                      team2_name: winners[i + 1],
+                      round: nextRoundName,
+                      status: 'scheduled'
+                    })
+                  }
+                  nextRoundMatches.push({
+                    tournament_id: tournamentId,
+                    team1_name: winners[numWinners - 1],
+                    team2_name: BYE_TEAM,
+                    round: nextRoundName,
+                    status: 'completed',
+                    score1: 1,
+                    score2: 0
+                  })
+                } else {
+                  for (let i = 0; i < numWinners; i += 2) {
+                    if (i + 1 < numWinners) {
+                      nextRoundMatches.push({
+                        tournament_id: tournamentId,
+                        team1_name: winners[i],
+                        team2_name: winners[i + 1],
+                        round: nextRoundName,
+                        status: 'scheduled'
+                      })
+                    }
+                  }
+                }
+              }
+
               if (nextRoundMatches.length > 0) {
+                const MINUTES_PER_ROUND = 25
+                const maxGroupRound = (allMatches || [])
+                  .filter((m: any) => m.round === 'Gruppespill')
+                  .reduce((max: number, m: any) => Math.max(max, m.group_round ?? 0), 0)
+                const roundIndex = nextRoundName === 'Semifinaler' ? maxGroupRound + 1 : nextRoundName === 'Finale' ? maxGroupRound + 2 : maxGroupRound
+                const { data: tournamentRowForTime } = await supabase
+                  .from('tournaments')
+                  .select('start_date')
+                  .eq('id', tournamentId)
+                  .single()
+                const startDate = tournamentRowForTime?.start_date as string | undefined
+                if (startDate) {
+                  const startMs = new Date(startDate).getTime()
+                  const scheduledTime = new Date(startMs + roundIndex * MINUTES_PER_ROUND * 60 * 1000).toISOString()
+                  nextRoundMatches.forEach((m: any) => { m.scheduled_time = scheduledTime })
+                }
                 const { error: insertError } = await supabase
                   .from('matches')
                   .insert(nextRoundMatches)
-                
                 if (insertError) {
                   console.error('Error generating next round:', insertError)
                 } else {
                   console.log(`Generated ${nextRoundMatches.length} matches for ${nextRoundName}`)
                 }
+              }
+            }
+
+            if (!nextRoundName && currentRound === 'Finale' && roundMatches.length === 2 && winners.length === 2) {
+              const { data: finaleMatches } = await supabase
+                .from('matches')
+                .select('id')
+                .eq('tournament_id', tournamentId)
+                .eq('round', 'Finale')
+              if (finaleMatches && finaleMatches.length === 2) {
+                const MINUTES_PER_ROUND = 25
+                const maxGroupRound = (allMatches || [])
+                  .filter((m: any) => m.round === 'Gruppespill')
+                  .reduce((max: number, m: any) => Math.max(max, m.group_round ?? 0), 0)
+                const roundIndex = maxGroupRound + 3
+                const { data: tournamentRowForTime } = await supabase
+                  .from('tournaments')
+                  .select('start_date')
+                  .eq('id', tournamentId)
+                  .single()
+                const startDate = tournamentRowForTime?.start_date as string | undefined
+                const scheduledTime = startDate
+                  ? new Date(new Date(startDate).getTime() + roundIndex * MINUTES_PER_ROUND * 60 * 1000).toISOString()
+                  : undefined
+                const { error: insertError } = await supabase
+                  .from('matches')
+                  .insert({
+                    tournament_id: tournamentId,
+                    team1_name: winners[0],
+                    team2_name: winners[1],
+                    round: 'Finale',
+                    status: 'scheduled',
+                    ...(scheduledTime && { scheduled_time: scheduledTime })
+                  })
+                if (!insertError) console.log('Generated grand final match')
               }
             }
           }

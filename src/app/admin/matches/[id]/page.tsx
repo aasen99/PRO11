@@ -138,6 +138,16 @@ export default function TournamentMatchesPage() {
     }
   }
 
+  // Canonical round names for DB/API (Norwegian) – API only recognises these for next-round generation
+  const getRoundNameForTeamsCanonical = (numTeams: number): string => {
+    if (numTeams === 2) return 'Finale'
+    if (numTeams === 4) return 'Semifinaler'
+    if (numTeams === 8) return 'Kvartfinaler'
+    if (numTeams > 8) return 'Kvartfinaler'
+    if (numTeams > 4) return 'Semifinaler'
+    return 'Sluttspill'
+  }
+
   const getRoundNameForTeams = (numTeams: number): string => {
     if (numTeams === 2) return t('Finale', 'Final')
     if (numTeams === 4) return t('Semifinaler', 'Semifinals')
@@ -247,9 +257,9 @@ export default function TournamentMatchesPage() {
       }
 
       console.log('Loading data for tournament:', tournamentId)
-      
+      let tournamentStartDate: string | null = null
+
       try {
-        // Load tournament
         const tournamentResponse = await fetch(`/api/tournaments?id=${tournamentId}`)
         console.log('Tournament API response status:', tournamentResponse.status)
         if (tournamentResponse.ok) {
@@ -257,6 +267,7 @@ export default function TournamentMatchesPage() {
           console.log('Tournament data received:', tournamentData)
           if (tournamentData.tournament) {
             setTournament(tournamentData.tournament)
+            tournamentStartDate = tournamentData.tournament.start_date ?? null
           } else {
             console.error('No tournament in response:', tournamentData)
           }
@@ -384,18 +395,52 @@ export default function TournamentMatchesPage() {
               }
 
               if (qualifiers.length >= 2) {
-                const rankedTeams = [...qualifiers].sort((a, b) => {
-                  if (a.position !== b.position) return a.position - b.position
-                  if (b.points !== a.points) return b.points - a.points
-                  const aDiff = a.goalsFor - a.goalsAgainst
-                  const bDiff = b.goalsFor - b.goalsAgainst
-                  if (bDiff !== aDiff) return bDiff - aDiff
-                  return b.goalsFor - a.goalsFor
-                })
+                const groupNames = Object.keys(standings).sort()
+                const isPowerOf2 = (n: number) => n > 0 && (n & (n - 1)) === 0
+                const usePlayInBracket = groupNames.length === 2 && !isPowerOf2(qualifiers.length) && teamsToKnockout === 3 && qualifiers.length === 6
 
-                const teamNames = rankedTeams.map(team => team.team)
-                const roundName = getRoundNameForTeams(teamNames.length)
-                const matchesToCreate = generateSeededBracket(teamNames, roundName)
+                let matchesToCreate: Array<{ tournament_id: string; team1_name: string; team2_name: string; round: string; status: string }> = []
+                let semifinalByes: string[] | null = null
+
+                if (usePlayInBracket) {
+                  const firstGroup = standings[groupNames[0]] || []
+                  const secondGroup = standings[groupNames[1]] || []
+                  const team1A = firstGroup[0]?.team
+                  const team1B = secondGroup[0]?.team
+                  const team2A = firstGroup[1]?.team
+                  const team2B = secondGroup[1]?.team
+                  const team3A = firstGroup[2]?.team
+                  const team3B = secondGroup[2]?.team
+                  if (team1A && team1B && team2A && team2B && team3A && team3B) {
+                    const MINUTES_PER_ROUND = 25
+                    const maxGroupRound = updatedMatches.some((m: Match) => m.round === 'Gruppespill')
+                      ? Math.max(0, ...updatedMatches.filter((m: Match) => m.round === 'Gruppespill').map((m: Match) => m.group_round ?? 0))
+                      : 0
+                    const kvartfinaleStartMs = tournamentStartDate
+                      ? new Date(tournamentStartDate).getTime() + maxGroupRound * MINUTES_PER_ROUND * 60 * 1000
+                      : null
+                    const scheduledTimeIso = kvartfinaleStartMs != null ? new Date(kvartfinaleStartMs).toISOString() : undefined
+                    matchesToCreate = [
+                      { tournament_id: tournamentId!, team1_name: team2A, team2_name: team3B, round: 'Kvartfinaler', status: 'scheduled', ...(scheduledTimeIso && { scheduled_time: scheduledTimeIso }) },
+                      { tournament_id: tournamentId!, team1_name: team2B, team2_name: team3A, round: 'Kvartfinaler', status: 'scheduled', ...(scheduledTimeIso && { scheduled_time: scheduledTimeIso }) }
+                    ]
+                    semifinalByes = [team1A, team1B]
+                  }
+                }
+
+                if (!matchesToCreate.length) {
+                  const rankedTeams = [...qualifiers].sort((a, b) => {
+                    if (a.position !== b.position) return a.position - b.position
+                    if (b.points !== a.points) return b.points - a.points
+                    const aDiff = a.goalsFor - a.goalsAgainst
+                    const bDiff = b.goalsFor - b.goalsAgainst
+                    if (bDiff !== aDiff) return bDiff - aDiff
+                    return b.goalsFor - a.goalsFor
+                  })
+                  const teamNames = rankedTeams.map(team => team.team)
+                  const roundName = getRoundNameForTeamsCanonical(teamNames.length)
+                  matchesToCreate = generateSeededBracket(teamNames, roundName)
+                }
 
                 if (matchesToCreate.length > 0) {
                   const insertPromises = matchesToCreate.map(async (match) => {
@@ -412,10 +457,29 @@ export default function TournamentMatchesPage() {
                   })
 
                   await Promise.all(insertPromises)
+
+                  if (semifinalByes && semifinalByes.length === 2) {
+                    const byeTag = `[KNOCKOUT_BYES:Semifinaler:${semifinalByes.join('§')}]`
+                    try {
+                      const tRes = await fetch(`/api/tournaments?id=${tournamentId}`)
+                      const tData = tRes.ok ? await tRes.json() : {}
+                      const currentDesc = (tData.tournament?.description || '').replace(/\[KNOCKOUT_BYES:[^\]]+\]/g, '').trim()
+                      const newDesc = currentDesc ? `${currentDesc}\n${byeTag}` : byeTag
+                      await fetch('/api/tournaments', {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ id: tournamentId, description: newDesc })
+                      })
+                    } catch (e) {
+                      console.warn('Could not store semifinal byes:', e)
+                    }
+                  }
+
+                  const roundLabel = usePlayInBracket ? t('Kvartfinaler (play-in)', 'Quarterfinals (play-in)') : getRoundNameForTeams(matchesToCreate.length * 2)
                   addToast({
                     message: t(
-                      `Sluttspill generert automatisk: ${roundName} (${matchesToCreate.length} kamper).`,
-                      `Knockout generated automatically: ${roundName} (${matchesToCreate.length} matches).`
+                      `Sluttspill generert automatisk: ${roundLabel} (${matchesToCreate.length} kamper).`,
+                      `Knockout generated automatically: ${roundLabel} (${matchesToCreate.length} matches).`
                     ),
                     type: 'success'
                   })

@@ -1246,6 +1246,20 @@ PRO11 Team`)
 
         console.log(`Attempting to save ${matches.length} matches to database for tournament ${tournamentId}`)
         
+        const MINUTES_PER_ROUND = 25
+        const tournamentStart = tournament?.startDateRaw ? new Date(tournament.startDateRaw).getTime() : null
+        const maxGroupRound = matches.some(m => m.round === 'Gruppespill')
+          ? Math.max(0, ...matches.filter(m => m.round === 'Gruppespill').map(m => m.groupRound || 0))
+          : 0
+
+        const getRoundIndex = (m: Match): number => {
+          if (m.round === 'Gruppespill') return (m.groupRound ?? 1) - 1
+          if (m.round === 'Kvartfinaler') return maxGroupRound
+          if (m.round === 'Semifinaler') return maxGroupRound + 1
+          if (m.round === 'Finale') return maxGroupRound + 2
+          return maxGroupRound
+        }
+
         // Lagre alle kamper
         const matchPromises = matches.map(async (match, index) => {
           const matchData: any = {
@@ -1256,7 +1270,6 @@ PRO11 Team`)
             status: match.status || 'scheduled'
           }
           
-          // Only include group_name if it exists
           if (match.group) {
             matchData.group_name = match.group
           }
@@ -1265,9 +1278,11 @@ PRO11 Team`)
             matchData.group_round = match.groupRound
           }
           
-          // Only include scheduled_time if it exists
           if (match.time) {
             matchData.scheduled_time = new Date(match.time).toISOString()
+          } else if (tournamentStart != null) {
+            const roundIndex = getRoundIndex(match)
+            matchData.scheduled_time = new Date(tournamentStart + roundIndex * MINUTES_PER_ROUND * 60 * 1000).toISOString()
           }
           
           console.log(`Saving match ${index + 1}/${matches.length}:`, matchData)
