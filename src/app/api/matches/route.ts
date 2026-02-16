@@ -309,18 +309,10 @@ export async function PUT(request: NextRequest) {
       }
     } else {
       // Admin or direct update (not team submission)
-      // When admin overrides results, clear all submitted fields and set final scores
+      // Set final scores; keep team1/team2_submitted_* as documentation (do not clear)
       if (status) updateData.status = status
       if (score1 !== undefined) {
         updateData.score1 = score1
-        // If admin sets final scores, clear all submitted fields
-        updateData.team1_submitted_score1 = null
-        updateData.team1_submitted_score2 = null
-        updateData.team2_submitted_score1 = null
-        updateData.team2_submitted_score2 = null
-        updateData.submitted_by = null
-        updateData.submitted_score1 = null
-        updateData.submitted_score2 = null
       }
       if (score2 !== undefined) {
         updateData.score2 = score2
@@ -401,6 +393,32 @@ export async function PUT(request: NextRequest) {
     if (error) {
       console.error('Database error:', error)
       return NextResponse.json({ error: 'Failed to update match: ' + error.message }, { status: 400 })
+    }
+
+    if (match && !body.team_name && (body.score1 !== undefined || body.score2 !== undefined)) {
+      const { error: logErr } = await supabase.from('match_result_log').insert({
+        match_id: id,
+        action: 'admin_override',
+        actor_type: 'admin',
+        old_score1: currentMatch.score1 ?? null,
+        old_score2: currentMatch.score2 ?? null,
+        new_score1: match.score1 ?? null,
+        new_score2: match.score2 ?? null
+      })
+      if (logErr) console.warn('Match result log insert failed (table may not exist):', logErr.message)
+    }
+    if (match && body.team_name && updateData.score1 !== undefined && updateData.score2 !== undefined) {
+      const { error: logErr2 } = await supabase.from('match_result_log').insert({
+        match_id: id,
+        action: 'team_confirmation',
+        actor_type: 'captain',
+        actor_name: body.team_name,
+        old_score1: currentMatch.score1 ?? null,
+        old_score2: currentMatch.score2 ?? null,
+        new_score1: updateData.score1,
+        new_score2: updateData.score2
+      })
+      if (logErr2) console.warn('Match result log insert failed (table may not exist):', logErr2.message)
     }
 
     // If match was completed, check if we need to generate next round

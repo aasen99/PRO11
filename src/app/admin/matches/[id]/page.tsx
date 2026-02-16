@@ -83,6 +83,7 @@ export default function TournamentMatchesPage() {
   const [bulkScheduledTime, setBulkScheduledTime] = useState('')
   const [isBulkSaving, setIsBulkSaving] = useState(false)
   const [showBulkTool, setShowBulkTool] = useState(true)
+  const [matchLog, setMatchLog] = useState<Array<{ id?: string; action: string; actor_type?: string; actor_name?: string; old_score1?: number | null; old_score2?: number | null; new_score1?: number | null; new_score2?: number | null; created_at: string }>>([])
   const previousMatchesRef = useRef<Match[]>([])
   const autoKnockoutInProgressRef = useRef(false)
   const groupRoundBackfillRef = useRef(false)
@@ -988,6 +989,11 @@ export default function TournamentMatchesPage() {
       scheduled_time: match.scheduled_time ? new Date(match.scheduled_time).toISOString().slice(0, 16) : '',
       status: match.status
     })
+    setMatchLog([])
+    fetch(`/api/match-log?match_id=${match.id}`)
+      .then(r => r.json())
+      .then(d => setMatchLog(d.logs || []))
+      .catch(() => setMatchLog([]))
   }
 
   const cancelEditing = () => {
@@ -1451,9 +1457,10 @@ export default function TournamentMatchesPage() {
                             ].filter(Boolean).join(' • ')
 
                             return (
-                              <tr key={match.id} className="border-b border-slate-700/50 bg-slate-800/50">
+                              <React.Fragment key={match.id}>
                                 {editingMatch === match.id ? (
                                   <>
+                                  <tr className="border-b border-slate-700/50 bg-slate-800/50">
                                     <td className="py-3 px-2">
                                       <input
                                         type="checkbox"
@@ -1485,7 +1492,32 @@ export default function TournamentMatchesPage() {
                                       />
                                     </td>
                                     <td className="py-3 pl-3 font-medium truncate max-w-[12rem]" title={match.team2_name}>{match.team2_name}</td>
-                                    <td className="py-3 px-2 text-xs text-slate-400">-</td>
+                                    <td className="py-3 px-2 text-xs text-slate-400">
+                                      {hasSubmittedScores && (
+                                        <div className="flex flex-wrap gap-1">
+                                          {match.team1_submitted_score1 != null && match.team1_submitted_score2 != null && (
+                                            <button
+                                              type="button"
+                                              onClick={() => setEditForm({ ...editForm, score1: match.team1_submitted_score1!, score2: match.team1_submitted_score2! })}
+                                              className="text-xs px-2 py-0.5 rounded bg-slate-600 hover:bg-slate-500 text-slate-200"
+                                              title={`${match.team1_name}: ${match.team1_submitted_score1}-${match.team1_submitted_score2}`}
+                                            >
+                                              {t('Bruk', 'Use')} {match.team1_name}
+                                            </button>
+                                          )}
+                                          {match.team2_submitted_score1 != null && match.team2_submitted_score2 != null && (
+                                            <button
+                                              type="button"
+                                              onClick={() => setEditForm({ ...editForm, score1: match.team2_submitted_score2!, score2: match.team2_submitted_score1! })}
+                                              className="text-xs px-2 py-0.5 rounded bg-slate-600 hover:bg-slate-500 text-slate-200"
+                                              title={`${match.team2_name} → ${match.team1_name} ${match.team2_submitted_score2}-${match.team2_submitted_score1} ${match.team2_name}`}
+                                            >
+                                              {t('Bruk', 'Use')} {match.team2_name}
+                                            </button>
+                                          )}
+                                        </div>
+                                      )}
+                                    </td>
                                     <td className="py-3 px-2">
                                       <input
                                         type="datetime-local"
@@ -1524,9 +1556,26 @@ export default function TournamentMatchesPage() {
                                         </button>
                                       </div>
                                     </td>
+                                  </tr>
+                                  {matchLog.length > 0 && (
+                                    <tr className="bg-slate-800/80">
+                                      <td colSpan={10} className="py-2 px-3 text-xs text-slate-400 border-b border-slate-700/50">
+                                        <span className="font-medium text-slate-300">{t('Resultatlogg', 'Result log')}:</span>{' '}
+                                        {matchLog.map((entry, i) => (
+                                          <span key={entry.id || i}>
+                                            {entry.action === 'admin_override' ? t('Admin overstyring', 'Admin override') : t('Bekreftet av', 'Confirmed by') + ' ' + (entry.actor_name || '')}
+                                            {' '}({entry.old_score1 ?? '-'}-{entry.old_score2 ?? '-'} → {entry.new_score1 ?? '-'}-{entry.new_score2 ?? '-'})
+                                            {' '}{new Date(entry.created_at).toLocaleString(locale)}
+                                            {i < matchLog.length - 1 ? ' · ' : ''}
+                                          </span>
+                                        ))}
+                                      </td>
+                                    </tr>
+                                  )}
                                   </>
                                 ) : (
                                   <>
+                                  <tr className="border-b border-slate-700/50 bg-slate-800/50">
                                     <td className="py-3 px-2">
                                       <input
                                         type="checkbox"
@@ -1572,9 +1621,10 @@ export default function TournamentMatchesPage() {
                                         </button>
                                       </div>
                                     </td>
+                                  </tr>
                                   </>
                                 )}
-                              </tr>
+                              </React.Fragment>
                             )
                           })}
                         </tbody>
@@ -1659,9 +1709,10 @@ export default function TournamentMatchesPage() {
                               : null
 
                             return (
-                              <tr key={match.id} className="border-b border-slate-700/50 bg-slate-800/50">
+                              <React.Fragment key={match.id}>
                                 {editingMatch === match.id ? (
                                   <>
+                                  <tr className="border-b border-slate-700/50 bg-slate-800/50">
                                     <td className="py-3 px-2">
                                       <input
                                         type="checkbox"
@@ -1693,7 +1744,32 @@ export default function TournamentMatchesPage() {
                                       />
                                     </td>
                                     <td className="py-3 pl-3 font-medium truncate max-w-[12rem]" title={match.team2_name}>{match.team2_name}</td>
-                                    <td className="py-3 px-2 text-xs text-slate-400">-</td>
+                                    <td className="py-3 px-2 text-xs text-slate-400">
+                                      {hasSubmittedScores && (
+                                        <div className="flex flex-wrap gap-1">
+                                          {match.team1_submitted_score1 != null && match.team1_submitted_score2 != null && (
+                                            <button
+                                              type="button"
+                                              onClick={() => setEditForm({ ...editForm, score1: match.team1_submitted_score1!, score2: match.team1_submitted_score2! })}
+                                              className="text-xs px-2 py-0.5 rounded bg-slate-600 hover:bg-slate-500 text-slate-200"
+                                              title={`${match.team1_name}: ${match.team1_submitted_score1}-${match.team1_submitted_score2}`}
+                                            >
+                                              {t('Bruk', 'Use')} {match.team1_name}
+                                            </button>
+                                          )}
+                                          {match.team2_submitted_score1 != null && match.team2_submitted_score2 != null && (
+                                            <button
+                                              type="button"
+                                              onClick={() => setEditForm({ ...editForm, score1: match.team2_submitted_score2!, score2: match.team2_submitted_score1! })}
+                                              className="text-xs px-2 py-0.5 rounded bg-slate-600 hover:bg-slate-500 text-slate-200"
+                                              title={`${match.team2_name} → ${match.team1_name} ${match.team2_submitted_score2}-${match.team2_submitted_score1} ${match.team2_name}`}
+                                            >
+                                              {t('Bruk', 'Use')} {match.team2_name}
+                                            </button>
+                                          )}
+                                        </div>
+                                      )}
+                                    </td>
                                     <td className="py-3 px-2">
                                       <input
                                         type="datetime-local"
@@ -1732,9 +1808,26 @@ export default function TournamentMatchesPage() {
                                         </button>
                                       </div>
                                     </td>
+                                  </tr>
+                                  {matchLog.length > 0 && (
+                                    <tr className="bg-slate-800/80">
+                                      <td colSpan={10} className="py-2 px-3 text-xs text-slate-400 border-b border-slate-700/50">
+                                        <span className="font-medium text-slate-300">{t('Resultatlogg', 'Result log')}:</span>{' '}
+                                        {matchLog.map((entry, i) => (
+                                          <span key={entry.id || i}>
+                                            {entry.action === 'admin_override' ? t('Admin overstyring', 'Admin override') : t('Bekreftet av', 'Confirmed by') + ' ' + (entry.actor_name || '')}
+                                            {' '}({entry.old_score1 ?? '-'}-{entry.old_score2 ?? '-'} → {entry.new_score1 ?? '-'}-{entry.new_score2 ?? '-'})
+                                            {' '}{new Date(entry.created_at).toLocaleString(locale)}
+                                            {i < matchLog.length - 1 ? ' · ' : ''}
+                                          </span>
+                                        ))}
+                                      </td>
+                                    </tr>
+                                  )}
                                   </>
                                 ) : (
                                   <>
+                                  <tr className="border-b border-slate-700/50 bg-slate-800/50">
                                     <td className="py-3 px-2">
                                       <input
                                         type="checkbox"
@@ -1780,9 +1873,10 @@ export default function TournamentMatchesPage() {
                                         </button>
                                       </div>
                                     </td>
+                                  </tr>
                                   </>
                                 )}
-                              </tr>
+                              </React.Fragment>
                             )
                           })}
                         </tbody>

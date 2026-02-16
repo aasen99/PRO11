@@ -340,12 +340,9 @@ export default function CaptainDashboardPage() {
                                      !thisTeamHasSubmitted &&
                                      m.status !== 'completed'
                   
-                  const opponentSubmittedScore1 = isTeam1
-                    ? (m.team2_submitted_score2 ?? null)
-                    : (m.team1_submitted_score1 ?? null)
-                  const opponentSubmittedScore2 = isTeam1
-                    ? (m.team2_submitted_score1 ?? null)
-                    : (m.team1_submitted_score2 ?? null)
+                  // Display as "our score - their score". Opponent submitted (their goals, our goals).
+                  const opponentSubmittedScore1 = isTeam1 ? (m.team2_submitted_score2 ?? null) : (m.team1_submitted_score2 ?? null) // our goals
+                  const opponentSubmittedScore2 = isTeam1 ? (m.team2_submitted_score1 ?? null) : (m.team1_submitted_score1 ?? null) // their goals
                   const opponentTeamName = isTeam1 ? m.team2_name : m.team1_name
                   const opponentDiscordUsername = teamDiscordByName[opponentTeamName] || null
 
@@ -867,10 +864,10 @@ export default function CaptainDashboardPage() {
         return
       }
 
-      // For confirming team: we need to submit the same result from our perspective
-      // If Team2 reported "3-1" (they scored 3, we scored 1), we should report "1-3" (we scored 1, they scored 3)
-      const myScore = isTeam1 ? opponentScore2 : opponentScore1 // What opponent reported as our score
-      const opponentScore = isTeam1 ? opponentScore1 : opponentScore2 // What opponent reported as their score
+      // Opponent's submission is always (their goals, our goals). So opponentScore1 = their goals, opponentScore2 = our goals.
+      // We submit (our goals, their goals) so: myScore = our goals = opponentScore2, opponentScore = their goals = opponentScore1.
+      const myScore = opponentScore2
+      const opponentScore = opponentScore1
 
       // Submit our result - if it matches, match will be completed automatically
       const response = await fetch('/api/matches', {
@@ -999,29 +996,35 @@ export default function CaptainDashboardPage() {
       const response = await fetch('/api/teams', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            id: teamId,
-            checkedIn: true,
-            tournamentId,
-            teamName: team?.teamName,
-            captainEmail: team?.captainEmail
-          })
+        body: JSON.stringify({
+          id: teamId,
+          checkedIn: true,
+          tournamentId,
+          teamName: team?.teamName,
+          captainEmail: team?.captainEmail
+        })
       })
 
+      const data = await response.json().catch(() => ({}))
       if (!response.ok) {
-        const error = await response.json()
-        alert(t(`Kunne ikke sjekke inn: ${error.error || 'Ukjent feil'}`, `Could not check in: ${error.error || 'Unknown error'}`))
+        alert(t(`Kunne ikke sjekke inn: ${data.error || 'Ukjent feil'}`, `Could not check in: ${data.error || 'Unknown error'}`))
         return
       }
 
-        const shouldUpdate = response.ok
-        setTournaments(prev =>
-          prev.map(tournament =>
-            tournament.id === tournamentId
-              ? { ...tournament, captainCheckedIn: shouldUpdate ? true : tournament.captainCheckedIn }
-              : tournament
-          )
+      const actuallyCheckedIn = data.team && (data.team.checkedIn === true || data.team.checked_in === true)
+      setTournaments(prev =>
+        prev.map(tournament =>
+          tournament.id === tournamentId
+            ? { ...tournament, captainCheckedIn: actuallyCheckedIn }
+            : tournament
         )
+      )
+      if (actuallyCheckedIn) {
+        alert(t('Du er nå sjekket inn og med i trekningen. Siden oppdateres.', 'You are now checked in and included in the draw. The page will refresh.'))
+        window.location.reload()
+      } else {
+        alert(t('Innsjekk mottatt, men status kunne ikke bekreftes. Oppdater siden eller kontakt arrangør.', 'Check-in received but status could not be confirmed. Refresh the page or contact the organizer.'))
+      }
     } catch (error) {
       console.error('Check-in error:', error)
       alert(t('Noe gikk galt ved innsjekk.', 'Something went wrong during check-in.'))

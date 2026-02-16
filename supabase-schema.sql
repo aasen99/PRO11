@@ -80,6 +80,21 @@ CREATE TABLE matches (
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
+-- Match result log (audit trail for result changes)
+CREATE TABLE match_result_log (
+  id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  match_id UUID REFERENCES matches(id) ON DELETE CASCADE NOT NULL,
+  action VARCHAR(50) NOT NULL,
+  actor_type VARCHAR(50),
+  actor_name VARCHAR(255),
+  old_score1 INTEGER,
+  old_score2 INTEGER,
+  new_score1 INTEGER,
+  new_score2 INTEGER,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+CREATE INDEX idx_match_result_log_match_id ON match_result_log(match_id);
+
 -- Captain messages table (messages from captains to admin)
 CREATE TABLE captain_messages (
   id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
