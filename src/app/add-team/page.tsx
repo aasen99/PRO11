@@ -74,10 +74,10 @@ function AddTeamContent() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-900">
+    <div className="min-h-screen bg-slate-900 w-full">
       <Header backButton backHref="/" title={t('Legg til lag', 'Add team')} />
-      <main className="max-w-2xl mx-auto px-4 py-8">
-        <div className="pro11-card p-6 md:p-8">
+      <main className="w-full flex justify-center px-4 py-8">
+        <div className="pro11-card p-6 md:p-8 w-full max-w-2xl">
           <h1 className="text-2xl font-bold text-white mb-2 flex items-center gap-2">
             <Users className="w-7 h-7 text-blue-400" />
             {t('Legg til lag', 'Add team')}
@@ -213,10 +213,10 @@ function AddTeamContent() {
 
 function AddTeamFallback() {
   return (
-    <div className="min-h-screen bg-slate-900">
+    <div className="min-h-screen bg-slate-900 w-full">
       <Header backButton backHref="/" title="Legg til lag" />
-      <main className="max-w-2xl mx-auto px-4 py-8">
-        <div className="pro11-card p-6 md:p-8 flex items-center justify-center py-12">
+      <main className="w-full flex justify-center px-4 py-8">
+        <div className="pro11-card p-6 md:p-8 w-full max-w-2xl flex items-center justify-center py-12">
           <div className="w-8 h-8 border-2 border-blue-400 border-t-transparent rounded-full animate-spin" />
         </div>
       </main>
