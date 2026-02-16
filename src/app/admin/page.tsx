@@ -148,6 +148,18 @@ export default function AdminPage() {
   const [showSettingsModal, setShowSettingsModal] = useState(false)
   const [showPrizeModal, setShowPrizeModal] = useState(false)
   const [showMatchConfigModal, setShowMatchConfigModal] = useState(false)
+  const [showCreateTeamModal, setShowCreateTeamModal] = useState(false)
+  const [createTeamForm, setCreateTeamForm] = useState({
+    tournamentId: '',
+    teamName: '',
+    captainName: '',
+    captainEmail: '',
+    captainPhone: '',
+    discordUsername: '',
+    expectedPlayers: 11
+  })
+  const [createTeamSubmitting, setCreateTeamSubmitting] = useState(false)
+  const [createTeamError, setCreateTeamError] = useState('')
   const [selectedTeam, setSelectedTeam] = useState<Team | null>(null)
   const [editingTournament, setEditingTournament] = useState<Tournament | null>(null)
   const [isNewTournament, setIsNewTournament] = useState(false)
@@ -294,41 +306,34 @@ export default function AdminPage() {
     }
   }, [isAuthenticated, selectedTournament])
 
-  // Hent teams fra database via API
-  useEffect(() => {
-    const loadTeams = async () => {
-      try {
-        console.log('Loading teams from API...')
-        const response = await fetch('/api/teams')
-        console.log('Teams API response status:', response.status)
-        if (response.ok) {
-          const data = await response.json()
-          console.log('Teams API response data:', data)
-          console.log('Teams count:', data.teams?.length || 0)
-          if (data.teams) {
-            console.log('Setting teams:', data.teams.map((t: any) => ({ id: t.id, name: t.teamName || t.team_name, tournament: t.tournamentId || t.tournament_id })))
-            setTeams(data.teams)
-          } else {
-            console.warn('No teams in response')
-            setTeams([])
-          }
+  // Hent teams fra database via API (kan kalles på nytt f.eks. etter opprettelse av lag)
+  const loadTeams = React.useCallback(async () => {
+    try {
+      setIsLoading(true)
+      const response = await fetch('/api/teams')
+      if (response.ok) {
+        const data = await response.json()
+        if (data.teams) {
+          setTeams(data.teams)
         } else {
-          const errorData = await response.json()
-          console.error('Teams API error:', errorData)
           setTeams([])
         }
-      } catch (error) {
-        console.error('Error loading teams from API:', error)
+      } else {
+        const errorData = await response.json()
+        console.error('Teams API error:', errorData)
         setTeams([])
-      } finally {
-        setIsLoading(false)
       }
+    } catch (error) {
+      console.error('Error loading teams from API:', error)
+      setTeams([])
+    } finally {
+      setIsLoading(false)
     }
+  }, [])
 
-    if (isAuthenticated) {
-      loadTeams()
-    }
-  }, [isAuthenticated])
+  useEffect(() => {
+    if (isAuthenticated) loadTeams()
+  }, [isAuthenticated, loadTeams])
 
   const loadMessages = async () => {
     setIsLoadingMessages(true)
@@ -536,6 +541,74 @@ export default function AdminPage() {
         
         return updatedTeams
       })
+    }
+  }
+
+  const openCreateTeamModal = () => {
+    setCreateTeamError('')
+    setCreateTeamForm({
+      tournamentId: selectedTournament || (tournaments[0]?.id ?? ''),
+      teamName: '',
+      captainName: '',
+      captainEmail: '',
+      captainPhone: '',
+      discordUsername: '',
+      expectedPlayers: 11
+    })
+    setShowCreateTeamModal(true)
+  }
+
+  const createTeamSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setCreateTeamError('')
+    const tid = createTeamForm.tournamentId?.trim()
+    const name = createTeamForm.teamName?.trim()
+    const captain = createTeamForm.captainName?.trim()
+    const email = createTeamForm.captainEmail?.trim()
+    if (!tid) {
+      setCreateTeamError(t('Velg en turnering.', 'Select a tournament.'))
+      return
+    }
+    if (!name) {
+      setCreateTeamError(t('Lagnavn er påkrevd.', 'Team name is required.'))
+      return
+    }
+    if (!captain) {
+      setCreateTeamError(t('Kapteinens navn er påkrevd.', 'Captain name is required.'))
+      return
+    }
+    if (!email) {
+      setCreateTeamError(t('Kapteinens e-post er påkrevd.', 'Captain email is required.'))
+      return
+    }
+    setCreateTeamSubmitting(true)
+    try {
+      const response = await fetch('/api/teams', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          tournamentId: tid,
+          teamName: name,
+          captainName: captain,
+          captainEmail: email,
+          captainPhone: createTeamForm.captainPhone || undefined,
+          discordUsername: createTeamForm.discordUsername || undefined,
+          expectedPlayers: Number(createTeamForm.expectedPlayers) || 11
+        })
+      })
+      const data = await response.json()
+      if (response.ok && data.success) {
+        setShowCreateTeamModal(false)
+        await loadTeams()
+        if (selectedTournament !== tid) setSelectedTournament(tid)
+        alert(t('Lag opprettet. Passord til kaptein: ', 'Team created. Captain password: ') + (data.password || ''))
+      } else {
+        setCreateTeamError(data.error || t('Kunne ikke opprette lag.', 'Could not create team.'))
+      }
+    } catch (err) {
+      setCreateTeamError(t('Noe gikk galt.', 'Something went wrong.'))
+    } finally {
+      setCreateTeamSubmitting(false)
     }
   }
 
@@ -1864,22 +1937,32 @@ PRO11 Team`)
 
             {activeTab === 'teams' && (
               <div>
-                {/* Tournament Selector */}
-                <div className="mb-4">
-                  <label className="block text-sm font-medium text-slate-300 mb-1">
-                    {t('Velg turnering', 'Select tournament')}
-                  </label>
-                  <select
-                    value={selectedTournament}
-                    onChange={(e) => setSelectedTournament(e.target.value)}
-                    className="pro11-input max-w-xs"
+                {/* Tournament Selector + Opprett lag */}
+                <div className="mb-4 flex flex-wrap items-end gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-slate-300 mb-1">
+                      {t('Velg turnering', 'Select tournament')}
+                    </label>
+                    <select
+                      value={selectedTournament}
+                      onChange={(e) => setSelectedTournament(e.target.value)}
+                      className="pro11-input max-w-xs"
+                    >
+                      {tournaments.map(tournament => (
+                        <option key={tournament.id} value={tournament.id}>
+                          {tournament.title}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={openCreateTeamModal}
+                    className="pro11-button flex items-center space-x-2 text-sm"
                   >
-                    {tournaments.map(tournament => (
-                      <option key={tournament.id} value={tournament.id}>
-                        {tournament.title}
-                      </option>
-                    ))}
-                  </select>
+                    <Plus className="w-3 h-3" />
+                    <span>{t('Opprett lag', 'Create team')}</span>
+                  </button>
                 </div>
 
                 {/* Loading State */}
@@ -2009,6 +2092,123 @@ PRO11 Team`)
                       </button>
                     </div>
                   </>
+                )}
+
+                {/* Modal: Opprett lag (uavhengig av påmelding) */}
+                {showCreateTeamModal && (
+                  <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
+                    <div className="bg-slate-800 rounded-xl shadow-xl max-w-md w-full p-6 border border-slate-700">
+                      <h3 className="text-lg font-semibold text-white mb-4">{t('Opprett lag', 'Create team')}</h3>
+                      <p className="text-sm text-slate-400 mb-4">
+                        {t('Legg til et lag i en turnering uten å gå via påmelding.', 'Add a team to a tournament without using the registration flow.')}
+                      </p>
+                      <form onSubmit={createTeamSubmit} className="space-y-3">
+                        <div>
+                          <label className="block text-sm font-medium text-slate-300 mb-1">{t('Turnering', 'Tournament')} *</label>
+                          <select
+                            value={createTeamForm.tournamentId}
+                            onChange={(e) => setCreateTeamForm(f => ({ ...f, tournamentId: e.target.value }))}
+                            className="pro11-input w-full"
+                            required
+                          >
+                            <option value="">{t('Velg turnering', 'Select tournament')}</option>
+                            {tournaments.map(t => (
+                              <option key={t.id} value={t.id}>{t.title}</option>
+                            ))}
+                          </select>
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-slate-300 mb-1">{t('Lagnavn', 'Team name')} *</label>
+                          <input
+                            type="text"
+                            value={createTeamForm.teamName}
+                            onChange={(e) => setCreateTeamForm(f => ({ ...f, teamName: e.target.value }))}
+                            className="pro11-input w-full"
+                            placeholder={t('F.eks. FC Example', 'e.g. FC Example')}
+                            required
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-slate-300 mb-1">{t('Kaptein', 'Captain')} *</label>
+                          <input
+                            type="text"
+                            value={createTeamForm.captainName}
+                            onChange={(e) => setCreateTeamForm(f => ({ ...f, captainName: e.target.value }))}
+                            className="pro11-input w-full"
+                            required
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-slate-300 mb-1">{t('E-post kaptein', 'Captain email')} *</label>
+                          <input
+                            type="email"
+                            value={createTeamForm.captainEmail}
+                            onChange={(e) => setCreateTeamForm(f => ({ ...f, captainEmail: e.target.value }))}
+                            className="pro11-input w-full"
+                            required
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-slate-300 mb-1">{t('Telefon (valgfritt)', 'Phone (optional)')}</label>
+                          <input
+                            type="text"
+                            value={createTeamForm.captainPhone}
+                            onChange={(e) => setCreateTeamForm(f => ({ ...f, captainPhone: e.target.value }))}
+                            className="pro11-input w-full"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-slate-300 mb-1">{t('Discord (valgfritt)', 'Discord (optional)')}</label>
+                          <input
+                            type="text"
+                            value={createTeamForm.discordUsername}
+                            onChange={(e) => setCreateTeamForm(f => ({ ...f, discordUsername: e.target.value }))}
+                            className="pro11-input w-full"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-slate-300 mb-1">{t('Forventet antall spillere', 'Expected players')}</label>
+                          <input
+                            type="number"
+                            min={1}
+                            max={22}
+                            value={createTeamForm.expectedPlayers}
+                            onChange={(e) => setCreateTeamForm(f => ({ ...f, expectedPlayers: parseInt(e.target.value, 10) || 11 }))}
+                            className="pro11-input w-full"
+                          />
+                        </div>
+                        {createTeamError && (
+                          <p className="text-sm text-red-400">{createTeamError}</p>
+                        )}
+                        <div className="flex justify-end gap-2 pt-2">
+                          <button
+                            type="button"
+                            onClick={() => setShowCreateTeamModal(false)}
+                            className="pro11-button-secondary text-sm"
+                          >
+                            {t('Avbryt', 'Cancel')}
+                          </button>
+                          <button
+                            type="submit"
+                            disabled={createTeamSubmitting}
+                            className="pro11-button text-sm flex items-center space-x-2"
+                          >
+                            {createTeamSubmitting ? (
+                              <>
+                                <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                                <span>{t('Oppretter...', 'Creating...')}</span>
+                              </>
+                            ) : (
+                              <>
+                                <Plus className="w-3 h-3" />
+                                <span>{t('Opprett lag', 'Create team')}</span>
+                              </>
+                            )}
+                          </button>
+                        </div>
+                      </form>
+                    </div>
+                  </div>
                 )}
               </div>
             )}

@@ -59,6 +59,17 @@ interface StoredMatchConfig {
   numBestRunnersUp: number
 }
 
+/** Format date for datetime-local input (local time), not UTC */
+function toLocalDatetimeLocal(isoOrDate: string | Date): string {
+  const d = typeof isoOrDate === 'string' ? new Date(isoOrDate) : isoOrDate
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  const h = String(d.getHours()).padStart(2, '0')
+  const min = String(d.getMinutes()).padStart(2, '0')
+  return `${y}-${m}-${day}T${h}:${min}`
+}
+
 export default function TournamentMatchesPage() {
   const params = useParams()
   const tournamentId = params.id as string
@@ -158,16 +169,47 @@ export default function TournamentMatchesPage() {
     return t('Sluttspill', 'Knockout')
   }
 
-  const generateSeededBracket = (teams: string[], roundName: string) => {
+  const generateSeededBracket = (
+    teams: string[],
+    roundName: string,
+    teamToGroup?: Record<string, string>
+  ) => {
+    const n = teams.length
+    const half = Math.floor(n / 2)
+    const highSeeds = teams.slice(0, half)
+    const lowPool = teams.slice(half).reverse()
+
+    let lowSeeds: string[] = lowPool
+    if (teamToGroup && Object.keys(teamToGroup).length > 0) {
+      const usedLow = new Set<number>()
+      lowSeeds = highSeeds.map((highSeed) => {
+        const highGroup = teamToGroup[highSeed]
+        let chosen = -1
+        for (let j = 0; j < lowPool.length; j++) {
+          if (usedLow.has(j)) continue
+          if (highGroup && teamToGroup[lowPool[j]] === highGroup) continue
+          chosen = j
+          break
+        }
+        if (chosen === -1) {
+          for (let j = 0; j < lowPool.length; j++) {
+            if (!usedLow.has(j)) { chosen = j; break }
+          }
+        }
+        if (chosen >= 0) usedLow.add(chosen)
+        return chosen >= 0 ? lowPool[chosen] : ''
+      })
+    }
+
     const matchesToCreate: any[] = []
-    for (let i = 0; i < Math.floor(teams.length / 2); i++) {
-      const highSeed = teams[i]
-      const lowSeed = teams[teams.length - 1 - i]
-      if (highSeed && lowSeed && highSeed !== lowSeed) {
+    for (let i = 0; i < highSeeds.length; i++) {
+      const team1 = highSeeds[i]
+      const team2 = lowSeeds[i]
+      if (team1 && team2 && team1 !== team2) {
         matchesToCreate.push({
           tournament_id: tournamentId,
-          team1_name: highSeed,
-          team2_name: lowSeed,
+          team1_name: team1,
+          team2_name: team2,
           round: roundName,
           status: 'scheduled'
         })
@@ -368,35 +410,36 @@ export default function TournamentMatchesPage() {
               const config = getStoredMatchConfig()
               const teamsToKnockout = Math.max(1, config.teamsToKnockout || 2)
 
-              const qualifiers: Array<GroupStanding & { position: number }> = []
-              Object.values(standings).forEach(groupStandings => {
+              const groupNames = Object.keys(standings).sort()
+              const qualifiers: Array<GroupStanding & { position: number; groupName: string }> = []
+              groupNames.forEach(groupName => {
+                const groupStandings = standings[groupName] || []
                 groupStandings.slice(0, teamsToKnockout).forEach((team, index) => {
-                  qualifiers.push({ ...team, position: index + 1 })
+                  qualifiers.push({ ...team, position: index + 1, groupName })
                 })
               })
 
               if (config.useBestRunnersUp && config.numBestRunnersUp > 0) {
-                const runnersUp = Object.values(standings)
-                  .map(group => group[1])
-                  .filter(Boolean)
-                  .sort((a, b) => {
-                    if (b.points !== a.points) return b.points - a.points
-                    const aDiff = a.goalsFor - a.goalsAgainst
-                    const bDiff = b.goalsFor - b.goalsAgainst
-                    if (bDiff !== aDiff) return bDiff - aDiff
-                    return b.goalsFor - a.goalsFor
-                  })
+                const runnersUpWithGroup = groupNames.flatMap(gn => {
+                  const group = standings[gn] || []
+                  const runner = group[1]
+                  return runner ? [{ ...runner, groupName: gn }] : []
+                }).sort((a, b) => {
+                  if (b.points !== a.points) return b.points - a.points
+                  const aDiff = a.goalsFor - a.goalsAgainst
+                  const bDiff = b.goalsFor - b.goalsAgainst
+                  if (bDiff !== aDiff) return bDiff - aDiff
+                  return b.goalsFor - a.goalsFor
+                })
 
-                const extraTeams = runnersUp.slice(0, config.numBestRunnersUp)
-                extraTeams.forEach(team => {
+                runnersUpWithGroup.slice(0, config.numBestRunnersUp).forEach(team => {
                   if (!qualifiers.some(q => q.team === team.team)) {
-                    qualifiers.push({ ...team, position: 2 })
+                    qualifiers.push({ ...team, position: 2, groupName: team.groupName })
                   }
                 })
               }
 
               if (qualifiers.length >= 2) {
-                const groupNames = Object.keys(standings).sort()
                 const isPowerOf2 = (n: number) => n > 0 && (n & (n - 1)) === 0
                 const usePlayInBracket = groupNames.length === 2 && !isPowerOf2(qualifiers.length) && teamsToKnockout === 3 && qualifiers.length === 6
 
@@ -438,9 +481,16 @@ export default function TournamentMatchesPage() {
                     if (bDiff !== aDiff) return bDiff - aDiff
                     return b.goalsFor - a.goalsFor
                   })
-                  const teamNames = rankedTeams.map(team => team.team)
+                  const teamNames = rankedTeams.map(q => q.team)
+                  const teamToGroup: Record<string, string> = {}
+                  rankedTeams.forEach(q => { teamToGroup[q.team] = q.groupName })
                   const roundName = getRoundNameForTeamsCanonical(teamNames.length)
-                  matchesToCreate = generateSeededBracket(teamNames, roundName)
+                  const avoidSameGroup = groupNames.length > 1
+                  matchesToCreate = generateSeededBracket(
+                    teamNames,
+                    roundName,
+                    avoidSameGroup ? teamToGroup : undefined
+                  )
                 }
 
                 if (matchesToCreate.length > 0) {
@@ -986,7 +1036,7 @@ export default function TournamentMatchesPage() {
     setEditForm({
       score1: match.score1,
       score2: match.score2,
-      scheduled_time: match.scheduled_time ? new Date(match.scheduled_time).toISOString().slice(0, 16) : '',
+      scheduled_time: match.scheduled_time ? toLocalDatetimeLocal(match.scheduled_time) : '',
       status: match.status
     })
     setMatchLog([])

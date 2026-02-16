@@ -94,6 +94,9 @@ export default function HomePage() {
                   {isEnglish ? 'Registration' : 'Påmelding'}
                 </Link>
               )}
+              <Link href="/add-team" className="text-slate-300 hover:text-white transition-colors whitespace-nowrap">
+                {isEnglish ? 'Add team' : 'Legg til lag'}
+              </Link>
               <Link href="/hall-of-fame" className="text-slate-300 hover:text-white transition-colors whitespace-nowrap">
                 Hall of Fame
               </Link>
@@ -142,6 +145,13 @@ export default function HomePage() {
                   {isEnglish ? 'Registration' : 'Påmelding'}
                 </Link>
               )}
+              <Link
+                href="/add-team"
+                className="text-slate-300 hover:text-white transition-colors"
+                onClick={() => setIsMobileMenuOpen(false)}
+              >
+                {isEnglish ? 'Add team' : 'Legg til lag'}
+              </Link>
               <Link
                 href="/hall-of-fame"
                 className="text-slate-300 hover:text-white transition-colors"

@@ -72,6 +72,9 @@ export default function Header({ backButton = false, backHref = '/', title }: He
               {isEnglish ? 'Registration' : 'Påmelding'}
             </Link>
           )}
+          <Link href="/add-team" className="text-slate-300 hover:text-white transition-colors">
+            {isEnglish ? 'Add team' : 'Legg til lag'}
+          </Link>
           <Link href="/hall-of-fame" className="text-slate-300 hover:text-white transition-colors">
             Hall of Fame
           </Link>
@@ -122,6 +125,13 @@ export default function Header({ backButton = false, backHref = '/', title }: He
                 {isEnglish ? 'Registration' : 'Påmelding'}
               </Link>
             )}
+            <Link
+              href="/add-team"
+              className="text-slate-300 hover:text-white transition-colors"
+              onClick={() => setIsMobileMenuOpen(false)}
+            >
+              {isEnglish ? 'Add team' : 'Legg til lag'}
+            </Link>
             <Link
               href="/hall-of-fame"
               className="text-slate-300 hover:text-white transition-colors"

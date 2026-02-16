@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react'
 import Link from 'next/link'
 import { useParams } from 'next/navigation'
-import { ArrowLeft, Trophy, Users, Calendar, Clock, CheckCircle, XCircle, ExternalLink } from 'lucide-react'
+import { ArrowLeft, Trophy, Users, Calendar, Clock, CheckCircle, XCircle, ExternalLink, Plus } from 'lucide-react'
 import { fetchTournamentById } from '../../../lib/tournaments'
 import { useLanguage } from '@/components/LanguageProvider'
 
@@ -467,7 +467,7 @@ export default function TournamentDetailPage() {
                 <span className="text-sm sm:text-base">{tournament.registeredTeams}/{tournament.maxTeams} {t('lag', 'teams')}</span>
               </div>
             </div>
-            <div className="mt-4">
+            <div className="mt-4 flex flex-wrap items-center gap-3">
               <span className={`inline-block px-3 py-1 rounded-full text-sm font-semibold ${getStatusColor(tournament.status)}`}>
                 {tournament.status === 'open'
                   ? t('Åpen for påmelding', 'Open for registration')
@@ -477,6 +477,13 @@ export default function TournamentDetailPage() {
                       ? t('Stengt', 'Closed')
                       : t('Fullført', 'Completed')}
               </span>
+              <Link
+                href={`/add-team?tournament=${encodeURIComponent(tournament.id)}`}
+                className="inline-flex items-center gap-1.5 text-sm text-blue-400 hover:text-blue-300"
+              >
+                <Plus className="w-4 h-4" />
+                {t('Legg til lag', 'Add team')}
+              </Link>
             </div>
           </div>
 
