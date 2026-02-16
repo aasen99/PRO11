@@ -1,20 +1,11 @@
 'use client'
 
-import React, { useState, useEffect, Suspense } from 'react'
+import React, { useState, Suspense } from 'react'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import { Users, ArrowLeft } from 'lucide-react'
 import Header from '@/components/Header'
 import { useLanguage } from '@/components/LanguageProvider'
-
-interface TournamentOption {
-  id: string
-  title: string
-  status: string
-  entry_fee?: number
-  max_teams?: number
-  current_teams?: number
-}
 
 function AddTeamContent() {
   const searchParams = useSearchParams()
@@ -23,10 +14,7 @@ function AddTeamContent() {
   const isEnglish = language === 'en'
   const t = (no: string, en: string) => (isEnglish ? en : no)
 
-  const [tournaments, setTournaments] = useState<TournamentOption[]>([])
-  const [loadingTournaments, setLoadingTournaments] = useState(true)
   const [form, setForm] = useState({
-    tournamentId: '',
     teamName: '',
     captainName: '',
     captainEmail: '',
@@ -38,45 +26,14 @@ function AddTeamContent() {
   const [error, setError] = useState('')
   const [success, setSuccess] = useState<{ teamName: string; password: string } | null>(null)
 
-  useEffect(() => {
-    const load = async () => {
-      try {
-        const res = await fetch('/api/tournaments')
-        if (res.ok) {
-          const data = await res.json()
-          const list = data.tournaments || []
-          setTournaments(list)
-          if (list.length > 0 && !form.tournamentId) {
-            const preselected = tournamentParam && list.some((t: TournamentOption) => t.id === tournamentParam)
-              ? tournamentParam
-              : list[0].id
-            setForm(f => ({ ...f, tournamentId: preselected }))
-          }
-        }
-      } catch {
-        setTournaments([])
-      } finally {
-        setLoadingTournaments(false)
-      }
-    }
-    load()
-  }, [tournamentParam])
-
-  useEffect(() => {
-    if (tournamentParam && tournaments.length > 0 && tournaments.some(t => t.id === tournamentParam)) {
-      setForm(f => ({ ...f, tournamentId: tournamentParam }))
-    }
-  }, [tournamentParam, tournaments])
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
-    const tid = form.tournamentId?.trim()
     const name = form.teamName?.trim()
     const captain = form.captainName?.trim()
     const email = form.captainEmail?.trim()
-    if (!tid) {
-      setError(t('Velg en turnering.', 'Select a tournament.'))
+    if (!tournamentParam) {
+      setError(t('Mangler turnering i lenken. Gå til en turnering og bruk «Legg til lag» der.', 'Missing tournament. Go to a tournament and use «Add team» there.'))
       return
     }
     if (!name) {
@@ -97,7 +54,7 @@ function AddTeamContent() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          tournamentId: tid,
+          tournamentId: tournamentParam,
           teamName: name,
           captainName: captain,
           captainEmail: email,
@@ -119,6 +76,31 @@ function AddTeamContent() {
     }
   }
 
+  if (!tournamentParam) {
+    return (
+      <div className="min-h-screen bg-slate-900">
+        <Header backButton backHref="/" title={t('Legg til lag', 'Add team')} />
+        <main className="max-w-2xl mx-auto px-4 py-8">
+          <div className="pro11-card p-6 md:p-8">
+            <h1 className="text-2xl font-bold text-white mb-2 flex items-center gap-2">
+              <Users className="w-7 h-7 text-blue-400" />
+              {t('Legg til lag', 'Add team')}
+            </h1>
+            <p className="text-slate-400 mb-6">
+              {t(
+                'Velg en turnering fra listen og bruk «Legg til lag» på turneringssiden for å legge til et lag i den turneringen.',
+                'Select a tournament from the list and use «Add team» on the tournament page to add a team to that tournament.'
+              )}
+            </p>
+            <Link href="/tournaments" className="pro11-button text-sm inline-flex items-center gap-2">
+              {t('Se turneringer', 'View tournaments')}
+            </Link>
+          </div>
+        </main>
+      </div>
+    )
+  }
+
   return (
     <div className="min-h-screen bg-slate-900">
       <Header backButton backHref="/" title={t('Legg til lag', 'Add team')} />
@@ -130,8 +112,8 @@ function AddTeamContent() {
           </h1>
           <p className="text-slate-400 text-sm mb-6">
             {t(
-              'Registrer et lag til en turnering. Du kan bruke denne siden uavhengig av om påmelding er åpen eller stengt.',
-              'Register a team for a tournament. You can use this page whether registration is open or closed.'
+              'Registrer et lag til denne turneringen. Du kan bruke denne siden uavhengig av om påmelding er åpen eller stengt.',
+              'Register a team for this tournament. You can use this page whether registration is open or closed.'
             )}
           </p>
 
@@ -152,7 +134,7 @@ function AddTeamContent() {
                 <Link href="/captain/login" className="pro11-button text-sm">
                   {t('Logg inn som lagleder', 'Captain login')}
                 </Link>
-                <Link href="/add-team" className="pro11-button-secondary text-sm" onClick={() => setSuccess(null)}>
+                <Link href={`/add-team?tournament=${encodeURIComponent(tournamentParam)}`} className="pro11-button-secondary text-sm" onClick={() => setSuccess(null)}>
                   {t('Legg til et lag til', 'Add another team')}
                 </Link>
                 <Link href="/" className="pro11-button-secondary text-sm">
@@ -162,21 +144,6 @@ function AddTeamContent() {
             </div>
           ) : (
             <form onSubmit={handleSubmit} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-slate-300 mb-1">{t('Turnering', 'Tournament')} *</label>
-                <select
-                  value={form.tournamentId}
-                  onChange={(e) => setForm(f => ({ ...f, tournamentId: e.target.value }))}
-                  className="pro11-input w-full"
-                  required
-                  disabled={loadingTournaments}
-                >
-                  <option value="">{loadingTournaments ? t('Laster...', 'Loading...') : t('Velg turnering', 'Select tournament')}</option>
-                  {tournaments.map(t => (
-                    <option key={t.id} value={t.id}>{t.title}</option>
-                  ))}
-                </select>
-              </div>
               <div>
                 <label className="block text-sm font-medium text-slate-300 mb-1">{t('Lagnavn', 'Team name')} *</label>
                 <input
@@ -239,7 +206,7 @@ function AddTeamContent() {
               </div>
               {error && <p className="text-sm text-red-400">{error}</p>}
               <div className="flex gap-3 pt-2">
-                <button type="submit" disabled={submitting || loadingTournaments} className="pro11-button flex items-center gap-2">
+                <button type="submit" disabled={submitting} className="pro11-button flex items-center gap-2">
                   {submitting ? (
                     <>
                       <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
