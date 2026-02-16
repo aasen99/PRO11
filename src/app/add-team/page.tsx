@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, Suspense } from 'react'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import { Users, ArrowLeft } from 'lucide-react'
@@ -16,7 +16,7 @@ interface TournamentOption {
   current_teams?: number
 }
 
-export default function AddTeamPage() {
+function AddTeamContent() {
   const searchParams = useSearchParams()
   const tournamentParam = searchParams.get('tournament')
   const { language } = useLanguage()
@@ -259,5 +259,26 @@ export default function AddTeamPage() {
         </div>
       </main>
     </div>
+  )
+}
+
+function AddTeamFallback() {
+  return (
+    <div className="min-h-screen bg-slate-900">
+      <Header backButton backHref="/" title="Legg til lag" />
+      <main className="max-w-2xl mx-auto px-4 py-8">
+        <div className="pro11-card p-6 md:p-8 flex items-center justify-center py-12">
+          <div className="w-8 h-8 border-2 border-blue-400 border-t-transparent rounded-full animate-spin" />
+        </div>
+      </main>
+    </div>
+  )
+}
+
+export default function AddTeamPage() {
+  return (
+    <Suspense fallback={<AddTeamFallback />}>
+      <AddTeamContent />
+    </Suspense>
   )
 }
