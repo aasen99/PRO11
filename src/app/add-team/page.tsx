@@ -32,10 +32,6 @@ function AddTeamContent() {
     const name = form.teamName?.trim()
     const captain = form.captainName?.trim()
     const email = form.captainEmail?.trim()
-    if (!tournamentParam) {
-      setError(t('Mangler turnering i lenken. Gå til en turnering og bruk «Legg til lag» der.', 'Missing tournament. Go to a tournament and use «Add team» there.'))
-      return
-    }
     if (!name) {
       setError(t('Lagnavn er påkrevd.', 'Team name is required.'))
       return
@@ -50,18 +46,19 @@ function AddTeamContent() {
     }
     setSubmitting(true)
     try {
+      const body: Record<string, unknown> = {
+        teamName: name,
+        captainName: captain,
+        captainEmail: email,
+        captainPhone: form.captainPhone || undefined,
+        discordUsername: form.discordUsername || undefined,
+        expectedPlayers: Number(form.expectedPlayers) || 11
+      }
+      if (tournamentParam) body.tournamentId = tournamentParam
       const res = await fetch('/api/teams', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          tournamentId: tournamentParam,
-          teamName: name,
-          captainName: captain,
-          captainEmail: email,
-          captainPhone: form.captainPhone || undefined,
-          discordUsername: form.discordUsername || undefined,
-          expectedPlayers: Number(form.expectedPlayers) || 11
-        })
+        body: JSON.stringify(body)
       })
       const data = await res.json()
       if (res.ok && data.success) {
@@ -76,31 +73,6 @@ function AddTeamContent() {
     }
   }
 
-  if (!tournamentParam) {
-    return (
-      <div className="min-h-screen bg-slate-900">
-        <Header backButton backHref="/" title={t('Legg til lag', 'Add team')} />
-        <main className="max-w-2xl mx-auto px-4 py-8">
-          <div className="pro11-card p-6 md:p-8">
-            <h1 className="text-2xl font-bold text-white mb-2 flex items-center gap-2">
-              <Users className="w-7 h-7 text-blue-400" />
-              {t('Legg til lag', 'Add team')}
-            </h1>
-            <p className="text-slate-400 mb-6">
-              {t(
-                'Velg en turnering fra listen og bruk «Legg til lag» på turneringssiden for å legge til et lag i den turneringen.',
-                'Select a tournament from the list and use «Add team» on the tournament page to add a team to that tournament.'
-              )}
-            </p>
-            <Link href="/tournaments" className="pro11-button text-sm inline-flex items-center gap-2">
-              {t('Se turneringer', 'View tournaments')}
-            </Link>
-          </div>
-        </main>
-      </div>
-    )
-  }
-
   return (
     <div className="min-h-screen bg-slate-900">
       <Header backButton backHref="/" title={t('Legg til lag', 'Add team')} />
@@ -111,10 +83,15 @@ function AddTeamContent() {
             {t('Legg til lag', 'Add team')}
           </h1>
           <p className="text-slate-400 text-sm mb-6">
-            {t(
-              'Registrer et lag til denne turneringen. Du kan bruke denne siden uavhengig av om påmelding er åpen eller stengt.',
-              'Register a team for this tournament. You can use this page whether registration is open or closed.'
-            )}
+            {tournamentParam
+              ? t(
+                  'Registrer et lag til denne turneringen.',
+                  'Register a team for this tournament.'
+                )
+              : t(
+                  'Opprett et lag uten turnering. Logg inn som lagleder når du vil melde på til en turnering.',
+                  'Create a team without a tournament. Log in as captain when you want to register for a tournament.'
+                )}
           </p>
 
           {success ? (
@@ -129,12 +106,17 @@ function AddTeamContent() {
                     {t('Passord til kaptein', 'Captain password')}: <strong className="select-all">{success.password}</strong>
                   </p>
                 )}
+                {!tournamentParam && (
+                  <p className="mt-3 text-sm opacity-90">
+                    {t('Når du vil melde på en turnering, logg inn som lagleder og velg turnering.', 'When you want to register for a tournament, log in as captain and choose a tournament.')}
+                  </p>
+                )}
               </div>
               <div className="flex flex-wrap gap-3">
                 <Link href="/captain/login" className="pro11-button text-sm">
                   {t('Logg inn som lagleder', 'Captain login')}
                 </Link>
-                <Link href={`/add-team?tournament=${encodeURIComponent(tournamentParam)}`} className="pro11-button-secondary text-sm" onClick={() => setSuccess(null)}>
+                <Link href={tournamentParam ? `/add-team?tournament=${encodeURIComponent(tournamentParam)}` : '/add-team'} className="pro11-button-secondary text-sm" onClick={() => setSuccess(null)}>
                   {t('Legg til et lag til', 'Add another team')}
                 </Link>
                 <Link href="/" className="pro11-button-secondary text-sm">

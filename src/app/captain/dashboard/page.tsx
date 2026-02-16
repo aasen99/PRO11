@@ -101,6 +101,8 @@ export default function CaptainDashboardPage() {
   const [selectedTournamentId, setSelectedTournamentId] = useState('')
   const [showHistory, setShowHistory] = useState(false)
   const [expandedHistoryId, setExpandedHistoryId] = useState<string | null>(null)
+  const [availableTournamentsForRegistration, setAvailableTournamentsForRegistration] = useState<Array<{ id: string; title: string; status: string }>>([])
+  const [registeringForTournamentId, setRegisteringForTournamentId] = useState<string | null>(null)
   const previousMatchesRef = useRef<Match[]>([])
   const { language } = useLanguage()
   const isEnglish = language === 'en'
@@ -229,6 +231,18 @@ export default function CaptainDashboardPage() {
               bestFinish: t('Ingen', 'None'),
               currentRanking: 0
             })
+            try {
+              const allRes = await fetch('/api/tournaments')
+              if (allRes.ok) {
+                const allData = await allRes.json()
+                const list = (allData.tournaments || []).filter(
+                  (tr: any) => ['upcoming', 'active'].includes((tr.status || '').toLowerCase())
+                )
+                setAvailableTournamentsForRegistration(list.map((tr: any) => ({ id: tr.id, title: tr.title || tr.name || '', status: tr.status || '' })))
+              }
+            } catch {
+              setAvailableTournamentsForRegistration([])
+            }
             return
           }
           
@@ -688,6 +702,40 @@ export default function CaptainDashboardPage() {
   const handleLogout = () => {
     localStorage.removeItem('captainTeam')
     window.location.href = '/captain/login'
+  }
+
+  const handleRegisterForTournament = async (tournamentId: string) => {
+    if (!team) return
+    setRegisteringForTournamentId(tournamentId)
+    try {
+      const res = await fetch('/api/teams', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          tournamentId,
+          teamName: team.teamName,
+          captainName: team.captainName,
+          captainEmail: team.captainEmail,
+          expectedPlayers: team.expectedPlayers || 11
+        })
+      })
+      const data = await res.json()
+      if (res.ok && data.success) {
+        const stored = localStorage.getItem('captainTeam')
+        if (stored) {
+          const parsed = JSON.parse(stored)
+          const tournaments = Array.from(new Set([...(parsed.tournaments || []), tournamentId]))
+          localStorage.setItem('captainTeam', JSON.stringify({ ...parsed, tournaments, tournamentId }))
+        }
+        window.location.reload()
+      } else {
+        alert(data.error || t('Kunne ikke melde på.', 'Could not register.'))
+      }
+    } catch {
+      alert(t('Noe gikk galt.', 'Something went wrong.'))
+    } finally {
+      setRegisteringForTournamentId(null)
+    }
   }
 
   const handlePaymentRedirect = () => {
@@ -1155,6 +1203,34 @@ export default function CaptainDashboardPage() {
               )}
             </div>
           </div>
+
+          {tournaments.length === 0 && (
+            <div className="pro11-card p-6 mb-6 border border-blue-600/40 bg-blue-900/10">
+              <h2 className="text-xl font-bold mb-2">{t('Meld på turnering', 'Register for tournament')}</h2>
+              <p className="text-slate-300 mb-4">
+                {t('Du er ikke påmeldt noen turnering. Velg en turnering under for å melde på laget.', 'You are not registered for any tournament. Choose a tournament below to register your team.')}
+              </p>
+              {availableTournamentsForRegistration.length === 0 ? (
+                <p className="text-slate-400 text-sm">{t('Ingen åpne turneringer for påmelding akkurat nå.', 'No open tournaments for registration at the moment.')}</p>
+              ) : (
+                <ul className="space-y-2">
+                  {availableTournamentsForRegistration.map((tr) => (
+                    <li key={tr.id} className="flex items-center justify-between gap-4 py-2 border-b border-slate-700/50 last:border-0">
+                      <span className="font-medium">{tr.title}</span>
+                      <button
+                        type="button"
+                        onClick={() => handleRegisterForTournament(tr.id)}
+                        disabled={registeringForTournamentId !== null}
+                        className="pro11-button text-sm"
+                      >
+                        {registeringForTournamentId === tr.id ? t('Melder på...', 'Registering...') : t('Meld på', 'Register')}
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          )}
 
           {team.paymentStatus !== 'completed' && (
             <div className="pro11-card p-6 mb-6 border border-yellow-600/40 bg-yellow-900/10">

@@ -12,58 +12,44 @@ export async function POST(request: NextRequest) {
     // Use admin client for insert operations to bypass RLS
     const supabase = getSupabaseAdmin() || getSupabase()
 
-    // First, find the tournament by title or get the first tournament if tournamentId is not a UUID
+    // Optional: create team without tournament (standalone). Otherwise require a tournament.
     let tournamentUuid: string | null = null
-    
-    if (tournamentId) {
-      // Check if tournamentId is already a UUID
+    const createWithoutTournament = tournamentId === undefined || tournamentId === null || tournamentId === ''
+
+    if (!createWithoutTournament && tournamentId) {
       const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
       if (uuidRegex.test(tournamentId)) {
         tournamentUuid = tournamentId
       } else {
-        // Try to find tournament by title (for backward compatibility)
         const { data: tournaments } = await supabase
           .from('tournaments')
           .select('id')
           .limit(1)
-        
         if (tournaments && tournaments.length > 0) {
           tournamentUuid = tournaments[0].id
         }
       }
-    } else {
-      // Get the first tournament if no ID provided
-      const { data: tournaments } = await supabase
-        .from('tournaments')
-        .select('id')
-        .limit(1)
-      
-      if (tournaments && tournaments.length > 0) {
-        tournamentUuid = tournaments[0].id
-      }
     }
 
-    if (!tournamentUuid) {
-      return NextResponse.json({ 
-        error: 'No tournament found. Please set up tournaments in the database first.' 
-      }, { status: 400 })
-    }
-
-    const { data: tournamentMeta, error: tournamentMetaError } = await supabase
-      .from('tournaments')
-      .select('entry_fee')
-      .eq('id', tournamentUuid)
-      .single()
-
-    if (tournamentMetaError) {
-      console.error('Error fetching tournament meta:', tournamentMetaError)
+    if (!createWithoutTournament && !tournamentUuid) {
       return NextResponse.json({
-        error: 'Failed to read tournament settings.'
+        error: 'No tournament found. Please set up tournaments in the database first.'
       }, { status: 400 })
     }
 
-    const entryFee = Number(tournamentMeta?.entry_fee ?? 0)
-    const isFreeTournament = Number.isFinite(entryFee) && entryFee <= 0
+    let isFreeTournament = true
+    if (tournamentUuid) {
+      const { data: tournamentMeta, error: tournamentMetaError } = await supabase
+        .from('tournaments')
+        .select('entry_fee')
+        .eq('id', tournamentUuid)
+        .single()
+      if (tournamentMetaError) {
+        return NextResponse.json({ error: 'Failed to read tournament settings.' }, { status: 400 })
+      }
+      const entryFee = Number(tournamentMeta?.entry_fee ?? 0)
+      isFreeTournament = Number.isFinite(entryFee) && entryFee <= 0
+    }
 
     const normalizedTeamName = typeof teamName === 'string'
       ? teamName.trim().replace(/\\s+/g, ' ')
@@ -76,11 +62,16 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Team name is required' }, { status: 400 })
     }
 
-    // Check for duplicate team name or captain email in the same tournament
-    const { data: existingTeams, error: existingError } = await supabase
+    // Duplicate check: same tournament (or among standalone teams if no tournament)
+    const existingQuery = supabase
       .from('teams')
       .select('team_name, captain_email')
-      .eq('tournament_id', tournamentUuid)
+    if (createWithoutTournament) {
+      existingQuery.is('tournament_id', null)
+    } else {
+      existingQuery.eq('tournament_id', tournamentUuid)
+    }
+    const { data: existingTeams, error: existingError } = await existingQuery
 
     if (existingError) {
       console.error('Error checking existing teams:', existingError)
@@ -107,8 +98,8 @@ export async function POST(request: NextRequest) {
       })
       return NextResponse.json({
         error: duplicateEmail
-          ? 'Dette laget er allerede påmeldt turneringen (samme e-post).'
-          : 'Et lag med dette navnet er allerede registrert i turneringen.'
+          ? (createWithoutTournament ? 'Et lag med denne e-posten finnes allerede.' : 'Dette laget er allerede påmeldt turneringen (samme e-post).')
+          : (createWithoutTournament ? 'Et lag med dette navnet finnes allerede.' : 'Et lag med dette navnet er allerede registrert i turneringen.')
       }, { status: 400 })
     }
 
@@ -135,20 +126,21 @@ export async function POST(request: NextRequest) {
       password = generatePassword()
     }
 
-    // Insert team into database
+    const status = createWithoutTournament ? 'approved' : (isFreeTournament ? 'approved' : 'pending')
+    const paymentStatus = createWithoutTournament ? 'completed' : (isFreeTournament ? 'completed' : 'pending')
+
     const { data: team, error: teamError } = await supabase
       .from('teams')
       .insert({
-        tournament_id: tournamentUuid,
+        tournament_id: tournamentUuid || null,
         team_name: normalizedTeamName,
         captain_name: captainName,
         captain_email: captainEmail,
         captain_phone: captainPhone || null,
         discord_username: discordUsername || null,
-        // checked_in column not guaranteed in older schemas
         expected_players: expectedPlayers,
-        status: isFreeTournament ? 'approved' : 'pending',
-        payment_status: isFreeTournament ? 'completed' : 'pending',
+        status,
+        payment_status: paymentStatus,
         generated_password: password
       })
       .select()
@@ -156,51 +148,46 @@ export async function POST(request: NextRequest) {
 
     if (teamError) {
       console.error('Database error:', teamError)
-      return NextResponse.json({ 
-        error: 'Failed to register team: ' + teamError.message 
+      return NextResponse.json({
+        error: 'Failed to register team: ' + teamError.message
       }, { status: 400 })
     }
 
-    // Create player record for captain
     if (team) {
       await supabase
         .from('players')
         .insert({
           team_id: team.id,
           name: captainName,
-          psn_id: captainEmail.split('@')[0],
+          psn_id: (captainEmail || '').split('@')[0],
           position: 'ST'
         })
     }
 
-    // Update tournament current_teams count
-    try {
-      const rpcResult = await supabase.rpc('increment_tournament_teams', { tournament_uuid: tournamentUuid })
-      if (rpcResult.error) {
-        throw rpcResult.error
-      }
-    } catch (rpcError) {
-      // If RPC doesn't exist or fails, manually update
-      console.warn('RPC failed, using manual update:', rpcError)
-      const { data: tournament } = await supabase
-        .from('tournaments')
-        .select('current_teams')
-        .eq('id', tournamentUuid)
-        .single()
-      
-      if (tournament) {
-        await supabase
+    if (tournamentUuid) {
+      try {
+        const rpcResult = await supabase.rpc('increment_tournament_teams', { tournament_uuid: tournamentUuid })
+        if (rpcResult.error) throw rpcResult.error
+      } catch (rpcError) {
+        console.warn('RPC failed, using manual update:', rpcError)
+        const { data: tournament } = await supabase
           .from('tournaments')
-          .update({ current_teams: (tournament.current_teams || 0) + 1 })
+          .select('current_teams')
           .eq('id', tournamentUuid)
+          .single()
+        if (tournament) {
+          await supabase
+            .from('tournaments')
+            .update({ current_teams: (tournament.current_teams || 0) + 1 })
+            .eq('id', tournamentUuid)
+        }
       }
     }
 
-    // Return team data in both formats for compatibility
     const teamData = {
       id: team.id,
-      tournamentId: tournamentUuid,
-      tournament_id: tournamentUuid,
+      tournamentId: team.tournament_id ?? tournamentUuid ?? null,
+      tournament_id: team.tournament_id ?? tournamentUuid ?? null,
       teamName: team.team_name,
       team_name: team.team_name,
       captainName: team.captain_name,
