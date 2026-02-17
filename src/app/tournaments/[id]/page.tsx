@@ -3,9 +3,10 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react'
 import Link from 'next/link'
 import { useParams } from 'next/navigation'
-import { ArrowLeft, Trophy, Users, Calendar, Clock, CheckCircle, XCircle, ExternalLink, Plus } from 'lucide-react'
+import { Trophy, Users, Calendar, Clock, CheckCircle, XCircle, ExternalLink, Plus } from 'lucide-react'
 import { fetchTournamentById } from '../../../lib/tournaments'
 import { useLanguage } from '@/components/LanguageProvider'
+import Header from '@/components/Header'
 
 interface Team {
   id: string
@@ -428,25 +429,7 @@ export default function TournamentDetailPage() {
 
   return (
     <div className="min-h-screen">
-      {/* Header */}
-      <header className="pro11-card mx-4 mt-4 h-24">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center">
-            <Link href="/" className="w-24 h-full flex items-center justify-center hover:opacity-80 transition-opacity">
-              <img src="/logo.png" alt="PRO11 Logo" className="w-full h-full object-contain" />
-            </Link>
-            <div className="ml-4">
-              <p className="text-slate-400 text-sm">
-                {t('Pro Clubs Turneringer', 'Pro Clubs Tournaments')}
-              </p>
-            </div>
-          </div>
-          <Link href="/tournaments" className="pro11-button-secondary flex items-center space-x-2">
-            <ArrowLeft className="w-4 h-4" />
-            <span>{t('Tilbake', 'Back')}</span>
-          </Link>
-        </div>
-      </header>
+      <Header backButton backHref="/tournaments" title={t('Pro Clubs Turneringer', 'Pro Clubs Tournaments')} />
 
       <main className="w-full px-4 py-8 flex flex-col items-center">
         <div className="w-full max-w-none">

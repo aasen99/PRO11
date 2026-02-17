@@ -1,6 +1,7 @@
 'use client'
 
 import { useLanguage } from '@/components/LanguageProvider'
+import Header from '@/components/Header'
 
 export default function RulesPage() {
   const { language } = useLanguage()
@@ -8,6 +9,7 @@ export default function RulesPage() {
 
   return (
     <div className="min-h-screen">
+      <Header backButton backHref="/" title={isEnglish ? 'Tournament Rules' : 'Turneringsregler'} />
       <main className="container mx-auto px-4 py-10 max-w-3xl">
         <div className="pro11-card p-6 space-y-6">
           <div>
