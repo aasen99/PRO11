@@ -45,7 +45,7 @@ export default function Header({ backButton = false, backHref = '/', title }: He
             </p>
           </div>
         </div>
-        <nav className="hidden md:flex items-center space-x-6 p-6">
+        <nav className="hidden lg:flex items-center space-x-6 p-6">
           <Link href="/tournaments" className="text-slate-300 hover:text-white transition-colors">
             {isEnglish ? 'Tournaments' : 'Turneringer'}
           </Link>
@@ -64,17 +64,20 @@ export default function Header({ backButton = false, backHref = '/', title }: He
           <Link href="/hall-of-fame" className="text-slate-300 hover:text-white transition-colors">
             Hall of Fame
           </Link>
+          <Link href="/captain/login" className="text-slate-300 hover:text-white transition-colors">
+            {isEnglish ? 'Captain' : 'Lagleder'}
+          </Link>
           <a href="https://discord.gg/Es8UAkax8H" target="_blank" rel="noopener noreferrer" className="text-slate-300 hover:text-white transition-colors flex items-center space-x-1">
             <span>Discord</span>
             <ExternalLink className="w-4 h-4" />
           </a>
           <LanguageToggle />
         </nav>
-        <div className="flex items-center gap-2 pr-4 md:pr-0">
+        <div className="flex items-center gap-2 pr-4 lg:pr-0">
           <button
             type="button"
             onClick={() => setIsMobileMenuOpen(prev => !prev)}
-            className="pro11-button-secondary text-sm md:hidden"
+            className="pro11-button-secondary text-sm lg:hidden"
           >
             {isMobileMenuOpen ? (isEnglish ? 'Close' : 'Lukk') : (isEnglish ? 'Menu' : 'Meny')}
           </button>
@@ -87,7 +90,7 @@ export default function Header({ backButton = false, backHref = '/', title }: He
         </div>
       </div>
       {isMobileMenuOpen && (
-        <div className="fixed inset-x-0 top-24 px-4 pb-4 md:hidden z-50">
+        <div className="fixed inset-x-0 top-24 px-4 pb-4 lg:hidden z-50">
           <div className="pro11-card p-4 flex flex-col space-y-3">
             <Link
               href="/tournaments"
@@ -122,6 +125,13 @@ export default function Header({ backButton = false, backHref = '/', title }: He
               onClick={() => setIsMobileMenuOpen(false)}
             >
               Hall of Fame
+            </Link>
+            <Link
+              href="/captain/login"
+              className="text-slate-300 hover:text-white transition-colors"
+              onClick={() => setIsMobileMenuOpen(false)}
+            >
+              {isEnglish ? 'Captain' : 'Lagleder'}
             </Link>
             <a
               href="https://discord.gg/Es8UAkax8H"
