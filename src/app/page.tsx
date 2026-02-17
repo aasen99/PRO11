@@ -290,11 +290,11 @@ export default function HomePage() {
         )}
 
         {/* About PRO11 */}
-        <div className="pro11-card p-8 mb-12 w-full max-w-4xl">
-          <h3 className="text-2xl font-bold mb-6 text-center">
+        <div className="pro11-card p-8 mb-12 w-full max-w-4xl mx-auto flex flex-col items-center">
+          <h3 className="text-2xl font-bold mb-6 text-center w-full">
             {isEnglish ? 'About PRO11' : 'Om PRO11'}
           </h3>
-          <div className="mx-auto max-w-2xl text-center">
+          <div className="w-full max-w-2xl mx-auto text-center">
             <p className="text-slate-300 leading-relaxed mb-4">
               {isEnglish
                 ? 'PRO11 came about because many Pro Clubs tournaments lived and died in a single evening.'

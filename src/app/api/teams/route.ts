@@ -351,7 +351,7 @@ export async function PUT(request: NextRequest) {
         .select('generated_password')
         .eq('id', id)
         .single()
-      const stored = teamRow?.generated_password
+      const stored = (teamRow?.generated_password ?? null) as string | null
       const match = await comparePassword(currentPassword, stored)
       if (!match) {
         return NextResponse.json({ error: 'Current password is incorrect.' }, { status: 400 })
