@@ -298,45 +298,29 @@ export default function HomePage() {
             <div>
               <p className="text-slate-300 leading-relaxed mb-4">
                 {isEnglish
-                  ? 'PRO11 is a tournament platform for Pro Clubs in FC 26. Group stages, knockouts, and matches that matter.'
-                  : 'PRO11 er en turneringsplattform for Pro Clubs i FC 26. Gruppespill, sluttspill og kamper som betyr noe.'}
+                  ? 'PRO11 came about because many Pro Clubs tournaments lived and died in a single evening.'
+                  : 'PRO11 ble til fordi mange Pro Clubs-turneringer levde og døde samme kveld.'}
               </p>
               <p className="text-slate-300 leading-relaxed mb-4">
                 {isEnglish
-                  ? 'Results are archived, champions are crowned, and your team history carries on. Not just one night — but tournaments that build over time.'
-                  : 'Her lagres resultater, mestere kåres og historikken følger laget videre. Ikke bare én kveld – men turneringer som bygges videre over tid.'}
+                  ? 'There was a time when the tournament scene was larger and more united, and when teams met again and again over time. Today there are still many tournaments, but most stand alone — small one-off events with no history or continuity.'
+                  : 'Det fantes en tid hvor turneringsmiljøet var større og mer samlet, og hvor lag møttes igjen og igjen over tid. I dag finnes det fortsatt mange turneringer, men de fleste står alene — små arrangementer uten historikk eller videre utvikling.'}
+              </p>
+              <p className="text-slate-300 leading-relaxed mb-4">
+                {isEnglish
+                  ? 'PRO11 is an attempt to build something more lasting. Not just to run tournaments, but to connect them, store the results, and let teams build a history that continues.'
+                  : 'PRO11 er et forsøk på å bygge noe mer varig. Ikke bare arrangere turneringer, men knytte dem sammen, lagre resultatene og la lag bygge en historie som fortsetter videre.'}
+              </p>
+              <p className="text-slate-300 leading-relaxed mb-4">
+                {isEnglish
+                  ? 'The aim is not only to fill a gap, but to take tournaments a step further.'
+                  : 'Målet er ikke bare å fylle et tomrom, men å ta turneringene et steg videre.'}
               </p>
               <p className="text-slate-300 leading-relaxed">
                 {isEnglish
-                  ? 'Our goal is to bring Norwegian Pro Clubs together in one place and build Norway’s leading Pro Clubs arena.'
-                  : 'Målet vårt er å samle norsk Pro Clubs på ett sted og bygge Norges ledende Pro Clubs-arena.'}
+                  ? 'Developed and run from Norway.'
+                  : 'Utviklet og drevet fra Norge.'}
               </p>
-            </div>
-            <div className="space-y-4 mt-4">
-              <div className="flex items-center space-x-3">
-                <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
-                <span className="text-slate-300">
-                  {isEnglish ? 'Group stages and knockouts that matter' : 'Gruppespill og sluttspill som betyr noe'}
-                </span>
-              </div>
-              <div className="flex items-center space-x-3">
-                <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
-                <span className="text-slate-300">
-                  {isEnglish ? 'Results, champions, and history' : 'Resultater, mestere og historikk'}
-                </span>
-              </div>
-              <div className="flex items-center space-x-3">
-                <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
-                <span className="text-slate-300">
-                  {isEnglish ? 'Tournaments that grow over time' : 'Turneringer som bygges videre over tid'}
-                </span>
-              </div>
-              <div className="flex items-center space-x-3">
-                <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
-                <span className="text-slate-300">
-                  {isEnglish ? 'Bringing Norwegian Pro Clubs together' : 'Samler norsk Pro Clubs på ett sted'}
-                </span>
-              </div>
             </div>
           </div>
         </div>
