@@ -345,12 +345,12 @@ export default function RegisterPage() {
       <main className="container mx-auto px-4 py-8 flex flex-col items-center">
         <div className="max-w-4xl w-full">
           <div className="text-center mb-8">
-            <h2 className="text-4xl font-bold mb-2">{isEnglish ? 'Register team' : 'Meld på lag'}</h2>
-            <p className="text-slate-300 text-base">
+            <h2 className="text-3xl sm:text-4xl font-bold mb-2">{isEnglish ? 'Register team' : 'Meld på lag'}</h2>
+            <p className="text-slate-300 text-sm sm:text-base">
               {isEnglish ? 'Log in or register a new team' : 'Logg inn eller registrer nytt lag'}
             </p>
           </div>
-          <div className="pro11-card p-5 mb-6 border border-blue-600/30 bg-blue-900/10">
+          <div className="pro11-card p-4 sm:p-5 mb-6 border border-blue-600/30 bg-blue-900/10">
             <div className="flex flex-col gap-4">
               <div className="text-center">
                 <h2 className="text-sm font-semibold text-slate-100">
@@ -426,7 +426,7 @@ export default function RegisterPage() {
             </div>
           </div>
 
-          <form onSubmit={handleSubmit} className="pro11-card p-8">
+          <form onSubmit={handleSubmit} className="pro11-card p-6 sm:p-8">
             {/* Tournament Info */}
             <div className="mb-8 p-4 bg-blue-600/20 rounded-lg border border-blue-500/30">
               <h3 className="text-xl font-semibold mb-2">{isEnglish ? 'Tournament' : 'Turnering'}</h3>
@@ -448,7 +448,7 @@ export default function RegisterPage() {
                 <span>{isEnglish ? 'Team information' : 'Laginformasjon'}</span>
               </h3>
               
-              <div className="grid md:grid-cols-2 gap-6">
+              <div className="grid sm:grid-cols-2 gap-4 sm:gap-6">
                 <div>
                   <label className="block text-sm font-medium mb-2">{isEnglish ? 'Team name *' : 'Lagnavn *'}</label>
                   <input

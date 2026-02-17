@@ -67,7 +67,7 @@ export default function RegistrationSuccessPage() {
             <div className="inline-flex items-center justify-center w-20 h-20 bg-green-600/20 rounded-full mb-4">
               <CheckCircle className="w-12 h-12 text-green-400" />
             </div>
-            <h1 className="text-4xl font-bold mb-2">
+            <h1 className="text-3xl sm:text-4xl font-bold mb-2">
               {isEnglish ? 'Registration completed!' : 'Registrering fullført!'}
             </h1>
             <p className="text-slate-300 text-lg">
@@ -78,8 +78,8 @@ export default function RegistrationSuccessPage() {
           </div>
 
           {!registrationData.existingTeam && (
-            <div className="pro11-card p-8 mb-6">
-              <div className="flex items-start space-x-3 mb-6">
+            <div className="pro11-card p-6 sm:p-8 mb-6">
+              <div className="flex flex-col sm:flex-row sm:items-start gap-3 mb-6">
                 <AlertTriangle className="w-6 h-6 text-yellow-400 flex-shrink-0 mt-1" />
                 <div>
                   <h2 className="text-2xl font-bold mb-2 text-yellow-400">
@@ -96,8 +96,8 @@ export default function RegistrationSuccessPage() {
                 </div>
               </div>
 
-              <div className="bg-slate-900/50 border-2 border-yellow-500/50 rounded-lg p-6 mb-4">
-                <div className="flex items-center justify-between mb-2">
+              <div className="bg-slate-900/50 border-2 border-yellow-500/50 rounded-lg p-4 sm:p-6 mb-4">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-2">
                   <label className="text-sm font-medium text-slate-400">{isEnglish ? 'Your password:' : 'Ditt passord:'}</label>
                   <button
                     onClick={copyPassword}
@@ -108,7 +108,7 @@ export default function RegistrationSuccessPage() {
                   </button>
                 </div>
                 <div className="bg-slate-800 p-4 rounded border border-slate-700">
-                  <p className="text-2xl font-mono text-center text-green-400 font-bold tracking-wider">
+                  <p className="text-xl sm:text-2xl font-mono text-center text-green-400 font-bold tracking-wider break-all">
                     {registrationData.password}
                   </p>
                 </div>
@@ -136,17 +136,17 @@ export default function RegistrationSuccessPage() {
               <span>{isEnglish ? 'Team information' : 'Laginformasjon'}</span>
             </h3>
             <div className="space-y-3">
-              <div className="flex justify-between">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1">
                 <span className="text-slate-400">{isEnglish ? 'Team name:' : 'Lagnavn:'}</span>
-                <span className="font-semibold">{registrationData.teamName}</span>
+                <span className="font-semibold break-words">{registrationData.teamName}</span>
               </div>
-              <div className="flex justify-between">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1">
                 <span className="text-slate-400">{isEnglish ? 'Captain:' : 'Kaptein:'}</span>
-                <span className="font-semibold">{registrationData.captainName}</span>
+                <span className="font-semibold break-words">{registrationData.captainName}</span>
               </div>
-              <div className="flex justify-between">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1">
                 <span className="text-slate-400">{isEnglish ? 'Email:' : 'E-post:'}</span>
-                <span className="font-semibold">{registrationData.captainEmail}</span>
+                <span className="font-semibold break-all">{registrationData.captainEmail}</span>
               </div>
             </div>
           </div>

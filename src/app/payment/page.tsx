@@ -387,10 +387,10 @@ export default function PaymentPage() {
         <div className="max-w-4xl w-full">
           {/* Payment Header */}
           <div className="text-center mb-12">
-            <h1 className="text-4xl font-bold mb-4">
+            <h1 className="text-3xl sm:text-4xl font-bold mb-4">
               {isEnglish ? 'Payment information' : 'Betalingsinformasjon'}
             </h1>
-            <p className="text-xl text-slate-300">
+            <p className="text-base sm:text-xl text-slate-300 break-words">
               {isEnglish ? 'Complete the registration for' : 'Fullfør registreringen av'} {paymentData.teamName}
             </p>
           </div>
@@ -431,7 +431,7 @@ export default function PaymentPage() {
                 <span>{isEnglish ? 'Payment details' : 'Betalingsdetaljer'}</span>
               </h2>
               <div className="space-y-4">
-                <div className="flex justify-between items-center p-4 bg-slate-800/50 rounded-lg">
+                <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 p-4 bg-slate-800/50 rounded-lg">
                   <span className="text-slate-300">{isEnglish ? 'Tournament fee' : 'Turneringsgebyr'}</span>
                   <span className="text-2xl font-bold text-green-400">
                     {isFree ? (isEnglish ? 'FREE' : 'GRATIS') : `${paymentData.amount} NOK`}

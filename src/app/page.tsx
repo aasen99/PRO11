@@ -11,7 +11,6 @@ export default function HomePage() {
   const [nextTournament, setNextTournament] = useState<any>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
-  const [isDesktop, setIsDesktop] = useState(false)
   const { language } = useLanguage()
   const isEnglish = language === 'en'
 
@@ -50,19 +49,6 @@ export default function HomePage() {
     loadTournaments()
   }, [])
 
-  useEffect(() => {
-    const updateBreakpoint = () => setIsDesktop(window.innerWidth >= 1024)
-    updateBreakpoint()
-    window.addEventListener('resize', updateBreakpoint)
-    return () => window.removeEventListener('resize', updateBreakpoint)
-  }, [])
-
-  useEffect(() => {
-    if (isDesktop && isMobileMenuOpen) {
-      setIsMobileMenuOpen(false)
-    }
-  }, [isDesktop, isMobileMenuOpen])
-  
   const genLabel = nextTournament ? getGenLabel(nextTournament) : null
 
   return (
@@ -80,8 +66,7 @@ export default function HomePage() {
               </p>
             </div>
           </div>
-          {isDesktop && (
-            <nav className="flex flex-1 items-center justify-end gap-6 px-4 py-4 text-xs whitespace-nowrap">
+          <nav className="hidden lg:flex flex-1 items-center justify-end gap-6 px-4 py-4 text-xs whitespace-nowrap">
               <Link href="/tournaments" className="text-slate-300 hover:text-white transition-colors whitespace-nowrap">
                 {isEnglish ? 'Tournaments' : 'Turneringer'}
               </Link>
@@ -108,21 +93,18 @@ export default function HomePage() {
                 <ExternalLink className="w-4 h-4" />
               </a>
               <LanguageToggle />
-            </nav>
-          )}
-          {!isDesktop && (
-            <div className="flex pr-4">
-              <button
-                type="button"
-                onClick={() => setIsMobileMenuOpen(prev => !prev)}
-                className="pro11-button-secondary text-sm"
-              >
-                {isMobileMenuOpen ? (isEnglish ? 'Close' : 'Lukk') : (isEnglish ? 'Menu' : 'Meny')}
-              </button>
-            </div>
-          )}
+          </nav>
+          <div className="flex pr-4 lg:hidden">
+            <button
+              type="button"
+              onClick={() => setIsMobileMenuOpen(prev => !prev)}
+              className="pro11-button-secondary text-sm"
+            >
+              {isMobileMenuOpen ? (isEnglish ? 'Close' : 'Lukk') : (isEnglish ? 'Menu' : 'Meny')}
+            </button>
+          </div>
         </div>
-        {isMobileMenuOpen && !isDesktop && (
+        {isMobileMenuOpen && (
           <div className="fixed inset-x-0 top-24 px-4 pb-4 lg:hidden z-50">
             <div className="pro11-card p-4 flex flex-col space-y-3">
               <Link
@@ -271,18 +253,18 @@ export default function HomePage() {
                   ? 'There are currently no upcoming tournaments. Check back later or follow our Discord for updates.'
                   : 'Det er for øyeblikket ingen kommende turneringer. Sjekk tilbake senere eller følg med på vår Discord for oppdateringer.'}
               </p>
-              <div className="mt-4 flex gap-4">
-                <Link href="/tournaments" className="pro11-button text-lg px-6 py-3 inline-block">
+              <div className="mt-4 flex flex-col sm:flex-row gap-3 sm:gap-4 items-stretch sm:items-center justify-center">
+                <Link href="/tournaments" className="pro11-button text-lg px-6 py-3 inline-flex items-center justify-center">
                   {isEnglish ? 'See all tournaments' : 'Se alle turneringer'}
                 </Link>
                 <a 
                   href="https://discord.gg/Es8UAkax8H" 
                   target="_blank" 
                   rel="noopener noreferrer" 
-                  className="pro11-button-secondary text-lg px-6 py-3 inline-block flex items-center space-x-2"
+                  className="pro11-button-secondary text-lg px-6 py-3 inline-flex items-center justify-center space-x-2"
                 >
-                  <span>Join Discord</span>
-                  <ExternalLink className="w-4 h-4" />
+                  <span>{isEnglish ? 'Join Discord' : 'Bli med på Discord'}</span>
+                  <ExternalLink className="w-4 h-4 flex-shrink-0" />
                 </a>
               </div>
             </div>

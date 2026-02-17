@@ -16,7 +16,6 @@ interface HeaderProps {
 export default function Header({ backButton = false, backHref = '/', title }: HeaderProps) {
   const [hasActiveTournament, setHasActiveTournament] = useState(false)
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
-  const [isDesktop, setIsDesktop] = useState(false)
   const { language } = useLanguage()
   const isEnglish = language === 'en'
 
@@ -32,19 +31,6 @@ export default function Header({ backButton = false, backHref = '/', title }: He
     }
     checkActiveTournament()
   }, [])
-
-  useEffect(() => {
-    const updateBreakpoint = () => setIsDesktop(window.innerWidth >= 768)
-    updateBreakpoint()
-    window.addEventListener('resize', updateBreakpoint)
-    return () => window.removeEventListener('resize', updateBreakpoint)
-  }, [])
-
-  useEffect(() => {
-    if (isDesktop && isMobileMenuOpen) {
-      setIsMobileMenuOpen(false)
-    }
-  }, [isDesktop, isMobileMenuOpen])
 
   return (
     <header className="pro11-card mx-4 mt-4 h-24">
@@ -85,15 +71,13 @@ export default function Header({ backButton = false, backHref = '/', title }: He
           <LanguageToggle />
         </nav>
         <div className="flex items-center gap-2 pr-4 md:pr-0">
-          {!isDesktop && (
-            <button
-              type="button"
-              onClick={() => setIsMobileMenuOpen(prev => !prev)}
-              className="pro11-button-secondary text-sm"
-            >
-              {isMobileMenuOpen ? (isEnglish ? 'Close' : 'Lukk') : (isEnglish ? 'Menu' : 'Meny')}
-            </button>
-          )}
+          <button
+            type="button"
+            onClick={() => setIsMobileMenuOpen(prev => !prev)}
+            className="pro11-button-secondary text-sm md:hidden"
+          >
+            {isMobileMenuOpen ? (isEnglish ? 'Close' : 'Lukk') : (isEnglish ? 'Menu' : 'Meny')}
+          </button>
           {backButton && (
             <Link href={backHref} className="pro11-button-secondary flex items-center space-x-2">
               <ArrowLeft className="w-4 h-4" />
@@ -102,7 +86,7 @@ export default function Header({ backButton = false, backHref = '/', title }: He
           )}
         </div>
       </div>
-      {isMobileMenuOpen && !isDesktop && (
+      {isMobileMenuOpen && (
         <div className="fixed inset-x-0 top-24 px-4 pb-4 md:hidden z-50">
           <div className="pro11-card p-4 flex flex-col space-y-3">
             <Link
