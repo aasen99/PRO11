@@ -110,6 +110,7 @@ export default function CaptainDashboardPage() {
   const [passwordChangeError, setPasswordChangeError] = useState('')
   const [passwordChangeSuccess, setPasswordChangeSuccess] = useState(false)
   const [isChangingPassword, setIsChangingPassword] = useState(false)
+  const [showPasswordEditor, setShowPasswordEditor] = useState(false)
   const previousMatchesRef = useRef<Match[]>([])
   const { language } = useLanguage()
   const isEnglish = language === 'en'
@@ -908,6 +909,7 @@ export default function CaptainDashboardPage() {
       setCurrentPassword('')
       setNewPassword('')
       setConfirmNewPassword('')
+      setShowPasswordEditor(false)
       addToast({ message: t('Passord endret.', 'Password changed.'), type: 'success' })
     } catch (err) {
       console.error('Password change error:', err)
@@ -1239,23 +1241,35 @@ export default function CaptainDashboardPage() {
                   )}
                 </p>
               </div>
-              {team.discordUsername && (
+              <div className="flex flex-wrap items-center gap-3">
+                {team.discordUsername && (
+                  <button
+                    type="button"
+                    onClick={() => setShowDiscordEditor(true)}
+                    className="flex items-center space-x-2 text-slate-400 text-sm hover:text-slate-200 transition-colors"
+                    style={{ background: 'transparent', border: 'none', padding: 0 }}
+                    title={t('Rediger Discord-brukernavn', 'Edit Discord username')}
+                  >
+                    <svg className="w-5 h-5" viewBox="0 0 127.14 96.36" aria-hidden="true">
+                      <path
+                        fill="currentColor"
+                        d="M107.7,8.07A105.15,105.15,0,0,0,81.47,0a72.06,72.06,0,0,0-3.36,6.83A97.68,97.68,0,0,0,49,6.83,72.37,72.37,0,0,0,45.64,0,105.89,105.89,0,0,0,19.39,8.09C2.79,32.65-1.71,56.6,.54,80.21a105.73,105.73,0,0,0,32.1,16.15,77.7,77.7,0,0,0,6.89-11.13,68.42,68.42,0,0,1-10.85-5.18c.91-.66,1.8-1.35,2.66-2.07a75.57,75.57,0,0,0,64.32,0c.87.72,1.76,1.41,2.66,2.07a68.68,68.68,0,0,1-10.87,5.19,77,77,0,0,0,6.89,11.12,105.25,105.25,0,0,0,32.12-16.16C130.49,56.9,126.18,32.94,107.7,8.07ZM42.45,65.69C36.18,65.69,31,60,31,52.91S36,40.13,42.45,40.13c6.48,0,11.66,5.8,11.56,12.78C54,60,48.93,65.69,42.45,65.69Zm42.24,0C78.41,65.69,73.27,60,73.27,52.91S78.41,40.13,84.69,40.13c6.49,0,11.67,5.8,11.56,12.78C96.25,60,91.18,65.69,84.69,65.69Z"
+                      />
+                    </svg>
+                    <span className="text-blue-400">{team.discordUsername}</span>
+                  </button>
+                )}
                 <button
                   type="button"
-                  onClick={() => setShowDiscordEditor(true)}
+                  onClick={() => setShowPasswordEditor(true)}
                   className="flex items-center space-x-2 text-slate-400 text-sm hover:text-slate-200 transition-colors"
                   style={{ background: 'transparent', border: 'none', padding: 0 }}
-                  title={t('Rediger Discord-brukernavn', 'Edit Discord username')}
+                  title={t('Endre passord', 'Change password')}
                 >
-                  <svg className="w-5 h-5" viewBox="0 0 127.14 96.36" aria-hidden="true">
-                    <path
-                      fill="currentColor"
-                      d="M107.7,8.07A105.15,105.15,0,0,0,81.47,0a72.06,72.06,0,0,0-3.36,6.83A97.68,97.68,0,0,0,49,6.83,72.37,72.37,0,0,0,45.64,0,105.89,105.89,0,0,0,19.39,8.09C2.79,32.65-1.71,56.6,.54,80.21a105.73,105.73,0,0,0,32.1,16.15,77.7,77.7,0,0,0,6.89-11.13,68.42,68.42,0,0,1-10.85-5.18c.91-.66,1.8-1.35,2.66-2.07a75.57,75.57,0,0,0,64.32,0c.87.72,1.76,1.41,2.66,2.07a68.68,68.68,0,0,1-10.87,5.19,77,77,0,0,0,6.89,11.12,105.25,105.25,0,0,0,32.12-16.16C130.49,56.9,126.18,32.94,107.7,8.07ZM42.45,65.69C36.18,65.69,31,60,31,52.91S36,40.13,42.45,40.13c6.48,0,11.66,5.8,11.56,12.78C54,60,48.93,65.69,42.45,65.69Zm42.24,0C78.41,65.69,73.27,60,73.27,52.91S78.41,40.13,84.69,40.13c6.49,0,11.67,5.8,11.56,12.78C96.25,60,91.18,65.69,84.69,65.69Z"
-                    />
-                  </svg>
-                  <span className="text-blue-400">{team.discordUsername}</span>
+                  <Lock className="w-4 h-4" />
+                  <span className="text-blue-400">{t('Endre passord', 'Change password')}</span>
                 </button>
-              )}
+              </div>
             </div>
           </div>
 
@@ -1331,53 +1345,80 @@ export default function CaptainDashboardPage() {
             </div>
           )}
 
-          <div className="pro11-card p-6 mb-6">
-            <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
-              <Lock className="w-5 h-5" />
-              {t('Endre passord', 'Change password')}
-            </h2>
-            <p className="text-slate-400 text-sm mb-4">
-              {t('Minst 6 tegn, én stor bokstav og ett tall.', 'At least 6 characters, one uppercase letter and one number.')}
-            </p>
-            <form onSubmit={handleChangePassword} className="space-y-4 max-w-md">
-              <div>
-                <label className="block text-sm font-medium text-slate-300 mb-1">{t('Nåværende passord', 'Current password')}</label>
-                <input
-                  type="password"
-                  value={currentPassword}
-                  onChange={(e) => { setCurrentPassword(e.target.value); setPasswordChangeError('') }}
-                  className="pro11-input w-full"
-                  required
-                />
+          {showPasswordEditor && (
+            <div className="pro11-card p-6 mb-6">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-xl font-bold flex items-center gap-2">
+                  <Lock className="w-5 h-5" />
+                  {t('Endre passord', 'Change password')}
+                </h2>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowPasswordEditor(false)
+                    setPasswordChangeError('')
+                    setPasswordChangeSuccess(false)
+                    setCurrentPassword('')
+                    setNewPassword('')
+                    setConfirmNewPassword('')
+                  }}
+                  className="text-slate-400 hover:text-slate-200 text-sm"
+                >
+                  {t('Lukk', 'Close')}
+                </button>
               </div>
-              <div>
-                <label className="block text-sm font-medium text-slate-300 mb-1">{t('Nytt passord', 'New password')}</label>
-                <input
-                  type="password"
-                  value={newPassword}
-                  onChange={(e) => { setNewPassword(e.target.value); setPasswordChangeError('') }}
-                  className="pro11-input w-full"
-                  placeholder={t('Min. 6 tegn, 1 stor bokstav, 1 tall', 'Min. 6 characters, 1 uppercase, 1 number')}
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-slate-300 mb-1">{t('Bekreft nytt passord', 'Confirm new password')}</label>
-                <input
-                  type="password"
-                  value={confirmNewPassword}
-                  onChange={(e) => { setConfirmNewPassword(e.target.value); setPasswordChangeError('') }}
-                  className="pro11-input w-full"
-                  required
-                />
-              </div>
-              {passwordChangeError && <p className="text-red-400 text-sm">{passwordChangeError}</p>}
-              {passwordChangeSuccess && <p className="text-green-400 text-sm">{t('Passordet er endret.', 'Password has been changed.')}</p>}
-              <button type="submit" disabled={isChangingPassword} className="pro11-button-secondary">
-                {isChangingPassword ? t('Endrer...', 'Changing...') : t('Endre passord', 'Change password')}
-              </button>
-            </form>
-          </div>
+              <p className="text-slate-400 text-sm mb-4">
+                {t('Minst 6 tegn, én stor bokstav og ett tall.', 'At least 6 characters, one uppercase letter and one number.')}
+              </p>
+              <form onSubmit={handleChangePassword} className="space-y-4 max-w-md">
+                <div>
+                  <label className="block text-sm font-medium text-slate-300 mb-1">{t('Nåværende passord', 'Current password')}</label>
+                  <input
+                    type="password"
+                    value={currentPassword}
+                    onChange={(e) => { setCurrentPassword(e.target.value); setPasswordChangeError('') }}
+                    className="pro11-input w-full"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-300 mb-1">{t('Nytt passord', 'New password')}</label>
+                  <input
+                    type="password"
+                    value={newPassword}
+                    onChange={(e) => { setNewPassword(e.target.value); setPasswordChangeError('') }}
+                    className="pro11-input w-full"
+                    placeholder={t('Min. 6 tegn, 1 stor bokstav, 1 tall', 'Min. 6 characters, 1 uppercase, 1 number')}
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-300 mb-1">{t('Bekreft nytt passord', 'Confirm new password')}</label>
+                  <input
+                    type="password"
+                    value={confirmNewPassword}
+                    onChange={(e) => { setConfirmNewPassword(e.target.value); setPasswordChangeError('') }}
+                    className="pro11-input w-full"
+                    required
+                  />
+                </div>
+                {passwordChangeError && <p className="text-red-400 text-sm">{passwordChangeError}</p>}
+                {passwordChangeSuccess && <p className="text-green-400 text-sm">{t('Passordet er endret.', 'Password has been changed.')}</p>}
+                <div className="flex gap-2">
+                  <button type="submit" disabled={isChangingPassword} className="pro11-button-secondary">
+                    {isChangingPassword ? t('Endrer...', 'Changing...') : t('Endre passord', 'Change password')}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowPasswordEditor(false)}
+                    className="pro11-button-secondary"
+                  >
+                    {t('Lukk', 'Close')}
+                  </button>
+                </div>
+              </form>
+            </div>
+          )}
 
           {/* Quick Actions for Active Tournaments */}
           {liveTournaments.length > 0 && (
