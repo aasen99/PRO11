@@ -2,10 +2,11 @@
 
 import React, { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
-import { Shield, Trophy, Users, Calendar, Edit, CheckCircle, XCircle, ArrowRight, LogOut } from 'lucide-react'
+import { Shield, Trophy, Users, Calendar, Edit, CheckCircle, XCircle, ArrowRight, LogOut, Lock } from 'lucide-react'
 import Toast, { ToastContainer } from '@/components/Toast'
 import type { ToastType } from '@/components/Toast'
 import { useLanguage } from '@/components/LanguageProvider'
+import { validatePasswordClient } from '@/lib/utils'
 
 interface Team {
   id: string
@@ -103,6 +104,12 @@ export default function CaptainDashboardPage() {
   const [expandedHistoryId, setExpandedHistoryId] = useState<string | null>(null)
   const [availableTournamentsForRegistration, setAvailableTournamentsForRegistration] = useState<Array<{ id: string; title: string; status: string }>>([])
   const [registeringForTournamentId, setRegisteringForTournamentId] = useState<string | null>(null)
+  const [currentPassword, setCurrentPassword] = useState('')
+  const [newPassword, setNewPassword] = useState('')
+  const [confirmNewPassword, setConfirmNewPassword] = useState('')
+  const [passwordChangeError, setPasswordChangeError] = useState('')
+  const [passwordChangeSuccess, setPasswordChangeSuccess] = useState(false)
+  const [isChangingPassword, setIsChangingPassword] = useState(false)
   const previousMatchesRef = useRef<Match[]>([])
   const { language } = useLanguage()
   const isEnglish = language === 'en'
@@ -862,6 +869,54 @@ export default function CaptainDashboardPage() {
     }
   }
 
+  const handleChangePassword = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!team) return
+    setPasswordChangeError('')
+    setPasswordChangeSuccess(false)
+    const v = validatePasswordClient(newPassword)
+    if (!v.valid) {
+      const msg = v.errorKey === 'password_min_length'
+        ? t('Passordet må ha minst 6 tegn.', 'Password must be at least 6 characters.')
+        : v.errorKey === 'password_uppercase'
+          ? t('Passordet må inneholde minst én stor bokstav.', 'Password must contain at least one uppercase letter.')
+          : t('Passordet må inneholde minst ett tall.', 'Password must contain at least one number.')
+      setPasswordChangeError(msg)
+      return
+    }
+    if (newPassword !== confirmNewPassword) {
+      setPasswordChangeError(t('De nye passordene er ikke like.', 'New passwords do not match.'))
+      return
+    }
+    setIsChangingPassword(true)
+    try {
+      const response = await fetch('/api/teams', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: team.id,
+          currentPassword,
+          newPassword
+        })
+      })
+      const data = await response.json()
+      if (!response.ok) {
+        setPasswordChangeError(data.error || t('Kunne ikke endre passord.', 'Could not change password.'))
+        return
+      }
+      setPasswordChangeSuccess(true)
+      setCurrentPassword('')
+      setNewPassword('')
+      setConfirmNewPassword('')
+      addToast({ message: t('Passord endret.', 'Password changed.'), type: 'success' })
+    } catch (err) {
+      console.error('Password change error:', err)
+      setPasswordChangeError(t('Noe gikk galt. Prøv igjen.', 'Something went wrong. Please try again.'))
+    } finally {
+      setIsChangingPassword(false)
+    }
+  }
+
   const confirmResult = async (match: Match) => {
     if (!team) return
 
@@ -1275,6 +1330,54 @@ export default function CaptainDashboardPage() {
               </div>
             </div>
           )}
+
+          <div className="pro11-card p-6 mb-6">
+            <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
+              <Lock className="w-5 h-5" />
+              {t('Endre passord', 'Change password')}
+            </h2>
+            <p className="text-slate-400 text-sm mb-4">
+              {t('Minst 6 tegn, én stor bokstav og ett tall.', 'At least 6 characters, one uppercase letter and one number.')}
+            </p>
+            <form onSubmit={handleChangePassword} className="space-y-4 max-w-md">
+              <div>
+                <label className="block text-sm font-medium text-slate-300 mb-1">{t('Nåværende passord', 'Current password')}</label>
+                <input
+                  type="password"
+                  value={currentPassword}
+                  onChange={(e) => { setCurrentPassword(e.target.value); setPasswordChangeError('') }}
+                  className="pro11-input w-full"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-300 mb-1">{t('Nytt passord', 'New password')}</label>
+                <input
+                  type="password"
+                  value={newPassword}
+                  onChange={(e) => { setNewPassword(e.target.value); setPasswordChangeError('') }}
+                  className="pro11-input w-full"
+                  placeholder={t('Min. 6 tegn, 1 stor bokstav, 1 tall', 'Min. 6 characters, 1 uppercase, 1 number')}
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-300 mb-1">{t('Bekreft nytt passord', 'Confirm new password')}</label>
+                <input
+                  type="password"
+                  value={confirmNewPassword}
+                  onChange={(e) => { setConfirmNewPassword(e.target.value); setPasswordChangeError('') }}
+                  className="pro11-input w-full"
+                  required
+                />
+              </div>
+              {passwordChangeError && <p className="text-red-400 text-sm">{passwordChangeError}</p>}
+              {passwordChangeSuccess && <p className="text-green-400 text-sm">{t('Passordet er endret.', 'Password has been changed.')}</p>}
+              <button type="submit" disabled={isChangingPassword} className="pro11-button-secondary">
+                {isChangingPassword ? t('Endrer...', 'Changing...') : t('Endre passord', 'Change password')}
+              </button>
+            </form>
+          </div>
 
           {/* Quick Actions for Active Tournaments */}
           {liveTournaments.length > 0 && (

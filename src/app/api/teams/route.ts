@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSupabase, getSupabaseAdmin } from '@/lib/supabase'
 import { generatePassword } from '@/lib/utils'
+import { validatePassword, hashPassword, comparePassword } from '@/lib/password'
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { teamName, captainName, captainEmail, captainPhone, expectedPlayers, tournamentId, discordUsername, reusePassword } = body
+    const { teamName, captainName, captainEmail, captainPhone, expectedPlayers, tournamentId, discordUsername, reusePassword, password: userPassword } = body
 
     console.log('Team registration request:', body)
 
@@ -103,27 +104,57 @@ export async function POST(request: NextRequest) {
       }, { status: 400 })
     }
 
-    // Generate password for captain (reuse when possible)
-    let password = typeof reusePassword === 'string' && reusePassword.trim()
-      ? reusePassword.trim()
-      : ''
-
-    if (!password && typeof captainEmail === 'string' && captainEmail.trim()) {
+    // Password: user-provided (validated & hashed), reuse hash for same email, or generated
+    let passwordToStore: string
+    let plainPasswordForResponse: string | undefined
+    if (typeof userPassword === 'string' && userPassword.trim()) {
+      const validation = validatePassword(userPassword.trim())
+      if (!validation.valid) {
+        return NextResponse.json({ error: validation.error || 'Invalid password' }, { status: 400 })
+      }
+      passwordToStore = await hashPassword(userPassword.trim())
+    } else if (typeof reusePassword === 'string' && reusePassword.trim() && normalizedCaptainEmail) {
+      const reusePlain = reusePassword.trim()
+      const { data: prevTeam } = await supabase
+        .from('teams')
+        .select('generated_password')
+        .ilike('captain_email', normalizedCaptainEmail)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .single()
+      const previousHash = prevTeam?.generated_password
+      if (previousHash && (previousHash.startsWith('$2a$') || previousHash.startsWith('$2b$') || previousHash.startsWith('$2y$'))) {
+        const { comparePassword } = await import('@/lib/password')
+        const match = await comparePassword(reusePlain, previousHash)
+        if (!match) {
+          return NextResponse.json({ error: 'Invalid password for this captain email.' }, { status: 400 })
+        }
+        passwordToStore = previousHash
+      } else if (previousHash) {
+        if (previousHash !== reusePlain) {
+          return NextResponse.json({ error: 'Invalid password for this captain email.' }, { status: 400 })
+        }
+        passwordToStore = await hashPassword(reusePlain)
+      } else {
+        passwordToStore = await hashPassword(reusePlain)
+      }
+    } else if (typeof captainEmail === 'string' && captainEmail.trim()) {
       const { data: previousTeams } = await supabase
         .from('teams')
         .select('generated_password')
         .eq('captain_email', captainEmail.trim())
         .order('created_at', { ascending: false })
         .limit(1)
-
-      const previousPassword = previousTeams?.[0]?.generated_password
-      if (previousPassword) {
-        password = previousPassword
+      const previousStored = previousTeams?.[0]?.generated_password
+      if (previousStored) {
+        passwordToStore = previousStored
+      } else {
+        plainPasswordForResponse = generatePassword()
+        passwordToStore = await hashPassword(plainPasswordForResponse)
       }
-    }
-
-    if (!password) {
-      password = generatePassword()
+    } else {
+      plainPasswordForResponse = generatePassword()
+      passwordToStore = await hashPassword(plainPasswordForResponse)
     }
 
     const status = createWithoutTournament ? 'approved' : (isFreeTournament ? 'approved' : 'pending')
@@ -141,7 +172,7 @@ export async function POST(request: NextRequest) {
         expected_players: expectedPlayers,
         status,
         payment_status: paymentStatus,
-        generated_password: password
+        generated_password: passwordToStore
       })
       .select()
       .single()
@@ -205,17 +236,18 @@ export async function POST(request: NextRequest) {
       status: team.status,
       paymentStatus: team.payment_status,
       payment_status: team.payment_status,
-      generatedPassword: team.generated_password,
-      generated_password: team.generated_password,
       created_at: team.created_at
     }
-    
-    console.log('Team registered successfully:', teamData)
-    
-    return NextResponse.json({ 
-      success: true, 
+
+    // Return plain password only when we generated it (e.g. admin); never when user chose it
+    const returnPassword = plainPasswordForResponse ?? undefined
+
+    console.log('Team registered successfully:', teamData.id)
+
+    return NextResponse.json({
+      success: true,
       team: teamData,
-      password 
+      ...(returnPassword != null && returnPassword !== '' && { password: returnPassword })
     })
 
   } catch (error: any) {
@@ -260,7 +292,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Failed to fetch teams: ' + error.message }, { status: 400 })
     }
 
-    // Transform to include both formats for compatibility
+    // Transform; do not expose password hash to client
     const transformedTeams = (teams || []).map((team: any) => ({
       id: team.id,
       tournamentId: team.tournament_id,
@@ -282,8 +314,6 @@ export async function GET(request: NextRequest) {
       status: team.status,
       paymentStatus: team.payment_status,
       payment_status: team.payment_status,
-      generatedPassword: team.generated_password,
-      generated_password: team.generated_password,
       created_at: team.created_at,
       tournament: team.tournaments
     }))
@@ -299,13 +329,12 @@ export async function GET(request: NextRequest) {
 export async function PUT(request: NextRequest) {
   try {
     const body = await request.json()
-    const { id, status, discordUsername, checkedIn } = body
+    const { id, status, discordUsername, checkedIn, currentPassword, newPassword } = body
 
     if (!id) {
       return NextResponse.json({ error: 'Team ID is required' }, { status: 400 })
     }
 
-    // Use admin client to bypass RLS
     const supabase = getSupabaseAdmin()
     if (!supabase) {
       return NextResponse.json({ error: 'Database connection failed' }, { status: 500 })
@@ -315,6 +344,24 @@ export async function PUT(request: NextRequest) {
     if (status) updateData.status = status
     if (discordUsername !== undefined) updateData.discord_username = discordUsername || null
     if (checkedIn !== undefined) updateData.checked_in = Boolean(checkedIn)
+
+    if (typeof currentPassword === 'string' && typeof newPassword === 'string') {
+      const { data: teamRow } = await supabase
+        .from('teams')
+        .select('generated_password')
+        .eq('id', id)
+        .single()
+      const stored = teamRow?.generated_password
+      const match = await comparePassword(currentPassword, stored)
+      if (!match) {
+        return NextResponse.json({ error: 'Current password is incorrect.' }, { status: 400 })
+      }
+      const validation = validatePassword(newPassword.trim())
+      if (!validation.valid) {
+        return NextResponse.json({ error: validation.error || 'Invalid new password' }, { status: 400 })
+      }
+      updateData.generated_password = await hashPassword(newPassword.trim())
+    }
 
     let team: any = null
     let error: any = null

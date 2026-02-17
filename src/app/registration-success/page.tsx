@@ -11,7 +11,8 @@ interface RegistrationData {
   captainName: string
   captainEmail: string
   teamId: string
-  password: string
+  password?: string
+  userChosePassword?: boolean
   tournamentId?: string
   entryFee?: number
   existingTeam?: boolean
@@ -79,53 +80,80 @@ export default function RegistrationSuccessPage() {
 
           {!registrationData.existingTeam && (
             <div className="pro11-card p-6 sm:p-8 mb-6">
-              <div className="flex flex-col sm:flex-row sm:items-start gap-3 mb-6">
-                <AlertTriangle className="w-6 h-6 text-yellow-400 flex-shrink-0 mt-1" />
-                <div>
-                  <h2 className="text-2xl font-bold mb-2 text-yellow-400">
-                    {isEnglish ? 'IMPORTANT: Save your password!' : 'VIKTIG: Noter ned passordet!'}
-                  </h2>
+              {registrationData.userChosePassword ? (
+                <>
                   <p className="text-slate-300 mb-4">
                     {isEnglish
-                      ? 'You need this password to log in as team captain and manage your team.'
-                      : 'Dette passordet trenger du for å logge inn som lagkaptein og administrere laget ditt.'}
-                    <strong className="text-white">
-                      {isEnglish ? ' You will not be able to see this password again.' : ' Du vil ikke kunne se dette passordet igjen.'}
-                    </strong>
+                      ? 'You chose your own password during registration. Use it together with your email to log in as captain.'
+                      : 'Du valgte ditt eget passord under registreringen. Bruk det sammen med e-posten din for å logge inn som lagleder.'}
                   </p>
-                </div>
-              </div>
+                  <div className="bg-blue-600/20 border border-blue-500/30 rounded-lg p-4">
+                    <p className="text-sm text-slate-300 mb-2">
+                      <strong>{isEnglish ? 'Login email:' : 'E-post for innlogging:'}</strong> {registrationData.captainEmail}
+                    </p>
+                    <p className="text-sm text-slate-400">
+                      {isEnglish ? 'Log in at' : 'Logg inn på'}{' '}
+                      <Link href="/captain/login" className="text-blue-400 hover:underline">
+                        /captain/login
+                      </Link>
+                      {' '}{isEnglish ? 'with the email and password you chose.' : 'med e-post og passord du valgte.'}
+                    </p>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="flex flex-col sm:flex-row sm:items-start gap-3 mb-6">
+                    <AlertTriangle className="w-6 h-6 text-yellow-400 flex-shrink-0 mt-1" />
+                    <div>
+                      <h2 className="text-2xl font-bold mb-2 text-yellow-400">
+                        {isEnglish ? 'IMPORTANT: Save your password!' : 'VIKTIG: Noter ned passordet!'}
+                      </h2>
+                      <p className="text-slate-300 mb-4">
+                        {isEnglish
+                          ? 'You need this password to log in as team captain and manage your team.'
+                          : 'Dette passordet trenger du for å logge inn som lagkaptein og administrere laget ditt.'}
+                        <strong className="text-white">
+                          {isEnglish ? ' You will not be able to see this password again.' : ' Du vil ikke kunne se dette passordet igjen.'}
+                        </strong>
+                      </p>
+                    </div>
+                  </div>
 
-              <div className="bg-slate-900/50 border-2 border-yellow-500/50 rounded-lg p-4 sm:p-6 mb-4">
-                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-2">
-                  <label className="text-sm font-medium text-slate-400">{isEnglish ? 'Your password:' : 'Ditt passord:'}</label>
-                  <button
-                    onClick={copyPassword}
-                    className="flex items-center space-x-2 text-blue-400 hover:text-blue-300 transition-colors"
-                  >
-                    <Copy className="w-4 h-4" />
-                    <span className="text-sm">{copied ? (isEnglish ? 'Copied!' : 'Kopiert!') : (isEnglish ? 'Copy' : 'Kopier')}</span>
-                  </button>
-                </div>
-                <div className="bg-slate-800 p-4 rounded border border-slate-700">
-                  <p className="text-xl sm:text-2xl font-mono text-center text-green-400 font-bold tracking-wider break-all">
-                    {registrationData.password}
-                  </p>
-                </div>
-              </div>
-
-              <div className="bg-blue-600/20 border border-blue-500/30 rounded-lg p-4">
-                <p className="text-sm text-slate-300 mb-2">
-                  <strong>{isEnglish ? 'Login email:' : 'E-post for innlogging:'}</strong> {registrationData.captainEmail}
-                </p>
-                <p className="text-sm text-slate-400">
-                  {isEnglish ? 'You can log in at' : 'Du kan logge inn på'}{' '}
-                  <Link href="/captain/login" className="text-blue-400 hover:underline">
-                    /captain/login
-                  </Link>
-                  {' '}{isEnglish ? 'using the email address and password above.' : 'med e-postadressen og passordet over.'}
-                </p>
-              </div>
+                  {registrationData.password && (
+                    <>
+                      <div className="bg-slate-900/50 border-2 border-yellow-500/50 rounded-lg p-4 sm:p-6 mb-4">
+                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-2">
+                          <label className="text-sm font-medium text-slate-400">{isEnglish ? 'Your password:' : 'Ditt passord:'}</label>
+                          <button
+                            onClick={copyPassword}
+                            className="flex items-center space-x-2 text-blue-400 hover:text-blue-300 transition-colors"
+                          >
+                            <Copy className="w-4 h-4" />
+                            <span className="text-sm">{copied ? (isEnglish ? 'Copied!' : 'Kopiert!') : (isEnglish ? 'Copy' : 'Kopier')}</span>
+                          </button>
+                        </div>
+                        <div className="bg-slate-800 p-4 rounded border border-slate-700">
+                          <p className="text-xl sm:text-2xl font-mono text-center text-green-400 font-bold tracking-wider break-all">
+                            {registrationData.password}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="bg-blue-600/20 border border-blue-500/30 rounded-lg p-4">
+                        <p className="text-sm text-slate-300 mb-2">
+                          <strong>{isEnglish ? 'Login email:' : 'E-post for innlogging:'}</strong> {registrationData.captainEmail}
+                        </p>
+                        <p className="text-sm text-slate-400">
+                          {isEnglish ? 'You can log in at' : 'Du kan logge inn på'}{' '}
+                          <Link href="/captain/login" className="text-blue-400 hover:underline">
+                            /captain/login
+                          </Link>
+                          {' '}{isEnglish ? 'using the email address and password above.' : 'med e-postadressen og passordet over.'}
+                        </p>
+                      </div>
+                    </>
+                  )}
+                </>
+              )}
             </div>
           )}
 
@@ -175,13 +203,13 @@ export default function RegistrationSuccessPage() {
             </div>
           </div>
 
-          {!registrationData.existingTeam && (
+          {!registrationData.existingTeam && !registrationData.userChosePassword && registrationData.password && (
             <div className="mt-8 p-4 bg-red-900/20 border border-red-500/30 rounded-lg">
               <p className="text-sm text-red-300 text-center">
-              ⚠️ <strong>{isEnglish ? 'Remember:' : 'Husk:'}</strong>{' '}
-              {isEnglish
-                ? 'If you do not save the password now, you will not be able to log in later. Contact support if you forget it.'
-                : 'Hvis du ikke noterer ned passordet nå, vil du ikke kunne logge inn senere. Kontakt support hvis du glemmer passordet.'}
+                ⚠️ <strong>{isEnglish ? 'Remember:' : 'Husk:'}</strong>{' '}
+                {isEnglish
+                  ? 'If you do not save the password now, you will not be able to log in later. Contact support if you forget it.'
+                  : 'Hvis du ikke noterer ned passordet nå, vil du ikke kunne logge inn senere. Kontakt support hvis du glemmer passordet.'}
               </p>
             </div>
           )}

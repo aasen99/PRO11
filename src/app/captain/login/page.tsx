@@ -31,57 +31,31 @@ export default function CaptainLoginPage() {
     setError('')
 
     try {
-      // Hent teams fra database
-      const response = await fetch('/api/teams')
-      if (!response.ok) {
-        throw new Error('Kunne ikke hente lag')
-      }
-      
-      const data = await response.json()
-      const teams = data.teams || []
-      
-      // Finn lag med matchende e-post (case-insensitive)
-      const normalizeEmail = (value: string) => value.trim().toLowerCase()
-      const matchingTeams = teams.filter((t: any) => {
-        const captainEmail = t.captainEmail || t.captain_email || ''
-        return normalizeEmail(captainEmail) === normalizeEmail(email)
+      const response = await fetch('/api/captain/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: email.trim(), password })
       })
-      
-      if (matchingTeams.length === 0) {
-        setError(isEnglish ? 'Incorrect email or password. Please try again.' : 'Feil e-post eller passord. Prøv igjen.')
+      const data = await response.json()
+
+      if (!response.ok) {
+        setError(data.error || (isEnglish ? 'Incorrect email or password. Please try again.' : 'Feil e-post eller passord. Prøv igjen.'))
         setPassword('')
         setIsLoading(false)
         return
       }
 
-      const latestTeam = matchingTeams.sort((a: any, b: any) => {
-        const dateA = a.created_at ? new Date(a.created_at).getTime() : 0
-        const dateB = b.created_at ? new Date(b.created_at).getTime() : 0
-        return dateB - dateA
-      })[0]
-      
-      // Sjekk passord (generert passord fra database)
-      const teamPassword = latestTeam.generatedPassword || latestTeam.generated_password
-      const isCorrectPassword = password === teamPassword
-      
-      if (isCorrectPassword) {
-        // Lagre team data for dashboard
-        const tournamentId = latestTeam.tournamentId || latestTeam.tournament_id || ''
-        const tournaments = Array.from(new Set(
-          matchingTeams
-            .map((t: any) => t.tournamentId || t.tournament_id)
-            .filter(Boolean)
-        ))
+      if (data.success && data.team) {
         const teamData = {
-          id: latestTeam.id,
-          teamName: latestTeam.teamName || latestTeam.team_name,
-          captainEmail: latestTeam.captainEmail || latestTeam.captain_email,
-          captainName: latestTeam.captainName || latestTeam.captain_name,
-          discordUsername: latestTeam.discordUsername || latestTeam.discord_username || '',
-          tournaments,
-          tournamentId,
-          expectedPlayers: latestTeam.expectedPlayers || latestTeam.expected_players || 0,
-          paymentStatus: latestTeam.paymentStatus || latestTeam.payment_status || 'pending'
+          id: data.team.id,
+          teamName: data.team.teamName || data.team.team_name,
+          captainEmail: data.team.captainEmail || data.team.captain_email,
+          captainName: data.team.captainName || data.team.captain_name,
+          discordUsername: data.team.discordUsername || data.team.discord_username || '',
+          tournaments: data.team.tournaments || [],
+          tournamentId: data.team.tournamentId || data.team.tournament_id || '',
+          expectedPlayers: data.team.expectedPlayers ?? data.team.expected_players ?? 0,
+          paymentStatus: data.team.paymentStatus || data.team.payment_status || 'pending'
         }
         localStorage.setItem('captainTeam', JSON.stringify(teamData))
         window.location.href = '/captain/dashboard'

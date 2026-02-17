@@ -6,6 +6,7 @@ import { useSearchParams } from 'next/navigation'
 import { Users, ArrowLeft } from 'lucide-react'
 import Header from '@/components/Header'
 import { useLanguage } from '@/components/LanguageProvider'
+import { validatePasswordClient } from '@/lib/utils'
 
 function AddTeamContent() {
   const searchParams = useSearchParams()
@@ -22,9 +23,11 @@ function AddTeamContent() {
     discordUsername: '',
     expectedPlayers: 11
   })
+  const [password, setPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
-  const [success, setSuccess] = useState<{ teamName: string; password: string } | null>(null)
+  const [success, setSuccess] = useState<{ teamName: string; password?: string; userChosePassword?: boolean } | null>(null)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -44,6 +47,21 @@ function AddTeamContent() {
       setError(t('Kapteinens e-post er påkrevd.', 'Captain email is required.'))
       return
     }
+    setError('')
+    const v = validatePasswordClient(password)
+    if (!v.valid) {
+      const msg = v.errorKey === 'password_min_length'
+        ? t('Passordet må ha minst 6 tegn.', 'Password must be at least 6 characters.')
+        : v.errorKey === 'password_uppercase'
+          ? t('Passordet må inneholde minst én stor bokstav.', 'Password must contain at least one uppercase letter.')
+          : t('Passordet må inneholde minst ett tall.', 'Password must contain at least one number.')
+      setError(msg)
+      return
+    }
+    if (password !== confirmPassword) {
+      setError(t('Passordene er ikke like.', 'Passwords do not match.'))
+      return
+    }
     setSubmitting(true)
     try {
       const body: Record<string, unknown> = {
@@ -52,7 +70,8 @@ function AddTeamContent() {
         captainEmail: email,
         captainPhone: form.captainPhone || undefined,
         discordUsername: form.discordUsername || undefined,
-        expectedPlayers: Number(form.expectedPlayers) || 11
+        expectedPlayers: Number(form.expectedPlayers) || 11,
+        password
       }
       if (tournamentParam) body.tournamentId = tournamentParam
       const res = await fetch('/api/teams', {
@@ -62,7 +81,11 @@ function AddTeamContent() {
       })
       const data = await res.json()
       if (res.ok && data.success) {
-        setSuccess({ teamName: name, password: data.password || '' })
+        setSuccess({
+          teamName: name,
+          password: data.password,
+          userChosePassword: !data.password
+        })
       } else {
         setError(data.error || t('Kunne ikke opprette lag.', 'Could not create team.'))
       }
@@ -101,11 +124,15 @@ function AddTeamContent() {
                 <p className="mt-2 text-sm">
                   {t('Lag', 'Team')}: <strong>{success.teamName}</strong>
                 </p>
-                {success.password && (
+                {success.userChosePassword ? (
+                  <p className="mt-2 text-sm text-slate-300">
+                    {t('Du valgte ditt eget passord. Bruk det for å logge inn som lagleder.', 'You chose your own password. Use it to log in as captain.')}
+                  </p>
+                ) : success.password ? (
                   <p className="mt-2 text-sm">
                     {t('Passord til kaptein', 'Captain password')}: <strong className="select-all">{success.password}</strong>
                   </p>
-                )}
+                ) : null}
                 {!tournamentParam && (
                   <p className="mt-3 text-sm opacity-90">
                     {t('Når du vil melde på en turnering, logg inn som lagleder og velg turnering.', 'When you want to register for a tournament, log in as captain and choose a tournament.')}
@@ -184,6 +211,27 @@ function AddTeamContent() {
                   value={form.expectedPlayers}
                   onChange={(e) => setForm(f => ({ ...f, expectedPlayers: parseInt(e.target.value, 10) || 11 }))}
                   className="pro11-input w-full"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-300 mb-1">{t('Passord', 'Password')} *</label>
+                <input
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="pro11-input w-full"
+                  placeholder={t('Min. 6 tegn, 1 stor bokstav, 1 tall', 'Min. 6 characters, 1 uppercase, 1 number')}
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-300 mb-1">{t('Bekreft passord', 'Confirm password')} *</label>
+                <input
+                  type="password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  className="pro11-input w-full"
+                  required
                 />
               </div>
               {error && <p className="text-sm text-red-400">{error}</p>}

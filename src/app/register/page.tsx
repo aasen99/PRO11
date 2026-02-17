@@ -6,6 +6,7 @@ import { Shield, Users, User, Mail, Gamepad2, Plus, Trash2 } from 'lucide-react'
 import Header from '../../components/Header'
 import { fetchTournamentById } from '../../lib/tournaments'
 import { useLanguage } from '@/components/LanguageProvider'
+import { validatePasswordClient } from '@/lib/utils'
 
 interface TeamRegistration {
   teamName: string
@@ -27,6 +28,9 @@ export default function RegisterPage() {
     clubLogo: null,
     tournamentId: ''
   })
+  const [password, setPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
+  const [passwordError, setPasswordError] = useState('')
   const [tournament, setTournament] = useState<any>(null)
   const { language } = useLanguage()
   const isEnglish = language === 'en'
@@ -108,8 +112,23 @@ export default function RegisterPage() {
       return
     }
 
+    setPasswordError('')
+    const v = validatePasswordClient(password)
+    if (!v.valid) {
+      const msg = v.errorKey === 'password_min_length'
+        ? (isEnglish ? 'Password must be at least 6 characters' : 'Passordet må ha minst 6 tegn')
+        : v.errorKey === 'password_uppercase'
+          ? (isEnglish ? 'Password must contain at least one uppercase letter' : 'Passordet må inneholde minst én stor bokstav')
+          : (isEnglish ? 'Password must contain at least one number' : 'Passordet må inneholde minst ett tall')
+      setPasswordError(msg)
+      return
+    }
+    if (password !== confirmPassword) {
+      setPasswordError(isEnglish ? 'Passwords do not match' : 'Passordene er ikke like')
+      return
+    }
+
     try {
-      // Send til database via API
       const response = await fetch('/api/teams', {
         method: 'POST',
         headers: {
@@ -120,20 +139,20 @@ export default function RegisterPage() {
           captainName: formData.captainName,
           captainEmail: formData.captainEmail,
           discordUsername: formData.discordUsername,
-          captainPhone: '', // Ikke implementert i skjemaet ennå
+          captainPhone: '',
           expectedPlayers: formData.expectedPlayers,
-          tournamentId: formData.tournamentId
+          tournamentId: formData.tournamentId,
+          password: password
         })
       })
 
       if (response.ok) {
         const result = await response.json()
-        
-        // Lagre registreringsdata til localStorage med team ID
         const registrationData = {
           ...formData,
           teamId: result.team.id,
-          password: result.password,
+          password: undefined,
+          userChosePassword: true,
           entryFee: tournament?.entryFee ?? 0
         }
         localStorage.setItem('teamRegistration', JSON.stringify(registrationData))
@@ -173,44 +192,19 @@ export default function RegisterPage() {
     setIsLoginLoading(true)
 
     try {
-      const teamsResponse = await fetch('/api/teams')
-      if (!teamsResponse.ok) {
-        throw new Error('Could not load teams')
-      }
-
-      const teamsData = await teamsResponse.json()
-      const teams = teamsData.teams || []
-      const matchingTeams = teams.filter((t: any) => (t.captainEmail || t.captain_email) === loginEmail)
-      if (matchingTeams.length === 0) {
-        setLoginError(isEnglish ? 'Incorrect email or password.' : 'Feil e-post eller passord.')
+      const loginRes = await fetch('/api/captain/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: loginEmail.trim(), password: loginPassword })
+      })
+      const loginData = await loginRes.json()
+      if (!loginRes.ok || !loginData.team) {
+        setLoginError(loginData.error || (isEnglish ? 'Incorrect email or password.' : 'Feil e-post eller passord.'))
+        setIsLoginLoading(false)
         return
       }
 
-      const latestTeam = matchingTeams.sort((a: any, b: any) => {
-        const dateA = a.created_at ? new Date(a.created_at).getTime() : 0
-        const dateB = b.created_at ? new Date(b.created_at).getTime() : 0
-        return dateB - dateA
-      })[0]
-
-      const teamPassword = latestTeam.generatedPassword || latestTeam.generated_password
-      if (loginPassword !== teamPassword) {
-        setLoginError(isEnglish ? 'Incorrect email or password.' : 'Feil e-post eller passord.')
-        return
-      }
-
-      const isEligible =
-        latestTeam.status === 'approved' ||
-        latestTeam.paymentStatus === 'paid' ||
-        latestTeam.payment_status === 'completed'
-
-      if (!isEligible) {
-        setLoginError(
-          isEnglish
-            ? 'Your team must be approved/paid before you can join a new tournament.'
-            : 'Laget må være godkjent/betalt før dere kan melde dere på en ny turnering.'
-        )
-        return
-      }
+      const latestTeam = loginData.team
 
       const tournamentTeamsResponse = await fetch(`/api/teams?tournamentId=${formData.tournamentId}`)
       if (tournamentTeamsResponse.ok) {
@@ -228,6 +222,7 @@ export default function RegisterPage() {
         })
         if (alreadyRegistered) {
           setLoginError(isEnglish ? 'Team is already registered for this tournament.' : 'Laget er allerede påmeldt denne turneringen.')
+          setIsLoginLoading(false)
           return
         }
       }
@@ -240,12 +235,13 @@ export default function RegisterPage() {
         captainPhone: latestTeam.captainPhone || latestTeam.captain_phone || '',
         expectedPlayers: latestTeam.expectedPlayers || latestTeam.expected_players || 11,
         tournamentId: formData.tournamentId,
-        reusePassword: teamPassword
+        reusePassword: loginPassword
       }
 
       const entryFee = tournament?.entryFee ?? 0
       if (entryFee === 0) {
-        setPendingRegistration({ registrationPayload, teamPassword })
+        setPendingRegistration({ registrationPayload, teamPassword: loginPassword })
+        setIsLoginLoading(false)
         return
       }
 
@@ -273,7 +269,8 @@ export default function RegisterPage() {
         clubLogo: null,
         tournamentId: formData.tournamentId,
         teamId: result.team.id,
-        password: teamPassword,
+        password: undefined,
+        userChosePassword: true,
         entryFee,
         existingTeam: true
       }
@@ -322,7 +319,8 @@ export default function RegisterPage() {
         clubLogo: null,
         tournamentId: formData.tournamentId,
         teamId: result.team.id,
-        password: teamPassword,
+        password: undefined,
+        userChosePassword: true,
         entryFee,
         existingTeam: true
       }
@@ -495,6 +493,35 @@ export default function RegisterPage() {
                   placeholder={isEnglish ? 'e.g. username#1234' : 'f.eks. brukernavn#1234'}
                 />
               </div>
+
+              <div className="mt-6 grid sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium mb-2">{isEnglish ? 'Password *' : 'Passord *'}</label>
+                  <input
+                    type="password"
+                    value={password}
+                    onChange={(e) => { setPassword(e.target.value); setPasswordError('') }}
+                    className="pro11-input w-full"
+                    placeholder={isEnglish ? 'Min. 6 characters, 1 uppercase, 1 number' : 'Min. 6 tegn, 1 stor bokstav, 1 tall'}
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-2">{isEnglish ? 'Confirm password *' : 'Bekreft passord *'}</label>
+                  <input
+                    type="password"
+                    value={confirmPassword}
+                    onChange={(e) => { setConfirmPassword(e.target.value); setPasswordError('') }}
+                    className="pro11-input w-full"
+                    placeholder={isEnglish ? 'Repeat password' : 'Gjenta passord'}
+                    required
+                  />
+                </div>
+              </div>
+              {passwordError && <p className="text-red-400 text-sm mt-2">{passwordError}</p>}
+              <p className="text-slate-400 text-sm mt-1">
+                {isEnglish ? 'At least 6 characters, one uppercase letter and one number.' : 'Minst 6 tegn, én stor bokstav og ett tall.'}
+              </p>
             </div>
 
             {/* Expected Players */}
@@ -564,8 +591,8 @@ export default function RegisterPage() {
               </button>
               <p className="text-slate-400 text-sm mt-4">
                 {isEnglish
-                  ? 'After registration you will see your password and can proceed to payment'
-                  : 'Etter registrering vil du få se passordet ditt og kunne fortsette til betaling'}
+                  ? 'You use the password you chose above to log in as captain. Proceed to payment after registration.'
+                  : 'Du bruker passordet du valgte over for å logge inn som lagleder. Fortsett til betaling etter registrering.'}
               </p>
             </div>
           </form>
