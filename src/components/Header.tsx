@@ -16,6 +16,7 @@ interface HeaderProps {
 export default function Header({ backButton = false, backHref = '/', title }: HeaderProps) {
   const [hasActiveTournament, setHasActiveTournament] = useState(false)
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
+  const [isDesktop, setIsDesktop] = useState(false)
   const { language } = useLanguage()
   const isEnglish = language === 'en'
 
@@ -32,6 +33,19 @@ export default function Header({ backButton = false, backHref = '/', title }: He
     checkActiveTournament()
   }, [])
 
+  useEffect(() => {
+    const updateBreakpoint = () => setIsDesktop(window.innerWidth >= 1024)
+    updateBreakpoint()
+    window.addEventListener('resize', updateBreakpoint)
+    return () => window.removeEventListener('resize', updateBreakpoint)
+  }, [])
+
+  useEffect(() => {
+    if (isDesktop && isMobileMenuOpen) {
+      setIsMobileMenuOpen(false)
+    }
+  }, [isDesktop, isMobileMenuOpen])
+
   return (
     <header className="pro11-card mx-4 mt-4 h-24">
       <div className="flex items-center justify-between">
@@ -45,52 +59,56 @@ export default function Header({ backButton = false, backHref = '/', title }: He
             </p>
           </div>
         </div>
-        <nav className="hidden lg:flex items-center space-x-6 p-6">
-          <Link href="/tournaments" className="text-slate-300 hover:text-white transition-colors">
-            {isEnglish ? 'Tournaments' : 'Turneringer'}
-          </Link>
-          {hasActiveTournament ? (
-            <span className="text-slate-500 cursor-not-allowed">
-              {isEnglish ? 'Registration closed' : 'Påmelding stengt'}
-            </span>
-          ) : (
-            <Link href="/register" className="text-slate-300 hover:text-white transition-colors">
-              {isEnglish ? 'Registration' : 'Påmelding'}
+        {isDesktop && (
+          <nav className="flex flex-1 items-center justify-end gap-6 px-4 py-4 text-xs whitespace-nowrap">
+            <Link href="/tournaments" className="text-slate-300 hover:text-white transition-colors whitespace-nowrap">
+              {isEnglish ? 'Tournaments' : 'Turneringer'}
             </Link>
-          )}
-          <Link href="/add-team" className="text-slate-300 hover:text-white transition-colors">
-            {isEnglish ? 'Add team' : 'Legg til lag'}
-          </Link>
-          <Link href="/hall-of-fame" className="text-slate-300 hover:text-white transition-colors">
-            Hall of Fame
-          </Link>
-          <Link href="/captain/login" className="text-slate-300 hover:text-white transition-colors">
-            {isEnglish ? 'Captain' : 'Lagleder'}
-          </Link>
-          <a href="https://discord.gg/Es8UAkax8H" target="_blank" rel="noopener noreferrer" className="text-slate-300 hover:text-white transition-colors flex items-center space-x-1">
-            <span>Discord</span>
-            <ExternalLink className="w-4 h-4" />
-          </a>
-          <LanguageToggle />
-        </nav>
-        <div className="flex items-center gap-2 pr-4 lg:pr-0">
-          <button
-            type="button"
-            onClick={() => setIsMobileMenuOpen(prev => !prev)}
-            className="pro11-button-secondary text-sm lg:hidden"
-          >
-            {isMobileMenuOpen ? (isEnglish ? 'Close' : 'Lukk') : (isEnglish ? 'Menu' : 'Meny')}
-          </button>
-          {backButton && (
-            <Link href={backHref} className="pro11-button-secondary flex items-center space-x-2 hidden lg:flex">
-              <ArrowLeft className="w-4 h-4" />
-              <span>{isEnglish ? 'Back' : 'Tilbake'}</span>
+            {hasActiveTournament ? (
+              <span className="text-slate-500 cursor-not-allowed whitespace-nowrap" title={isEnglish ? 'Registration closed' : 'Påmelding stengt'}>
+                {isEnglish ? 'Closed' : 'Stengt'}
+              </span>
+            ) : (
+              <Link href="/register" className="text-slate-300 hover:text-white transition-colors whitespace-nowrap">
+                {isEnglish ? 'Registration' : 'Påmelding'}
+              </Link>
+            )}
+            <Link href="/add-team" className="text-slate-300 hover:text-white transition-colors whitespace-nowrap">
+              {isEnglish ? 'Add team' : 'Legg til lag'}
             </Link>
-          )}
-        </div>
+            <Link href="/hall-of-fame" className="text-slate-300 hover:text-white transition-colors whitespace-nowrap">
+              Hall of Fame
+            </Link>
+            <Link href="/captain/login" className="text-slate-300 hover:text-white transition-colors whitespace-nowrap">
+              {isEnglish ? 'Captain' : 'Lagleder'}
+            </Link>
+            <a href="https://discord.gg/Es8UAkax8H" target="_blank" rel="noopener noreferrer" className="text-slate-300 hover:text-white transition-colors flex items-center space-x-1 whitespace-nowrap">
+              <span>Discord</span>
+              <ExternalLink className="w-4 h-4" />
+            </a>
+            <LanguageToggle />
+            {backButton && (
+              <Link href={backHref} className="pro11-button-secondary flex items-center space-x-2 whitespace-nowrap ml-2">
+                <ArrowLeft className="w-4 h-4" />
+                <span>{isEnglish ? 'Back' : 'Tilbake'}</span>
+              </Link>
+            )}
+          </nav>
+        )}
+        {!isDesktop && (
+          <div className="flex items-center gap-2 pr-4">
+            <button
+              type="button"
+              onClick={() => setIsMobileMenuOpen(prev => !prev)}
+              className="pro11-button-secondary text-sm"
+            >
+              {isMobileMenuOpen ? (isEnglish ? 'Close' : 'Lukk') : (isEnglish ? 'Menu' : 'Meny')}
+            </button>
+          </div>
+        )}
       </div>
-      {isMobileMenuOpen && (
-        <div className="fixed inset-x-0 top-24 px-4 pb-4 lg:hidden z-50">
+      {isMobileMenuOpen && !isDesktop && (
+        <div className="fixed inset-x-0 top-24 px-4 pb-4 z-50">
           <div className="pro11-card p-4 flex flex-col space-y-3">
             {backButton && (
               <Link
