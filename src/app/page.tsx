@@ -11,6 +11,7 @@ export default function HomePage() {
   const [nextTournament, setNextTournament] = useState<any>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
+  const [isDesktop, setIsDesktop] = useState(false)
   const { language } = useLanguage()
   const isEnglish = language === 'en'
 
@@ -49,6 +50,19 @@ export default function HomePage() {
     loadTournaments()
   }, [])
 
+  useEffect(() => {
+    const updateBreakpoint = () => setIsDesktop(window.innerWidth >= 1024)
+    updateBreakpoint()
+    window.addEventListener('resize', updateBreakpoint)
+    return () => window.removeEventListener('resize', updateBreakpoint)
+  }, [])
+
+  useEffect(() => {
+    if (isDesktop && isMobileMenuOpen) {
+      setIsMobileMenuOpen(false)
+    }
+  }, [isDesktop, isMobileMenuOpen])
+
   const genLabel = nextTournament ? getGenLabel(nextTournament) : null
 
   return (
@@ -66,7 +80,8 @@ export default function HomePage() {
               </p>
             </div>
           </div>
-          <nav className="hidden lg:flex flex-1 items-center justify-end gap-6 px-4 py-4 text-xs whitespace-nowrap">
+          {isDesktop && (
+            <nav className="flex flex-1 items-center justify-end gap-6 px-4 py-4 text-xs whitespace-nowrap">
               <Link href="/tournaments" className="text-slate-300 hover:text-white transition-colors whitespace-nowrap">
                 {isEnglish ? 'Tournaments' : 'Turneringer'}
               </Link>
@@ -93,19 +108,22 @@ export default function HomePage() {
                 <ExternalLink className="w-4 h-4" />
               </a>
               <LanguageToggle />
-          </nav>
-          <div className="flex pr-4 lg:hidden">
-            <button
-              type="button"
-              onClick={() => setIsMobileMenuOpen(prev => !prev)}
-              className="pro11-button-secondary text-sm"
-            >
-              {isMobileMenuOpen ? (isEnglish ? 'Close' : 'Lukk') : (isEnglish ? 'Menu' : 'Meny')}
-            </button>
-          </div>
+            </nav>
+          )}
+          {!isDesktop && (
+            <div className="flex pr-4">
+              <button
+                type="button"
+                onClick={() => setIsMobileMenuOpen(prev => !prev)}
+                className="pro11-button-secondary text-sm"
+              >
+                {isMobileMenuOpen ? (isEnglish ? 'Close' : 'Lukk') : (isEnglish ? 'Menu' : 'Meny')}
+              </button>
+            </div>
+          )}
         </div>
-        {isMobileMenuOpen && (
-          <div className="fixed inset-x-0 top-24 px-4 pb-4 lg:hidden z-50">
+        {isMobileMenuOpen && !isDesktop && (
+          <div className="fixed inset-x-0 top-24 px-4 pb-4 z-50">
             <div className="pro11-card p-4 flex flex-col space-y-3">
               <Link
                 href="/tournaments"
