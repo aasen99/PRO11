@@ -32,6 +32,7 @@ export default function RegisterPage() {
   const [confirmPassword, setConfirmPassword] = useState('')
   const [passwordError, setPasswordError] = useState('')
   const [tournament, setTournament] = useState<any>(null)
+  const [isLoadingTournament, setIsLoadingTournament] = useState(true)
   const { language } = useLanguage()
   const isEnglish = language === 'en'
   const [loginEmail, setLoginEmail] = useState('')
@@ -56,6 +57,8 @@ export default function RegisterPage() {
   // Fetch tournament from database
   useEffect(() => {
     const loadTournament = async () => {
+      setIsLoadingTournament(true)
+      try {
       // Get first tournament if no ID specified
       if (!formData.tournamentId) {
         const response = await fetch('/api/tournaments')
@@ -88,6 +91,9 @@ export default function RegisterPage() {
       } else {
         const t = await fetchTournamentById(formData.tournamentId)
         setTournament(t)
+      }
+      } finally {
+        setIsLoadingTournament(false)
       }
     }
     loadTournament()
@@ -428,15 +434,24 @@ export default function RegisterPage() {
             {/* Tournament Info */}
             <div className="mb-8 p-4 bg-blue-600/20 rounded-lg border border-blue-500/30">
               <h3 className="text-xl font-semibold mb-2">{isEnglish ? 'Tournament' : 'Turnering'}</h3>
-              <p className="text-slate-300">{tournament?.title} - {tournament?.date}</p>
-              <p className="text-slate-400 text-sm">
-                {isEnglish ? 'Prize' : 'Premie'}: {tournament?.prize} | {isEnglish ? 'Entry fee' : 'Påmeldingsgebyr'}:{' '}
-                {tournament?.entryFee === 0 ? (
-                  <span className="text-green-400 font-semibold">{isEnglish ? 'FREE' : 'GRATIS'}</span>
-                ) : (
-                  <span>{tournament?.entryFee} NOK</span>
-                )}
-              </p>
+              {isLoadingTournament ? (
+                <div className="flex items-center gap-2 text-slate-400">
+                  <div className="w-4 h-4 border-2 border-blue-400 border-t-transparent rounded-full animate-spin" />
+                  <span className="text-sm">{isEnglish ? 'Loading tournament...' : 'Laster turnering...'}</span>
+                </div>
+              ) : (
+                <>
+                  <p className="text-slate-300">{tournament?.title} - {tournament?.date}</p>
+                  <p className="text-slate-400 text-sm">
+                    {isEnglish ? 'Prize' : 'Premie'}: {tournament?.prize} | {isEnglish ? 'Entry fee' : 'Påmeldingsgebyr'}:{' '}
+                    {tournament?.entryFee === 0 ? (
+                      <span className="text-green-400 font-semibold">{isEnglish ? 'FREE' : 'GRATIS'}</span>
+                    ) : (
+                      <span>{tournament?.entryFee} NOK</span>
+                    )}
+                  </p>
+                </>
+              )}
             </div>
 
             {/* Team Information */}

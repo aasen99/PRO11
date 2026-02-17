@@ -339,8 +339,14 @@ export default function TournamentDetailPage() {
 
   if (isLoading || !tournament) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="w-8 h-8 border-2 border-blue-400 border-t-transparent rounded-full animate-spin"></div>
+      <div className="min-h-screen flex flex-col">
+        <Header backButton backHref="/tournaments" title={t('Pro Clubs Turneringer', 'Pro Clubs Tournaments')} />
+        <main className="flex-1 flex items-center justify-center px-4 py-8">
+          <div className="flex flex-col items-center gap-4">
+            <div className="w-10 h-10 border-2 border-blue-400 border-t-transparent rounded-full animate-spin" />
+            <p className="text-slate-400 text-sm">{t('Laster turnering...', 'Loading tournament...')}</p>
+          </div>
+        </main>
       </div>
     )
   }

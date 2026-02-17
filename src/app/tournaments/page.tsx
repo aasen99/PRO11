@@ -73,13 +73,12 @@ export default function TournamentsPage() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen">
+      <div className="min-h-screen flex flex-col">
         <Header />
-        <main className="container mx-auto px-4 py-8">
-          <div className="max-w-6xl mx-auto">
-            <div className="flex items-center justify-center min-h-[400px]">
-              <div className="w-8 h-8 border-2 border-blue-400 border-t-transparent rounded-full animate-spin"></div>
-            </div>
+        <main className="flex-1 flex items-center justify-center container mx-auto px-4 py-8">
+          <div className="flex flex-col items-center gap-4">
+            <div className="w-10 h-10 border-2 border-blue-400 border-t-transparent rounded-full animate-spin" />
+            <p className="text-slate-400 text-sm">{isEnglish ? 'Loading tournaments...' : 'Laster turneringer...'}</p>
           </div>
         </main>
       </div>
@@ -87,11 +86,10 @@ export default function TournamentsPage() {
   }
 
   return (
-    <div className="min-h-screen">
-      {/* Header */}
+    <div className="min-h-screen flex flex-col">
       <Header />
 
-      <main className="container mx-auto px-4 py-8">
+      <main className="flex-1 container mx-auto px-4 py-8">
         <div className="max-w-6xl mx-auto">
           <div className="text-center mb-12">
             <h2 className="text-4xl font-bold mb-4">{isEnglish ? 'Tournaments' : 'Turneringer'}</h2>

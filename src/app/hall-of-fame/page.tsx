@@ -21,6 +21,7 @@ interface HallOfFameEntry {
 export default function HallOfFamePage() {
   const [activeTab, setActiveTab] = useState<'champions' | 'records' | 'achievements'>('champions')
   const [entries, setEntries] = useState<HallOfFameEntry[]>([])
+  const [isLoading, setIsLoading] = useState(true)
   const [stats, setStats] = useState({
     tournaments: 0,
     participants: 0,
@@ -61,6 +62,7 @@ export default function HallOfFamePage() {
 
   useEffect(() => {
     const loadStats = async () => {
+      setIsLoading(true)
       try {
         const [tournamentsResponse, matchesResponse] = await Promise.all([
           fetch('/api/tournaments'),
@@ -292,6 +294,8 @@ export default function HallOfFamePage() {
         setEntries([...championEntries, ...recordEntries])
       } catch (error) {
         console.warn('Could not load Hall of Fame stats:', error)
+      } finally {
+        setIsLoading(false)
       }
     }
 
@@ -314,6 +318,13 @@ export default function HallOfFamePage() {
             </p>
           </div>
 
+          {isLoading ? (
+            <div className="flex flex-col items-center justify-center py-16">
+              <div className="w-10 h-10 border-2 border-blue-400 border-t-transparent rounded-full animate-spin mb-4" />
+              <p className="text-slate-400">{isEnglish ? 'Loading...' : 'Laster...'}</p>
+            </div>
+          ) : (
+          <>
           {/* Stats Overview */}
           <div className="grid md:grid-cols-4 gap-6 mb-12">
             <div className="pro11-card p-6 text-center">
@@ -442,6 +453,8 @@ export default function HallOfFamePage() {
               <span>{isEnglish ? 'See tournaments' : 'Se turneringer'}</span>
             </Link>
           </div>
+          </>
+          )}
         </div>
       </main>
     </div>
