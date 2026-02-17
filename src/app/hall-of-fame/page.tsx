@@ -2,8 +2,9 @@
 
 import React, { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { ArrowLeft, Trophy, Medal, Star, Calendar, Users, Award, Crown } from 'lucide-react'
+import { Trophy, Medal, Star, Award, Crown } from 'lucide-react'
 import { useLanguage } from '@/components/LanguageProvider'
+import Header from '@/components/Header'
 
 interface HallOfFameEntry {
   id: string
@@ -117,7 +118,8 @@ export default function HallOfFamePage() {
           const eligibleTeams = t.eligible_teams ?? t.current_teams ?? 0
           const perTeamPot = getPerTeamPotFromDescription(t.description)
           const computedPrizePool = perTeamPot !== null ? perTeamPot * eligibleTeams : (t.prize_pool || 0)
-          const endDate = t.end_date ? new Date(t.end_date).toLocaleDateString('nb-NO', {
+          const locale = isEnglish ? 'en-US' : 'nb-NO'
+          const endDate = t.end_date ? new Date(t.end_date).toLocaleDateString(locale, {
             day: 'numeric',
             month: 'long',
             year: 'numeric'
@@ -132,7 +134,7 @@ export default function HallOfFamePage() {
             winner,
             runnerUp,
             date: endDate,
-            prize: `${computedPrizePool.toLocaleString('nb-NO')} NOK`,
+            prize: `${computedPrizePool.toLocaleString(isEnglish ? 'en-US' : 'nb-NO')} NOK`,
             participants: eligibleTeams,
             highlight,
             category: 'champion'
@@ -298,25 +300,7 @@ export default function HallOfFamePage() {
 
   return (
     <div className="min-h-screen">
-      {/* Header */}
-      <header className="pro11-card mx-4 mt-4 h-24">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center">
-            <Link href="/" className="w-24 h-full flex items-center justify-center hover:opacity-80 transition-opacity">
-              <img src="/logo.png" alt="PRO11 Logo" className="w-full h-full object-contain" />
-            </Link>
-            <div className="ml-4">
-              <p className="text-slate-400 text-sm">
-                {isEnglish ? 'Pro Clubs Tournaments' : 'Pro Clubs Turneringer'}
-              </p>
-            </div>
-          </div>
-          <Link href="/" className="pro11-button-secondary flex items-center space-x-2">
-            <ArrowLeft className="w-4 h-4" />
-            <span>{isEnglish ? 'Back' : 'Tilbake'}</span>
-          </Link>
-        </div>
-      </header>
+      <Header backButton backHref="/" title="Hall of Fame" />
 
       <main className="container mx-auto px-4 py-8 flex flex-col items-center">
         <div className="max-w-6xl w-full">
