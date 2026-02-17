@@ -290,38 +290,36 @@ export default function HomePage() {
         )}
 
         {/* About PRO11 */}
-        <div className="pro11-card p-8 mb-12 w-full max-w-4xl text-center">
+        <div className="pro11-card p-8 mb-12 w-full max-w-4xl">
           <h3 className="text-2xl font-bold mb-6 text-center">
             {isEnglish ? 'About PRO11' : 'Om PRO11'}
           </h3>
-          <div className="grid md:grid-cols-2 gap-8">
-            <div>
-              <p className="text-slate-300 leading-relaxed mb-4">
-                {isEnglish
-                  ? 'PRO11 came about because many Pro Clubs tournaments lived and died in a single evening.'
-                  : 'PRO11 ble til fordi mange Pro Clubs-turneringer levde og døde samme kveld.'}
-              </p>
-              <p className="text-slate-300 leading-relaxed mb-4">
-                {isEnglish
-                  ? 'There was a time when the tournament scene was larger and more united, and when teams met again and again over time. Today there are still many tournaments, but most stand alone — small one-off events with no history or continuity.'
-                  : 'Det fantes en tid hvor turneringsmiljøet var større og mer samlet, og hvor lag møttes igjen og igjen over tid. I dag finnes det fortsatt mange turneringer, men de fleste står alene — små arrangementer uten historikk eller videre utvikling.'}
-              </p>
-              <p className="text-slate-300 leading-relaxed mb-4">
-                {isEnglish
-                  ? 'PRO11 is an attempt to build something more lasting. Not just to run tournaments, but to connect them, store the results, and let teams build a history that continues.'
-                  : 'PRO11 er et forsøk på å bygge noe mer varig. Ikke bare arrangere turneringer, men knytte dem sammen, lagre resultatene og la lag bygge en historie som fortsetter videre.'}
-              </p>
-              <p className="text-slate-300 leading-relaxed mb-4">
-                {isEnglish
-                  ? 'The aim is not only to fill a gap, but to take tournaments a step further.'
-                  : 'Målet er ikke bare å fylle et tomrom, men å ta turneringene et steg videre.'}
-              </p>
-              <p className="text-slate-300 leading-relaxed">
-                {isEnglish
-                  ? 'Developed and run from Norway.'
-                  : 'Utviklet og drevet fra Norge.'}
-              </p>
-            </div>
+          <div className="mx-auto max-w-2xl text-center">
+            <p className="text-slate-300 leading-relaxed mb-4">
+              {isEnglish
+                ? 'PRO11 came about because many Pro Clubs tournaments lived and died in a single evening.'
+                : 'PRO11 ble til fordi mange Pro Clubs-turneringer levde og døde samme kveld.'}
+            </p>
+            <p className="text-slate-300 leading-relaxed mb-4">
+              {isEnglish
+                ? 'There was a time when the tournament scene was larger and more united, and when teams met again and again over time. Today there are still many tournaments, but most stand alone — small one-off events with no history or continuity.'
+                : 'Det fantes en tid hvor turneringsmiljøet var større og mer samlet, og hvor lag møttes igjen og igjen over tid. I dag finnes det fortsatt mange turneringer, men de fleste står alene — små arrangementer uten historikk eller videre utvikling.'}
+            </p>
+            <p className="text-slate-300 leading-relaxed mb-4">
+              {isEnglish
+                ? 'PRO11 is an attempt to build something more lasting. Not just to run tournaments, but to connect them, store the results, and let teams build a history that continues.'
+                : 'PRO11 er et forsøk på å bygge noe mer varig. Ikke bare arrangere turneringer, men knytte dem sammen, lagre resultatene og la lag bygge en historie som fortsetter videre.'}
+            </p>
+            <p className="text-slate-300 leading-relaxed mb-4">
+              {isEnglish
+                ? 'The aim is not only to fill a gap, but to take tournaments a step further.'
+                : 'Målet er ikke bare å fylle et tomrom, men å ta turneringene et steg videre.'}
+            </p>
+            <p className="text-slate-300 leading-relaxed">
+              {isEnglish
+                ? 'Developed and run from Norway.'
+                : 'Utviklet og drevet fra Norge.'}
+            </p>
           </div>
         </div>
 
