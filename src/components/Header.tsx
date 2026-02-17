@@ -82,7 +82,7 @@ export default function Header({ backButton = false, backHref = '/', title }: He
             {isMobileMenuOpen ? (isEnglish ? 'Close' : 'Lukk') : (isEnglish ? 'Menu' : 'Meny')}
           </button>
           {backButton && (
-            <Link href={backHref} className="pro11-button-secondary flex items-center space-x-2">
+            <Link href={backHref} className="pro11-button-secondary flex items-center space-x-2 hidden lg:flex">
               <ArrowLeft className="w-4 h-4" />
               <span>{isEnglish ? 'Back' : 'Tilbake'}</span>
             </Link>
@@ -92,6 +92,16 @@ export default function Header({ backButton = false, backHref = '/', title }: He
       {isMobileMenuOpen && (
         <div className="fixed inset-x-0 top-24 px-4 pb-4 lg:hidden z-50">
           <div className="pro11-card p-4 flex flex-col space-y-3">
+            {backButton && (
+              <Link
+                href={backHref}
+                className="text-slate-300 hover:text-white transition-colors flex items-center space-x-2"
+                onClick={() => setIsMobileMenuOpen(false)}
+              >
+                <ArrowLeft className="w-4 h-4" />
+                <span>{isEnglish ? 'Back' : 'Tilbake'}</span>
+              </Link>
+            )}
             <Link
               href="/tournaments"
               className="text-slate-300 hover:text-white transition-colors"
