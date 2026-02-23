@@ -19,9 +19,9 @@ function getKey(identifier: string, type: LimitType): string {
 
 function cleanup() {
   const now = Date.now()
-  for (const [key, value] of store.entries()) {
+  Array.from(store.entries()).forEach(([key, value]) => {
     if (now - value.firstAt > WINDOW_MS) store.delete(key)
-  }
+  })
 }
 
 /** Check if the identifier is over the limit (call before attempting login). */
