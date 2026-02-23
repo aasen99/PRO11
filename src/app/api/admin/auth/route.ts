@@ -28,8 +28,8 @@ export async function POST(request: NextRequest) {
     const password = typeof body?.password === 'string' ? body.password : ''
 
     const adminPassword = process.env.ADMIN_PASSWORD
-    if (!adminPassword) {
-      console.error('ADMIN_PASSWORD environment variable is not set')
+    if (!adminPassword || !String(adminPassword).trim()) {
+      console.error('[Admin auth] ADMIN_PASSWORD is missing or empty. In Vercel: Settings → Environment Variables → ADMIN_PASSWORD must be set for Production (not only Preview).')
       return NextResponse.json({ success: false, error: 'Server configuration error' }, { status: 500 })
     }
 
