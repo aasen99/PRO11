@@ -208,7 +208,8 @@ export default function AdminPage() {
     teamsPerGroup: 0, // 0 = auto-calculate
     teamsToKnockout: 2, // Teams per group that advance
     useBestRunnersUp: false,
-    numBestRunnersUp: 0 // Number of best 2nd place teams to include
+    numBestRunnersUp: 0, // Number of best 2nd place teams to include
+    requireCheckIn: true // false = generer grupper med alle godkjente lag uten krav om innsjekk
   })
   
   // Prize management state
@@ -1205,12 +1206,12 @@ PRO11 Team`)
     }
 
     const approvedTeams = teams
-      .filter(team => isTeamEligibleForMatches(team) && (team.tournamentId === tournamentId || team.tournament_id === tournamentId))
+      .filter(team => isTeamEligible(team) && (team.tournamentId === tournamentId || team.tournament_id === tournamentId))
       .map(team => team.teamName || team.team_name)
       .filter((name): name is string => name !== undefined && name !== null)
 
     if (approvedTeams.length < 4) {
-      alert(t('Du trenger minst 4 godkjente lag som er sjekket inn for å generere kamper!', 'You need at least 4 approved and checked-in teams to generate matches!'))
+      alert(t('Du trenger minst 4 godkjente lag for å generere kamper.', 'You need at least 4 approved teams to generate matches.'))
       return
     }
 
@@ -1228,7 +1229,8 @@ PRO11 Team`)
       teamsPerGroup: 0, // Auto
       teamsToKnockout: defaultTeamsToKnockout,
       useBestRunnersUp: false,
-      numBestRunnersUp: 0
+      numBestRunnersUp: 0,
+      requireCheckIn: true
     })
     
     setTournamentForMatchGeneration(tournamentId)
@@ -1242,18 +1244,18 @@ PRO11 Team`)
       return
     }
 
+    const useConfig = config || matchConfig
+    const requireCheckIn = useConfig.requireCheckIn !== false
     const approvedTeams = teams
-      .filter(team => isTeamEligibleForMatches(team) && (team.tournamentId === tournamentId || team.tournament_id === tournamentId))
+      .filter(team => (requireCheckIn ? isTeamEligibleForMatches(team) : isTeamEligible(team)) && (team.tournamentId === tournamentId || team.tournament_id === tournamentId))
       .map(team => team.teamName || team.team_name)
       .filter((name): name is string => name !== undefined && name !== null)
 
     if (approvedTeams.length < 4) {
-      alert(t('Du trenger minst 4 godkjente lag som er sjekket inn for å generere kamper!', 'You need at least 4 approved and checked-in teams to generate matches!'))
+      alert(t('Du trenger minst 4 lag for å generere kamper. Skru av "Krev innsjekk" for å inkludere alle godkjente lag.', 'You need at least 4 teams to generate matches. Turn off "Require check-in" to include all approved teams.'))
       return
     }
 
-    // Use provided config or default
-    const useConfig = config || matchConfig
     try {
       localStorage.setItem(`matchConfig:${tournamentId}`, JSON.stringify(useConfig))
     } catch (error) {
@@ -2943,6 +2945,24 @@ PRO11 Team`)
                 </p>
               </div>
 
+              {/* Require check-in (admin can uncheck to generate with all approved teams) */}
+              <div>
+                <label className="flex items-center space-x-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={matchConfig.requireCheckIn !== false}
+                    onChange={(e) => setMatchConfig({ ...matchConfig, requireCheckIn: e.target.checked })}
+                    className="w-4 h-4"
+                  />
+                  <span className="text-sm font-medium text-slate-300">
+                    {t('Krev at lag er sjekket inn', 'Require teams to be checked in')}
+                  </span>
+                </label>
+                <p className="text-xs text-slate-400 mt-1 ml-6">
+                  {t('Skru av for å generere grupper med alle godkjente lag, også uten innsjekk', 'Turn off to generate groups with all approved teams, including those not checked in')}
+                </p>
+              </div>
+
               {/* Use Best Runners-Up */}
               <div>
                 <label className="flex items-center space-x-2 cursor-pointer">
@@ -2992,8 +3012,9 @@ PRO11 Team`)
               {/* Info about current teams */}
               {tournamentForMatchGeneration && (() => {
                 const tournament = tournaments.find(t => t.id === tournamentForMatchGeneration)
+                const requireCheckIn = matchConfig.requireCheckIn !== false
                 const approvedTeams = teams
-                  .filter(team => isTeamEligibleForMatches(team) && (team.tournamentId === tournamentForMatchGeneration || team.tournament_id === tournamentForMatchGeneration))
+                  .filter(team => (requireCheckIn ? isTeamEligibleForMatches(team) : isTeamEligible(team)) && (team.tournamentId === tournamentForMatchGeneration || team.tournament_id === tournamentForMatchGeneration))
                   .map(team => team.teamName || team.team_name)
                   .filter((name): name is string => name !== undefined && name !== null)
                 
@@ -3006,7 +3027,7 @@ PRO11 Team`)
                   <div className="pro11-card p-4 bg-slate-800/50">
                     <h3 className="font-semibold mb-2 text-sm">{t('Oversikt', 'Overview')}</h3>
                     <div className="space-y-1 text-xs text-slate-300">
-                      <p>{t('Godkjente og sjekket inn', 'Approved and checked in')}: <span className="font-semibold text-white">{totalTeams}</span></p>
+                      <p>{requireCheckIn ? t('Godkjente og sjekket inn', 'Approved and checked in') : t('Godkjente lag (uten krav om innsjekk)', 'Approved teams (no check-in required)')}: <span className="font-semibold text-white">{totalTeams}</span></p>
                       <p>{t('Lag per gruppe', 'Teams per group')}: <span className="font-semibold text-white">{teamsPerGroup}</span></p>
                       <p>{t('Totalt i grupper', 'Total in groups')}: <span className="font-semibold text-white">{totalInGroups}</span></p>
                       {totalInGroups < totalTeams && (

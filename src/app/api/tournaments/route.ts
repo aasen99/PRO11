@@ -65,7 +65,7 @@ export async function GET(request: NextRequest) {
       const { data: tournaments, error } = await supabase
         .from('tournaments')
         .select('*')
-        .order('start_date', { ascending: true })
+        .order('start_date', { ascending: false })
 
       if (error) {
         console.error('Database error:', error)
