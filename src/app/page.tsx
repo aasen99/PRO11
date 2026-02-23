@@ -250,25 +250,30 @@ export default function HomePage() {
                     {nextTournament.status === 'ongoing' ? 'LIVE' : nextTournament.status}
                   </span>
                 </div>
-                {nextTournament.description?.trim() && (
-                  <div className="mt-4 w-full">
-                    <button
-                      type="button"
-                      onClick={() => setShowCardDescription(prev => !prev)}
-                      className="inline-flex items-center gap-2 text-slate-300 hover:text-white text-sm font-medium transition-colors"
-                    >
-                      <Info className="w-4 h-4" />
-                      {showCardDescription
-                        ? (isEnglish ? 'Hide description' : 'Skjul beskrivelse')
-                        : (isEnglish ? 'More info' : 'Mer info')}
-                    </button>
-                    {showCardDescription && (
-                      <div className="mt-3 p-4 rounded-lg bg-slate-800/60 text-left text-slate-300 text-sm whitespace-pre-wrap">
-                        {stripDescriptionForDisplay(nextTournament.description)}
-                      </div>
-                    )}
-                  </div>
-                )}
+                {(() => {
+                  const desc = isEnglish && nextTournament.description_en?.trim()
+                    ? nextTournament.description_en
+                    : nextTournament.description
+                  return desc?.trim() ? (
+                    <div className="mt-4 w-full">
+                      <button
+                        type="button"
+                        onClick={() => setShowCardDescription(prev => !prev)}
+                        className="inline-flex items-center gap-2 text-slate-300 hover:text-white text-sm font-medium transition-colors"
+                      >
+                        <Info className="w-4 h-4" />
+                        {showCardDescription
+                          ? (isEnglish ? 'Hide description' : 'Skjul beskrivelse')
+                          : (isEnglish ? 'More info' : 'Mer info')}
+                      </button>
+                      {showCardDescription && (
+                        <div className="mt-3 p-4 rounded-lg bg-slate-800/60 text-left text-slate-300 text-sm whitespace-pre-wrap">
+                          {stripDescriptionForDisplay(desc)}
+                        </div>
+                      )}
+                    </div>
+                  ) : null
+                })()}
               </div>
               <div className="text-center flex flex-col items-center gap-4">
                 {nextTournament.status === 'ongoing' ? (

@@ -47,6 +47,7 @@ interface Tournament {
   statusText?: string
   format: 'group' | 'knockout' | 'league' | 'mixed' | 'group_stage'
   description: string
+  description_en?: string
 }
 
 const GEN_TAG_REGEX = /\[GEN:\s*(NEW GEN|OLD GEN|BOTH)\]/i
@@ -970,21 +971,23 @@ export default function TournamentDetailPage() {
               )
              })()}
 
-             {activeTab === 'info' && (
+             {activeTab === 'info' && (() => {
+                const desc = isEnglish && tournament.description_en ? tournament.description_en : tournament.description
+                return (
               <div className="space-y-6">
                 <div>
                   <h3 className="text-xl font-semibold mb-4">{t('Om turneringen', 'About the tournament')}</h3>
                   <p className="text-slate-300 leading-relaxed">
-                    {stripGenFromDescription(tournament.description)}
+                    {stripGenFromDescription(desc)}
                   </p>
                 </div>
                 
                 <div>
                   <h3 className="text-xl font-semibold mb-4">{t('Format', 'Format')}</h3>
                   <div className="pro11-card p-4">
-                    {getFormatFromDescription(tournament.description) ? (
+                    {getFormatFromDescription(desc) ? (
                       <div className="space-y-2">
-                        {getFormatFromDescription(tournament.description)
+                        {getFormatFromDescription(desc)
                           .split('\n')
                           .filter(Boolean)
                           .map((line, index) => (
@@ -1021,7 +1024,8 @@ export default function TournamentDetailPage() {
                   </div>
                 </div>
               </div>
-            )}
+                )
+              })()}
           </div>
         </div>
       </main>

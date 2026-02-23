@@ -119,7 +119,7 @@ export default function TournamentsPage() {
                       </span>
                     </div>
                     
-                    <p className="text-slate-300 mb-4">{stripMetadataTags(tournament.description)}</p>
+                    <p className="text-slate-300 mb-4">{stripMetadataTags(isEnglish && tournament.description_en ? tournament.description_en : tournament.description)}</p>
                     
                     <div className="grid md:grid-cols-3 gap-4 text-sm">
                       <div className="flex items-center space-x-2">

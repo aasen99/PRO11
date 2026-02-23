@@ -10,6 +10,7 @@ export interface Tournament {
   status: 'open' | 'ongoing' | 'closed' | 'completed'
   statusText: string
   description: string
+  description_en?: string
   format: 'group_stage' | 'knockout' | 'mixed'
 }
 
@@ -18,6 +19,7 @@ interface DatabaseTournament {
   id: string
   title: string
   description: string
+  description_en?: string
   start_date: string
   end_date: string
   max_teams: number
@@ -111,6 +113,7 @@ function transformTournament(dbTournament: DatabaseTournament): Tournament {
     status,
     statusText: getStatusText(status),
     description: dbTournament.description || '',
+    description_en: dbTournament.description_en || undefined,
     format: 'mixed' // Default format, can be extended later
   }
 }

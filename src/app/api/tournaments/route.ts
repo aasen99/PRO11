@@ -137,7 +137,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { title, description, start_date, end_date, max_teams, prize_pool, entry_fee, status } = body
+    const { title, description, description_en, start_date, end_date, max_teams, prize_pool, entry_fee, status } = body
     const normalizedEntryFee = Number(entry_fee)
     const safeEntryFee = Number.isFinite(normalizedEntryFee) ? normalizedEntryFee : 299
 
@@ -168,7 +168,7 @@ export async function POST(request: NextRequest) {
       }, { status: 500 })
     }
 
-    const insertData = {
+    const insertData: Record<string, unknown> = {
       title,
       description: description || null,
       start_date,
@@ -179,6 +179,7 @@ export async function POST(request: NextRequest) {
       status: status || 'upcoming',
       current_teams: 0
     }
+    if (description_en !== undefined) insertData.description_en = description_en || null
     
     console.log('Inserting tournament with data:', insertData)
     
@@ -220,7 +221,7 @@ export async function POST(request: NextRequest) {
 export async function PUT(request: NextRequest) {
   try {
     const body = await request.json()
-    const { id, title, description, start_date, end_date, max_teams, prize_pool, entry_fee, status, check_in_open } = body
+    const { id, title, description, description_en, start_date, end_date, max_teams, prize_pool, entry_fee, status, check_in_open } = body
 
     if (!id) {
       return NextResponse.json({ error: 'Tournament ID is required' }, { status: 400 })
@@ -240,6 +241,7 @@ export async function PUT(request: NextRequest) {
     const updateData: any = {}
     if (title) updateData.title = title
     if (description !== undefined) updateData.description = description
+    if (description_en !== undefined) updateData.description_en = description_en
     if (start_date) updateData.start_date = start_date
     if (end_date) updateData.end_date = end_date
     if (max_teams !== undefined) updateData.max_teams = max_teams

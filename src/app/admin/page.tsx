@@ -60,6 +60,7 @@ interface Tournament {
   prizePoolRaw?: number
   entryFee: number
   description: string
+  description_en?: string
   format: 'group_stage' | 'knockout' | 'mixed'
   matches?: Match[]
   groups?: string[][]
@@ -194,6 +195,9 @@ export default function AdminPage() {
   const [tournamentFormatText, setTournamentFormatText] = useState('')
   const [tournamentPotPerTeam, setTournamentPotPerTeam] = useState('')
   const [tournamentFixedPrize, setTournamentFixedPrize] = useState('')
+  const [tournamentDescription, setTournamentDescription] = useState('')
+  const [tournamentDescriptionEn, setTournamentDescriptionEn] = useState('')
+  const [isTranslating, setIsTranslating] = useState(false)
 
   const { language } = useLanguage()
   const isEnglish = language === 'en'
@@ -322,6 +326,7 @@ export default function AdminPage() {
                 prizePoolRaw: t.prize_pool,
                 entryFee: t.entry_fee,
                 description: t.description || '',
+                description_en: t.description_en || undefined,
                 format: 'mixed' as const,
                 checkInOpen: t.check_in_open ?? false,
                 startDateRaw: t.start_date,
@@ -748,6 +753,8 @@ PRO11 Team`)
       const perTeamPot = getPerTeamPotFromDescription(tournament.description || '')
       setTournamentPotPerTeam(perTeamPot ? String(perTeamPot) : '')
       setTournamentFixedPrize(!perTeamPot && tournament.prizePoolRaw ? String(tournament.prizePoolRaw) : '')
+      setTournamentDescription(stripGenFromDescription(tournament.description || ''))
+      setTournamentDescriptionEn(tournament.description_en || '')
     } else {
       setEditingTournament(null)
       setIsNewTournament(true)
@@ -755,6 +762,8 @@ PRO11 Team`)
       setTournamentFormatText('')
       setTournamentPotPerTeam('')
       setTournamentFixedPrize('')
+      setTournamentDescription('')
+      setTournamentDescriptionEn('')
     }
     setShowTournamentModal(true)
   }
@@ -818,6 +827,7 @@ PRO11 Team`)
                 tournamentData.status === 'completed' ? 'completed' :
                 tournamentData.status === 'archived' ? 'archived' : 'cancelled'
       }
+      if (tournamentData.description_en !== undefined) dbData.description_en = tournamentData.description_en || null
       
       console.log('Sending to API:', dbData)
 
@@ -874,6 +884,7 @@ PRO11 Team`)
             prizePoolRaw: newTournament.prize_pool,
             entryFee: newTournament.entry_fee,
             description: newTournament.description || '',
+            description_en: newTournament.description_en || undefined,
             format: 'mixed' as const,
             checkInOpen: newTournament.check_in_open ?? false,
             startDateRaw: newTournament.start_date
@@ -919,6 +930,7 @@ PRO11 Team`)
                   prizePoolRaw: t.prize_pool,
                   entryFee: t.entry_fee,
                   description: t.description || '',
+                  description_en: t.description_en || undefined,
                   format: 'mixed' as const,
                   checkInOpen: t.check_in_open ?? false,
                   startDateRaw: t.start_date
@@ -979,6 +991,7 @@ PRO11 Team`)
                   prizePoolRaw: t.prize_pool,
                   entryFee: t.entry_fee,
                   description: t.description || '',
+                  description_en: t.description_en || undefined,
                   format: 'mixed' as const,
                   checkInOpen: t.check_in_open ?? false,
                   startDateRaw: t.start_date
@@ -1043,6 +1056,7 @@ PRO11 Team`)
                   prizePoolRaw: t.prize_pool,
                   entryFee: t.entry_fee,
                   description: t.description || '',
+                  description_en: t.description_en || undefined,
                   format: 'mixed' as const,
                   checkInOpen: t.check_in_open ?? false,
                   startDateRaw: t.start_date
@@ -1527,6 +1541,7 @@ PRO11 Team`)
                       prize: `${t.prize_pool.toLocaleString('nb-NO')} NOK`,
                       entryFee: t.entry_fee,
                       description: t.description || '',
+                      description_en: t.description_en || undefined,
                       format: 'mixed' as const,
                       matches: loadedMatches,
                       groups: t.id === tournamentId ? groups : undefined,
@@ -1558,6 +1573,7 @@ PRO11 Team`)
                   prize: `${t.prize_pool.toLocaleString('nb-NO')} NOK`,
                   entryFee: t.entry_fee,
                   description: t.description || '',
+                  description_en: t.description_en || undefined,
                   format: 'mixed' as const,
                   matches: [],
                   groups: t.id === tournamentId ? groups : undefined,
@@ -2657,7 +2673,8 @@ PRO11 Team`)
                 
                 await saveTournament({
                   title: formData.get('title') as string,
-                  description: formData.get('description') as string || '',
+                  description: tournamentDescription || '',
+                  description_en: tournamentDescriptionEn || undefined,
                   date: date,
                   time: time,
                   maxTeams: parseInt(formData.get('maxTeams') as string || '16'),
@@ -2835,14 +2852,55 @@ PRO11 Team`)
 
               <div>
                 <label className="block text-sm font-medium text-slate-300 mb-1">
-                  Beskrivelse
+                  {t('Beskrivelse', 'Description')} (NO)
                 </label>
                 <textarea
                   name="description"
-                  defaultValue={stripGenFromDescription(editingTournament?.description)}
+                  value={tournamentDescription}
+                  onChange={(e) => setTournamentDescription(e.target.value)}
                   className="pro11-input"
                   rows={3}
-                  placeholder="Beskrivelse av turneringen..."
+                  placeholder={t('Beskrivelse av turneringen...', 'Tournament description...')}
+                />
+              </div>
+
+              <div>
+                <div className="flex items-center justify-between gap-2 mb-1">
+                  <label className="block text-sm font-medium text-slate-300">
+                    {t('Beskrivelse (engelsk)', 'Description (English)')}
+                  </label>
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      if (!tournamentDescription.trim()) return
+                      setIsTranslating(true)
+                      try {
+                        const res = await fetch('/api/translate', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ text: tournamentDescription, source: 'no', target: 'en' })
+                        })
+                        const data = await res.json()
+                        if (data.translated) setTournamentDescriptionEn(data.translated)
+                        else alert(data.error || t('Oversettelse feilet', 'Translation failed'))
+                      } catch {
+                        alert(t('Oversettelse feilet. Prøv igjen.', 'Translation failed. Try again.'))
+                      } finally {
+                        setIsTranslating(false)
+                      }
+                    }}
+                    disabled={isTranslating || !tournamentDescription.trim()}
+                    className="pro11-button-secondary text-xs py-1 px-2"
+                  >
+                    {isTranslating ? t('Oversetter...', 'Translating...') : t('Oversett til engelsk', 'Translate to English')}
+                  </button>
+                </div>
+                <textarea
+                  value={tournamentDescriptionEn}
+                  onChange={(e) => setTournamentDescriptionEn(e.target.value)}
+                  className="pro11-input"
+                  rows={3}
+                  placeholder={t('Engelsk beskrivelse (kan oversettes automatisk)', 'English description (can be auto-translated)')}
                 />
               </div>
 
