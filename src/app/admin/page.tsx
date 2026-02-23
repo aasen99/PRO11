@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react'
 import Link from 'next/link'
-import { Shield, Users, Trophy, Calendar, Download, CheckCircle, XCircle, Eye, Plus, Settings, Lock, Edit, Trash2, Mail, Key, BarChart3 } from 'lucide-react'
+import { Shield, Users, Trophy, Calendar, Download, CheckCircle, XCircle, Eye, Plus, Settings, Lock, Edit, Trash2, Mail, Key, BarChart3, LogOut } from 'lucide-react'
 import { useLanguage } from '@/components/LanguageProvider'
 
 interface Player {
@@ -112,6 +112,31 @@ const getPerTeamPotFromDescription = (description?: string | null) => {
   return value ? Number(value) : null
 }
 
+const ADMIN_SESSION_KEY = 'pro11_admin_session'
+const ADMIN_SESSION_MAX_AGE_MS = 24 * 60 * 60 * 1000 // 24 timer
+
+function getStoredAdminSession(): boolean {
+  if (typeof window === 'undefined') return false
+  try {
+    const stored = localStorage.getItem(ADMIN_SESSION_KEY)
+    if (!stored) return false
+    const at = parseInt(stored, 10)
+    if (!Number.isFinite(at) || Date.now() - at > ADMIN_SESSION_MAX_AGE_MS) {
+      localStorage.removeItem(ADMIN_SESSION_KEY)
+      return false
+    }
+    return true
+  } catch {
+    return false
+  }
+}
+
+function setAdminSession() {
+  try {
+    localStorage.setItem(ADMIN_SESSION_KEY, String(Date.now()))
+  } catch {}
+}
+
 const buildDescriptionWithGen = (
   description: string,
   gen: 'new' | 'old' | 'both',
@@ -128,6 +153,7 @@ const buildDescriptionWithGen = (
 
 export default function AdminPage() {
   const [isAuthenticated, setIsAuthenticated] = useState(false)
+  const [sessionChecked, setSessionChecked] = useState(false)
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [activeTab, setActiveTab] = useState<'teams' | 'tournaments' | 'prizes' | 'statistics' | 'settings' | 'messages'>('teams')
@@ -192,6 +218,11 @@ export default function AdminPage() {
     currentPrize: 10000
   })
 
+  useEffect(() => {
+    setIsAuthenticated(getStoredAdminSession())
+    setSessionChecked(true)
+  }, [])
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
@@ -206,6 +237,7 @@ export default function AdminPage() {
       const data = await response.json()
       
       if (data.success) {
+        setAdminSession()
         setIsAuthenticated(true)
         setPassword('')
       } else {
@@ -217,6 +249,15 @@ export default function AdminPage() {
       setError(t('Noe gikk galt. Prøv igjen.', 'Something went wrong. Please try again.'))
       setPassword('')
     }
+  }
+
+  const handleLogout = () => {
+    try {
+      localStorage.removeItem(ADMIN_SESSION_KEY)
+    } catch {}
+    setIsAuthenticated(false)
+    setPassword('')
+    setError('')
   }
 
   const [tournaments, setTournaments] = useState<Tournament[]>([])
@@ -1733,6 +1774,15 @@ PRO11 Team`)
     return sum + (entryFeeTotal - prizePool)
   }, 0)
 
+  // Session check: vis kort loading så vi ikke blinker innloggingsskjema
+  if (!sessionChecked) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="w-8 h-8 border-2 border-blue-400 border-t-transparent rounded-full animate-spin" />
+      </div>
+    )
+  }
+
   // Login form
   if (!isAuthenticated) {
     return (
@@ -1813,6 +1863,14 @@ PRO11 Team`)
           </div>
           <div className="flex items-center space-x-4">
             <span className="text-green-400 text-sm">{t('Admin tilgang', 'Admin access')}</span>
+            <button
+              type="button"
+              onClick={handleLogout}
+              className="pro11-button-secondary flex items-center space-x-2"
+            >
+              <LogOut className="w-4 h-4" />
+              <span>{t('Logg ut', 'Log out')}</span>
+            </button>
             <Link href="/" className="pro11-button-secondary flex items-center space-x-2">
               <span>{t('Tilbake', 'Back')}</span>
             </Link>

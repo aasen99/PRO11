@@ -1,9 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseAdmin, getSupabase } from '@/lib/supabase'
 import { comparePassword } from '@/lib/password'
+import { checkRateLimit, getClientIdentifier, recordFailedAttempt } from '@/lib/rateLimit'
 
 export async function POST(request: NextRequest) {
   try {
+    const ip = getClientIdentifier(request)
+    const { allowed, retryAfter } = checkRateLimit(ip, 'captain')
+    if (!allowed) {
+      return NextResponse.json(
+        { error: 'Too many login attempts. Please try again later.' },
+        { status: 429, headers: retryAfter ? { 'Retry-After': String(retryAfter) } : undefined }
+      )
+    }
+
     const body = await request.json()
     const { email, password } = body
     const normalizedEmail = typeof email === 'string' ? email.trim().toLowerCase() : ''
@@ -22,6 +32,7 @@ export async function POST(request: NextRequest) {
       .order('created_at', { ascending: false })
 
     if (error || !teams?.length) {
+      recordFailedAttempt(ip, 'captain')
       return NextResponse.json(
         { error: 'Incorrect email or password. Please try again.' },
         { status: 401 }
@@ -37,6 +48,7 @@ export async function POST(request: NextRequest) {
     const stored = withPassword?.generated_password
     const match = await comparePassword(String(password), stored)
     if (!match) {
+      recordFailedAttempt(ip, 'captain')
       return NextResponse.json(
         { error: 'Incorrect email or password. Please try again.' },
         { status: 401 }
