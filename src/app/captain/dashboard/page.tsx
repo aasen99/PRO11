@@ -95,6 +95,12 @@ export default function CaptainDashboardPage() {
   const [showResultModal, setShowResultModal] = useState(false)
   const [resultScore1, setResultScore1] = useState(0)
   const [resultScore2, setResultScore2] = useState(0)
+  const [resultProofFile, setResultProofFile] = useState<File | null>(null)
+  const [isSubmittingResult, setIsSubmittingResult] = useState(false)
+  const [showConfirmProofModal, setShowConfirmProofModal] = useState(false)
+  const [matchToConfirm, setMatchToConfirm] = useState<Match | null>(null)
+  const [confirmProofFile, setConfirmProofFile] = useState<File | null>(null)
+  const [isConfirmingResult, setIsConfirmingResult] = useState(false)
   const [discordUsername, setDiscordUsername] = useState('')
   const [isSavingDiscord, setIsSavingDiscord] = useState(false)
   const [showDiscordEditor, setShowDiscordEditor] = useState(false)
@@ -771,13 +777,39 @@ export default function CaptainDashboardPage() {
     setSelectedMatch(match)
     setResultScore1(match.score1)
     setResultScore2(match.score2)
+    setResultProofFile(null)
     setShowResultModal(true)
     // Scroll to top when modal opens
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
+  const uploadMatchProof = async (matchId: string, teamName: string, file: File): Promise<string> => {
+    const formData = new FormData()
+    formData.append('match_id', matchId)
+    formData.append('team_name', teamName)
+    formData.append('proof', file)
+
+    const response = await fetch('/api/matches/proof', {
+      method: 'POST',
+      body: formData
+    })
+
+    if (!response.ok) {
+      const error = await response.json()
+      throw new Error(error.error || t('Kunne ikke laste opp bildebevis', 'Could not upload photo proof'))
+    }
+
+    const data = await response.json()
+    return data.proof_url as string
+  }
+
   const submitResult = async () => {
     if (!selectedMatch || !team) return
+
+    if (!resultProofFile) {
+      alert(t('Du må laste opp bildebevis (skjermbilde av resultatet).', 'You must upload photo proof (screenshot of the result).'))
+      return
+    }
 
     // Determine which team is submitting and adjust scores accordingly
     const isTeam1 = selectedMatch.team1 === team.teamName
@@ -788,7 +820,10 @@ export default function CaptainDashboardPage() {
       return
     }
 
+    setIsSubmittingResult(true)
     try {
+      const proofUrl = await uploadMatchProof(selectedMatch.id, team.teamName, resultProofFile)
+
       // Send resultat til API fra riktig perspektiv
       // UI viser alltid team1/team2, så vi må mappe til "mitt lag" før vi sender
       const teamScore1 = isTeam1 ? resultScore1 : resultScore2
@@ -801,7 +836,8 @@ export default function CaptainDashboardPage() {
           id: selectedMatch.id,
           team_name: team.teamName,
           team_score1: teamScore1, // This team's score
-          team_score2: teamScore2  // Opponent's score
+          team_score2: teamScore2,  // Opponent's score
+          proof_url: proofUrl
         })
       })
 
@@ -833,7 +869,10 @@ export default function CaptainDashboardPage() {
       window.location.reload()
     } catch (error) {
       console.error('Error submitting result:', error)
-      alert(t('Noe gikk galt ved innsending av resultat. Prøv igjen.', 'Something went wrong submitting the result. Please try again.'))
+      const message = error instanceof Error ? error.message : t('Noe gikk galt ved innsending av resultat. Prøv igjen.', 'Something went wrong submitting the result. Please try again.')
+      alert(message)
+    } finally {
+      setIsSubmittingResult(false)
     }
   }
 
@@ -919,12 +958,25 @@ export default function CaptainDashboardPage() {
     }
   }
 
-  const confirmResult = async (match: Match) => {
-    if (!team) return
+  const openConfirmProofModal = (match: Match) => {
+    setMatchToConfirm(match)
+    setConfirmProofFile(null)
+    setShowConfirmProofModal(true)
+  }
 
-    // When confirming, the team needs to submit their own result
-    // If it matches the opponent's result, the match will be automatically completed
-    // If it doesn't match, it will wait for admin review
+  const confirmResult = async (match: Match) => {
+    openConfirmProofModal(match)
+  }
+
+  const submitConfirmedResult = async () => {
+    const match = matchToConfirm
+    if (!match || !team) return
+
+    if (!confirmProofFile) {
+      alert(t('Du må laste opp bildebevis (skjermbilde av resultatet).', 'You must upload photo proof (screenshot of the result).'))
+      return
+    }
+
     const isTeam1 = match.team1 === team.teamName
     const isTeam2 = match.team2 === team.teamName
     
@@ -933,8 +985,7 @@ export default function CaptainDashboardPage() {
       return
     }
 
-    // Get opponent's submitted result from the match data
-    // We need to fetch the latest match data to get the correct submitted scores
+    setIsConfirmingResult(true)
     try {
       const matchResponse = await fetch(`/api/matches?tournament_id=${match.tournamentId}`)
       if (!matchResponse.ok) {
@@ -950,18 +1001,15 @@ export default function CaptainDashboardPage() {
         return
       }
 
-      // Get opponent's submitted scores
       let opponentScore1: number | null = null
       let opponentScore2: number | null = null
       
       if (isTeam1) {
-        // Team1 is confirming, so opponent is Team2
-        opponentScore1 = currentMatch.team2_submitted_score1 // Team2's score (from their perspective)
-        opponentScore2 = currentMatch.team2_submitted_score2 // Team1's score (from Team2's perspective)
+        opponentScore1 = currentMatch.team2_submitted_score1
+        opponentScore2 = currentMatch.team2_submitted_score2
       } else {
-        // Team2 is confirming, so opponent is Team1
-        opponentScore1 = currentMatch.team1_submitted_score1 // Team1's score (from their perspective)
-        opponentScore2 = currentMatch.team1_submitted_score2 // Team2's score (from Team1's perspective)
+        opponentScore1 = currentMatch.team1_submitted_score1
+        opponentScore2 = currentMatch.team1_submitted_score2
       }
 
       if (opponentScore1 === null || opponentScore2 === null) {
@@ -969,20 +1017,19 @@ export default function CaptainDashboardPage() {
         return
       }
 
-      // Opponent's submission is always (their goals, our goals). So opponentScore1 = their goals, opponentScore2 = our goals.
-      // We submit (our goals, their goals) so: myScore = our goals = opponentScore2, opponentScore = their goals = opponentScore1.
       const myScore = opponentScore2
       const opponentScore = opponentScore1
+      const proofUrl = await uploadMatchProof(match.id, team.teamName, confirmProofFile)
 
-      // Submit our result - if it matches, match will be completed automatically
       const response = await fetch('/api/matches', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           id: match.id,
           team_name: team.teamName,
-          team_score1: myScore, // Our score
-          team_score2: opponentScore // Opponent's score
+          team_score1: myScore,
+          team_score2: opponentScore,
+          proof_url: proofUrl
         })
       })
 
@@ -1008,11 +1055,14 @@ export default function CaptainDashboardPage() {
         ))
       }
       
-      // Reload page to get updated match status
+      setShowConfirmProofModal(false)
       window.location.reload()
     } catch (error) {
       console.error('Error confirming result:', error)
-      alert(t('Noe gikk galt ved bekreftelse av resultat. Prøv igjen.', 'Something went wrong confirming the result. Please try again.'))
+      const message = error instanceof Error ? error.message : t('Noe gikk galt ved bekreftelse av resultat. Prøv igjen.', 'Something went wrong confirming the result. Please try again.')
+      alert(message)
+    } finally {
+      setIsConfirmingResult(false)
     }
   }
 
@@ -1036,6 +1086,8 @@ export default function CaptainDashboardPage() {
           team1_submitted_score2: null,
           team2_submitted_score1: null,
           team2_submitted_score2: null,
+          team1_proof_url: null,
+          team2_proof_url: null,
           submitted_by: null,
           submitted_score1: null,
           submitted_score2: null
@@ -2044,13 +2096,37 @@ export default function CaptainDashboardPage() {
                 </div>
               </div>
 
+              <div>
+                <label className="block text-sm font-medium text-slate-300 mb-2">
+                  {t('Bildebevis (påkrevd)', 'Photo proof (required)')}
+                </label>
+                <p className="text-xs text-slate-400 mb-2">
+                  {t(
+                    'Last opp skjermbilde av sluttresultatet fra kampen (JPG, PNG eller WEBP, maks 5 MB).',
+                    'Upload a screenshot of the final match result (JPG, PNG or WEBP, max 5 MB).'
+                  )}
+                </p>
+                <input
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp,image/gif"
+                  onChange={(e) => setResultProofFile(e.target.files?.[0] || null)}
+                  className="pro11-input text-sm"
+                />
+                {resultProofFile && (
+                  <p className="text-xs text-green-400 mt-2">
+                    ✓ {resultProofFile.name}
+                  </p>
+                )}
+              </div>
+
               <div className="flex flex-col sm:flex-row gap-3">
                 <button
                   onClick={submitResult}
-                  className="pro11-button flex items-center space-x-2 flex-1"
+                  disabled={isSubmittingResult || !resultProofFile}
+                  className="pro11-button flex items-center space-x-2 flex-1 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <CheckCircle className="w-4 h-4" />
-                  <span>{t('Send inn', 'Submit')}</span>
+                  <span>{isSubmittingResult ? t('Sender...', 'Submitting...') : t('Send inn', 'Submit')}</span>
                 </button>
                 {canShowWalkoverInModal(selectedMatch) && (
                   <button
@@ -2066,6 +2142,70 @@ export default function CaptainDashboardPage() {
                 >
                   <XCircle className="w-4 h-4" />
                   <span>{t('Avbryt', 'Cancel')}</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Confirm result with proof */}
+      {showConfirmProofModal && matchToConfirm && (
+        <div
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+          onClick={() => setShowConfirmProofModal(false)}
+        >
+          <div
+            className="pro11-card p-6 max-w-md w-full max-h-[90vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-bold">{t('Bekreft resultat', 'Confirm result')}</h2>
+              <button
+                onClick={() => setShowConfirmProofModal(false)}
+                className="text-slate-400 hover:text-white"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <p className="text-slate-300 text-sm">
+                {t(
+                  'For å bekrefte motstanderens resultat må du laste opp bildebevis fra kampen.',
+                  'To confirm the opponent\'s result you must upload photo proof from the match.'
+                )}
+              </p>
+              <p className="text-slate-400 text-sm">{matchToConfirm.team1} vs {matchToConfirm.team2}</p>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-300 mb-2">
+                  {t('Bildebevis (påkrevd)', 'Photo proof (required)')}
+                </label>
+                <input
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp,image/gif"
+                  onChange={(e) => setConfirmProofFile(e.target.files?.[0] || null)}
+                  className="pro11-input text-sm"
+                />
+                {confirmProofFile && (
+                  <p className="text-xs text-green-400 mt-2">✓ {confirmProofFile.name}</p>
+                )}
+              </div>
+
+              <div className="flex flex-col sm:flex-row gap-3">
+                <button
+                  onClick={submitConfirmedResult}
+                  disabled={isConfirmingResult || !confirmProofFile}
+                  className="pro11-button flex-1 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isConfirmingResult ? t('Bekrefter...', 'Confirming...') : t('Bekreft', 'Confirm')}
+                </button>
+                <button
+                  onClick={() => setShowConfirmProofModal(false)}
+                  className="pro11-button-secondary flex-1"
+                >
+                  {t('Avbryt', 'Cancel')}
                 </button>
               </div>
             </div>

@@ -206,6 +206,7 @@ export async function PUT(request: NextRequest) {
       team_name, // The team submitting the result
       team_score1, // Score for team_name
       team_score2, // Score for opponent
+      proof_url, // Photo proof URL (required for team submissions)
       group_round,
       group_name,
       scheduled_time
@@ -261,13 +262,22 @@ export async function PUT(request: NextRequest) {
         return NextResponse.json({ error: 'Du har allerede sendt inn resultat for denne kampen' }, { status: 400 })
       }
 
+      const existingProof = isTeam1 ? currentMatch.team1_proof_url : currentMatch.team2_proof_url
+      if (!proof_url && !existingProof) {
+        return NextResponse.json({
+          error: 'Bildebevis er påkrevd. Last opp skjermbilde av resultatet.'
+        }, { status: 400 })
+      }
+
       // Store the team's submitted result
       if (isTeam1) {
         updateData.team1_submitted_score1 = team_score1
         updateData.team1_submitted_score2 = team_score2
+        if (proof_url) updateData.team1_proof_url = proof_url
       } else {
         updateData.team2_submitted_score1 = team_score1
         updateData.team2_submitted_score2 = team_score2
+        if (proof_url) updateData.team2_proof_url = proof_url
       }
 
       // Also update legacy fields for backward compatibility
@@ -338,6 +348,8 @@ export async function PUT(request: NextRequest) {
       if (body.team1_submitted_score2 === null) updateData.team1_submitted_score2 = null
       if (body.team2_submitted_score1 === null) updateData.team2_submitted_score1 = null
       if (body.team2_submitted_score2 === null) updateData.team2_submitted_score2 = null
+      if (body.team1_proof_url === null) updateData.team1_proof_url = null
+      if (body.team2_proof_url === null) updateData.team2_proof_url = null
       if (body.submitted_by === null) updateData.submitted_by = null
       if (body.submitted_score1 === null) updateData.submitted_score1 = null
       if (body.submitted_score2 === null) updateData.submitted_score2 = null

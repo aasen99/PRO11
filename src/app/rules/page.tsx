@@ -32,6 +32,11 @@ export default function RulesPage() {
               <li>{isEnglish ? 'Both teams must register the result.' : 'Begge lag skal registrere resultatet.'}</li>
               <li>
                 {isEnglish
+                  ? 'Both teams must upload photo proof (screenshot of the final result) when submitting or confirming a result.'
+                  : 'Begge lag må laste opp bildebevis (skjermbilde av sluttresultatet) når de sender inn eller bekrefter resultat.'}
+              </li>
+              <li>
+                {isEnglish
                   ? '3 points are awarded for a win, 1 point for a draw, and 0 points for a loss.'
                   : 'Det gis 3 poeng for seier, 1 poeng for uavgjort og 0 poeng for tap.'}
               </li>
@@ -77,6 +82,11 @@ export default function RulesPage() {
                 {isEnglish
                   ? 'Matches cannot end in a draw and must be played until there is a winner.'
                   : 'Kampene kan ikke ende uavgjort og må spilles videre til vi har en vinner.'}
+              </li>
+              <li>
+                {isEnglish
+                  ? 'Photo proof is required when submitting match results.'
+                  : 'Bildebevis er påkrevd ved innsending av kampresultat.'}
               </li>
             </ul>
           </section>

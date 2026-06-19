@@ -32,6 +32,8 @@ interface Match {
   team1_submitted_score2?: number
   team2_submitted_score1?: number
   team2_submitted_score2?: number
+  team1_proof_url?: string | null
+  team2_proof_url?: string | null
 }
 
 interface Tournament {
@@ -68,6 +70,34 @@ function toLocalDatetimeLocal(isoOrDate: string | Date): string {
   const h = String(d.getHours()).padStart(2, '0')
   const min = String(d.getMinutes()).padStart(2, '0')
   return `${y}-${m}-${day}T${h}:${min}`
+}
+
+function MatchProofLinks({ match }: { match: Match }) {
+  if (!match.team1_proof_url && !match.team2_proof_url) return null
+  return (
+    <div className="flex flex-wrap gap-2 mt-1">
+      {match.team1_proof_url && (
+        <a
+          href={match.team1_proof_url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-xs text-blue-400 hover:text-blue-300 underline"
+        >
+          📷 {match.team1_name}
+        </a>
+      )}
+      {match.team2_proof_url && (
+        <a
+          href={match.team2_proof_url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-xs text-blue-400 hover:text-blue-300 underline"
+        >
+          📷 {match.team2_name}
+        </a>
+      )}
+    </div>
+  )
 }
 
 export default function TournamentMatchesPage() {
@@ -1543,6 +1573,8 @@ export default function TournamentMatchesPage() {
                                     </td>
                                     <td className="py-3 pl-3 font-medium truncate max-w-[12rem]" title={match.team2_name}>{match.team2_name}</td>
                                     <td className="py-3 px-2 text-xs text-slate-400">
+                                      <div>{submittedText}</div>
+                                      <MatchProofLinks match={match} />
                                       {hasSubmittedScores && (
                                         <div className="flex flex-wrap gap-1">
                                           {match.team1_submitted_score1 != null && match.team1_submitted_score2 != null && (
@@ -1639,7 +1671,10 @@ export default function TournamentMatchesPage() {
                                     <td className="py-3 px-2 text-center text-slate-500">vs</td>
                                     <td className="py-3 px-2 text-center text-lg font-bold">{showFinalScore ? match.score2 : '-'}</td>
                                     <td className="py-3 pl-3 font-medium truncate max-w-[12rem]" title={match.team2_name}>{match.team2_name}</td>
-                                    <td className="py-3 px-2 text-xs text-slate-400 truncate" title={submittedText}>{submittedText}</td>
+                                    <td className="py-3 px-2 text-xs text-slate-400">
+                                      <div className="truncate" title={submittedText}>{submittedText}</div>
+                                      <MatchProofLinks match={match} />
+                                    </td>
                                     <td className="py-3 px-2 text-xs text-slate-400 truncate" title={infoText || '-'}>{infoText || '-'}</td>
                                     <td className="py-3 px-2">
                                       <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(match.status)}`}>
@@ -1795,6 +1830,8 @@ export default function TournamentMatchesPage() {
                                     </td>
                                     <td className="py-3 pl-3 font-medium truncate max-w-[12rem]" title={match.team2_name}>{match.team2_name}</td>
                                     <td className="py-3 px-2 text-xs text-slate-400">
+                                      <div>{submittedText}</div>
+                                      <MatchProofLinks match={match} />
                                       {hasSubmittedScores && (
                                         <div className="flex flex-wrap gap-1">
                                           {match.team1_submitted_score1 != null && match.team1_submitted_score2 != null && (
@@ -1891,7 +1928,10 @@ export default function TournamentMatchesPage() {
                                     <td className="py-3 px-2 text-center text-slate-500">vs</td>
                                     <td className="py-3 px-2 text-center text-lg font-bold">{showFinalScore ? match.score2 : '-'}</td>
                                     <td className="py-3 pl-3 font-medium truncate max-w-[12rem]" title={match.team2_name}>{match.team2_name}</td>
-                                    <td className="py-3 px-2 text-xs text-slate-400 truncate" title={submittedText}>{submittedText}</td>
+                                    <td className="py-3 px-2 text-xs text-slate-400">
+                                      <div className="truncate" title={submittedText}>{submittedText}</div>
+                                      <MatchProofLinks match={match} />
+                                    </td>
                                     <td className="py-3 px-2 text-xs text-slate-400 truncate" title={infoText || '-'}>{infoText || '-'}</td>
                                     <td className="py-3 px-2">
                                       <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(match.status)}`}>
