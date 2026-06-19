@@ -2,9 +2,9 @@
 
 import React, { useState, useEffect } from 'react'
 import Link from 'next/link'
-import { Shield, Trophy, Users, Calendar, ExternalLink, Info } from 'lucide-react'
+import { Trophy, Users, Calendar, ExternalLink, Info } from 'lucide-react'
 import { fetchTournaments } from '../lib/tournaments'
-import LanguageToggle from '@/components/LanguageToggle'
+import Header from '@/components/Header'
 import { useLanguage } from '@/components/LanguageProvider'
 
 const GEN_TAG_REGEX = /\[GEN:\s*(NEW GEN|OLD GEN|BOTH)\]/gi
@@ -23,8 +23,6 @@ function stripDescriptionForDisplay(description?: string | null): string {
 export default function HomePage() {
   const [nextTournament, setNextTournament] = useState<any>(null)
   const [isLoading, setIsLoading] = useState(true)
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
-  const [isDesktop, setIsDesktop] = useState(false)
   const [showCardDescription, setShowCardDescription] = useState(false)
   const { language } = useLanguage()
   const isEnglish = language === 'en'
@@ -64,137 +62,11 @@ export default function HomePage() {
     loadTournaments()
   }, [])
 
-  useEffect(() => {
-    const updateBreakpoint = () => setIsDesktop(window.innerWidth >= 1024)
-    updateBreakpoint()
-    window.addEventListener('resize', updateBreakpoint)
-    return () => window.removeEventListener('resize', updateBreakpoint)
-  }, [])
-
-  useEffect(() => {
-    if (isDesktop && isMobileMenuOpen) {
-      setIsMobileMenuOpen(false)
-    }
-  }, [isDesktop, isMobileMenuOpen])
-
   const genLabel = nextTournament ? getGenLabel(nextTournament) : null
 
   return (
     <div className="min-h-screen">
-      {/* Header */}
-      <header className="pro11-card mx-4 mt-4 h-24">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center">
-            <Link href="/" className="w-24 h-full flex items-center justify-center hover:opacity-80 transition-opacity">
-              <img src="/logo.png" alt="PRO11 Logo" className="w-full h-full object-contain" />
-            </Link>
-            <div className="ml-4">
-              <p className="text-slate-400 text-sm">
-                {isEnglish ? 'Pro Clubs Tournaments' : 'Pro Clubs Turneringer'}
-              </p>
-            </div>
-          </div>
-          {isDesktop && (
-            <nav className="flex flex-1 items-center justify-end gap-6 px-4 py-4 text-xs whitespace-nowrap">
-              <Link href="/tournaments" className="text-slate-300 hover:text-white transition-colors whitespace-nowrap">
-                {isEnglish ? 'Tournaments' : 'Turneringer'}
-              </Link>
-              {nextTournament && nextTournament.status === 'ongoing' ? (
-                <span className="text-slate-500 cursor-not-allowed whitespace-nowrap" title={isEnglish ? 'Registration closed' : 'Påmelding stengt'}>
-                  {isEnglish ? 'Closed' : 'Stengt'}
-                </span>
-              ) : (
-                <Link href="/register" className="text-slate-300 hover:text-white transition-colors whitespace-nowrap">
-                  {isEnglish ? 'Registration' : 'Påmelding'}
-                </Link>
-              )}
-              <Link href="/add-team" className="text-slate-300 hover:text-white transition-colors whitespace-nowrap">
-                {isEnglish ? 'Add team' : 'Legg til lag'}
-              </Link>
-              <Link href="/hall-of-fame" className="text-slate-300 hover:text-white transition-colors whitespace-nowrap">
-                Hall of Fame
-              </Link>
-              <Link href="/captain/login" className="text-slate-300 hover:text-white transition-colors whitespace-nowrap">
-                {isEnglish ? 'Captain' : 'Lagleder'}
-              </Link>
-              <a href="https://discord.gg/Es8UAkax8H" target="_blank" rel="noopener noreferrer" className="text-slate-300 hover:text-white transition-colors flex items-center space-x-1 whitespace-nowrap">
-                <span>Discord</span>
-                <ExternalLink className="w-4 h-4" />
-              </a>
-              <LanguageToggle />
-            </nav>
-          )}
-          {!isDesktop && (
-            <div className="flex pr-4">
-              <button
-                type="button"
-                onClick={() => setIsMobileMenuOpen(prev => !prev)}
-                className="pro11-button-secondary text-sm"
-              >
-                {isMobileMenuOpen ? (isEnglish ? 'Close' : 'Lukk') : (isEnglish ? 'Menu' : 'Meny')}
-              </button>
-            </div>
-          )}
-        </div>
-        {isMobileMenuOpen && !isDesktop && (
-          <div className="fixed inset-x-0 top-24 px-4 pb-4 z-50">
-            <div className="pro11-card p-4 flex flex-col space-y-3">
-              <Link
-                href="/tournaments"
-                className="text-slate-300 hover:text-white transition-colors"
-                onClick={() => setIsMobileMenuOpen(false)}
-              >
-                {isEnglish ? 'Tournaments' : 'Turneringer'}
-              </Link>
-              {nextTournament && nextTournament.status === 'ongoing' ? (
-                <span className="text-slate-500 cursor-not-allowed">
-                  {isEnglish ? 'Registration closed' : 'Påmelding stengt'}
-                </span>
-              ) : (
-                <Link
-                  href="/register"
-                  className="text-slate-300 hover:text-white transition-colors"
-                  onClick={() => setIsMobileMenuOpen(false)}
-                >
-                  {isEnglish ? 'Registration' : 'Påmelding'}
-                </Link>
-              )}
-              <Link
-                href="/add-team"
-                className="text-slate-300 hover:text-white transition-colors"
-                onClick={() => setIsMobileMenuOpen(false)}
-              >
-                {isEnglish ? 'Add team' : 'Legg til lag'}
-              </Link>
-              <Link
-                href="/hall-of-fame"
-                className="text-slate-300 hover:text-white transition-colors"
-                onClick={() => setIsMobileMenuOpen(false)}
-              >
-                Hall of Fame
-              </Link>
-              <Link
-                href="/captain/login"
-                className="text-slate-300 hover:text-white transition-colors"
-                onClick={() => setIsMobileMenuOpen(false)}
-              >
-                {isEnglish ? 'Captain' : 'Lagleder'}
-              </Link>
-              <a
-                href="https://discord.gg/Es8UAkax8H"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-slate-300 hover:text-white transition-colors flex items-center space-x-2"
-                onClick={() => setIsMobileMenuOpen(false)}
-              >
-                <span>Discord</span>
-                <ExternalLink className="w-4 h-4" />
-              </a>
-              <LanguageToggle />
-            </div>
-          </div>
-        )}
-      </header>
+      <Header />
 
       {/* Hero Section */}
       <main className="container mx-auto px-4 py-12 flex flex-col items-center">

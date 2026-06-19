@@ -6,7 +6,10 @@ import Footer from '@/components/Footer'
 
 const inter = Inter({ subsets: ['latin'] })
 
+const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://pro11.no'
+
 export const metadata: Metadata = {
+  metadataBase: new URL(siteUrl),
   title: 'PRO11 - Pro Clubs Turneringer',
   description: 'PRO11 er en turneringsplattform for Pro Clubs i FC 26. Gruppespill, sluttspill og kamper som betyr noe.',
   icons: {

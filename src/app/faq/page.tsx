@@ -1,9 +1,8 @@
 'use client'
 
 import React from 'react'
-import Link from 'next/link'
-import { ArrowLeft } from 'lucide-react'
 import { useLanguage } from '@/components/LanguageProvider'
+import Header from '@/components/Header'
 
 interface FAQItem {
   id: string
@@ -62,26 +61,8 @@ export default function FAQPage() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-950">
-      {/* Header */}
-      <header className="mx-4 mt-4 h-24 bg-slate-950 border border-slate-900 rounded-xl">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center">
-            <Link href="/" className="w-24 h-full flex items-center justify-center hover:opacity-80 transition-opacity">
-              <img src="/logo.png" alt="PRO11 Logo" className="w-full h-full object-contain" />
-            </Link>
-            <div className="ml-4">
-              <p className="text-slate-400 text-sm">
-                {isEnglish ? 'Pro Clubs Tournaments' : 'Pro Clubs Turneringer'}
-              </p>
-            </div>
-          </div>
-          <Link href="/" className="pro11-button-secondary flex items-center space-x-2">
-            <ArrowLeft className="w-4 h-4" />
-            <span>{isEnglish ? 'Back' : 'Tilbake'}</span>
-          </Link>
-        </div>
-      </header>
+    <div className="min-h-screen">
+      <Header backButton backHref="/" />
 
       <main className="container mx-auto px-4 py-12 flex flex-col items-center">
         <div className="pro11-card p-8 w-full max-w-4xl">

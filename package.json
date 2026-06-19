@@ -17,6 +17,7 @@
     "@paypal/paypal-js": "^7.0.0",
     "@paypal/react-paypal-js": "^8.9.1",
     "@supabase/supabase-js": "^2.39.0",
+    "@tailwindcss/postcss": "^4.3.1",
     "@types/node": "^24.1.0",
     "@types/nodemailer": "^6.4.14",
     "@types/react": "^19.1.8",
