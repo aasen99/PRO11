@@ -1212,6 +1212,38 @@ PRO11 Team`)
     return matches
   }
 
+  const getMatchConfigDefaults = (
+    totalTeams: number,
+    format: 'group_stage' | 'knockout' | 'mixed'
+  ) => {
+    if (totalTeams === 2) {
+      return {
+        numGroups: 1,
+        teamsPerGroup: 2,
+        teamsToKnockout: format === 'mixed' ? 2 : 1,
+        useBestRunnersUp: false,
+        numBestRunnersUp: 0,
+        requireCheckIn: true
+      }
+    }
+
+    let defaultNumGroups = 2
+    if (totalTeams > 16) defaultNumGroups = 4
+    else if (totalTeams > 8) defaultNumGroups = 3
+
+    const defaultTeamsPerGroup = Math.floor(totalTeams / defaultNumGroups)
+    const defaultTeamsToKnockout = Math.min(2, Math.max(1, defaultTeamsPerGroup))
+
+    return {
+      numGroups: defaultNumGroups,
+      teamsPerGroup: 0,
+      teamsToKnockout: defaultTeamsToKnockout,
+      useBestRunnersUp: false,
+      numBestRunnersUp: 0,
+      requireCheckIn: true
+    }
+  }
+
   const openMatchConfigModal = (tournamentId: string) => {
     const tournament = tournaments.find(t => t.id === tournamentId)
     if (!tournament) {
@@ -1224,28 +1256,12 @@ PRO11 Team`)
       .map(team => team.teamName || team.team_name)
       .filter((name): name is string => name !== undefined && name !== null)
 
-    if (approvedTeams.length < 4) {
-      alert(t('Du trenger minst 4 godkjente lag for å generere kamper.', 'You need at least 4 approved teams to generate matches.'))
+    if (approvedTeams.length < 2) {
+      alert(t('Du trenger minst 2 godkjente lag for å generere kamper.', 'You need at least 2 approved teams to generate matches.'))
       return
     }
 
-    // Calculate default values
-    const totalTeams = approvedTeams.length
-    let defaultNumGroups = 2
-    if (totalTeams > 16) defaultNumGroups = 4
-    else if (totalTeams > 8) defaultNumGroups = 3
-    
-    const defaultTeamsPerGroup = Math.floor(totalTeams / defaultNumGroups)
-    const defaultTeamsToKnockout = Math.min(2, defaultTeamsPerGroup)
-
-    setMatchConfig({
-      numGroups: defaultNumGroups,
-      teamsPerGroup: 0, // Auto
-      teamsToKnockout: defaultTeamsToKnockout,
-      useBestRunnersUp: false,
-      numBestRunnersUp: 0,
-      requireCheckIn: true
-    })
+    setMatchConfig(getMatchConfigDefaults(approvedTeams.length, tournament.format))
     
     setTournamentForMatchGeneration(tournamentId)
     setShowMatchConfigModal(true)
@@ -1265,8 +1281,8 @@ PRO11 Team`)
       .map(team => team.teamName || team.team_name)
       .filter((name): name is string => name !== undefined && name !== null)
 
-    if (approvedTeams.length < 4) {
-      alert(t('Du trenger minst 4 lag for å generere kamper. Skru av "Krev innsjekk" for å inkludere alle godkjente lag.', 'You need at least 4 teams to generate matches. Turn off "Require check-in" to include all approved teams.'))
+    if (approvedTeams.length < 2) {
+      alert(t('Du trenger minst 2 lag for å generere kamper. Skru av "Krev innsjekk" for å inkludere alle godkjente lag.', 'You need at least 2 teams to generate matches. Turn off "Require check-in" to include all approved teams.'))
       return
     }
 
@@ -1276,20 +1292,30 @@ PRO11 Team`)
       console.warn('Could not persist match config:', error)
     }
     const totalTeams = approvedTeams.length
+    const normalizedConfig = totalTeams === 2
+      ? {
+          ...useConfig,
+          ...getMatchConfigDefaults(2, tournament.format),
+          requireCheckIn: useConfig.requireCheckIn
+        }
+      : useConfig
 
     let matches: Match[] = []
     let groups: string[][] = []
     let formatText = ''
 
-    if (tournament.format === 'group_stage' || tournament.format === 'mixed') {
+    if (totalTeams === 2) {
+      matches = generateKnockoutBracket(approvedTeams)
+      formatText = 'Sluttspill: direkte finale (2 lag)'
+    } else if (tournament.format === 'group_stage' || tournament.format === 'mixed') {
       // Calculate number of groups
-      let numGroups = useConfig.numGroups
+      let numGroups = normalizedConfig.numGroups
       if (numGroups <= 0) {
         numGroups = totalTeams <= 8 ? 2 : 4
       }
 
       // Calculate teams per group
-      let teamsPerGroup = useConfig.teamsPerGroup
+      let teamsPerGroup = normalizedConfig.teamsPerGroup
       if (teamsPerGroup <= 0) {
         teamsPerGroup = Math.floor(totalTeams / numGroups)
       }
@@ -1306,15 +1332,15 @@ PRO11 Team`)
       const groupLines = [
         `Gruppespill: ${numGroups} grupper`,
         `Lag per gruppe: ${teamsPerGroup}`,
-        `Videre til sluttspill: ${useConfig.teamsToKnockout} fra hver gruppe`
+        `Videre til sluttspill: ${normalizedConfig.teamsToKnockout} fra hver gruppe`
       ]
-      if (useConfig.useBestRunnersUp && useConfig.numBestRunnersUp > 0) {
-        groupLines.push(`Beste 2.-plasser videre: ${useConfig.numBestRunnersUp}`)
+      if (normalizedConfig.useBestRunnersUp && normalizedConfig.numBestRunnersUp > 0) {
+        groupLines.push(`Beste 2.-plasser videre: ${normalizedConfig.numBestRunnersUp}`)
       }
       formatText = groupLines.join('\n')
     }
 
-    if (tournament.format === 'knockout') {
+    if (tournament.format === 'knockout' && totalTeams !== 2) {
       // For knockout eller mixed, generer sluttspill basert på konfigurasjon
       let knockoutTeams: string[] = []
       
@@ -1324,7 +1350,9 @@ PRO11 Team`)
       // Generate knockout bracket with proper round names (Kvartfinaler, Semifinaler, Finale)
       const knockoutMatches = generateKnockoutBracket(knockoutTeams)
       matches = [...matches, ...knockoutMatches]
-      formatText = 'Sluttspill: cup (alle lag)'
+      formatText = totalTeams === 2
+        ? 'Sluttspill: direkte finale'
+        : 'Sluttspill: cup (alle lag)'
     }
 
     if (tournament.format === 'mixed' && formatText) {
@@ -3086,6 +3114,11 @@ PRO11 Team`)
                     <h3 className="font-semibold mb-2 text-sm">{t('Oversikt', 'Overview')}</h3>
                     <div className="space-y-1 text-xs text-slate-300">
                       <p>{requireCheckIn ? t('Godkjente og sjekket inn', 'Approved and checked in') : t('Godkjente lag (uten krav om innsjekk)', 'Approved teams (no check-in required)')}: <span className="font-semibold text-white">{totalTeams}</span></p>
+                      {totalTeams === 2 && (
+                        <p className="text-blue-300">
+                          {t('2 lag → 1 finalekamp genereres direkte.', '2 teams → 1 final match will be generated directly.')}
+                        </p>
+                      )}
                       <p>{t('Lag per gruppe', 'Teams per group')}: <span className="font-semibold text-white">{teamsPerGroup}</span></p>
                       <p>{t('Totalt i grupper', 'Total in groups')}: <span className="font-semibold text-white">{totalInGroups}</span></p>
                       {totalInGroups < totalTeams && (
