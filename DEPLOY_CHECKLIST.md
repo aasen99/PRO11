@@ -34,6 +34,9 @@ Legg til disse i Vercel dashboard under Settings > Environment Variables:
 - [ ] `SUPABASE_SERVICE_ROLE_KEY` - Din Supabase service role key
 - [ ] `NEXT_PUBLIC_PAYPAL_CLIENT_ID` - Din Live PayPal Client ID
 - [ ] `NEXT_PUBLIC_SITE_URL` - Din produksjons-URL (f.eks. https://pro11.no)
+- [ ] `NEXTAUTH_SECRET` - Lang tilfeldig streng (marker **Sensitive** i Vercel)
+- [ ] `ADMIN_PASSWORD` - Sterkt unikt passord for `/admin` (marker **Sensitive**; roter hvis gammel standard ble brukt)
+- [ ] `CRON_SECRET` - Tilfeldig streng for keep-alive cron (marker **Sensitive**)
 
 ### Database
 - [ ] Supabase schema er kjørt i produksjon
