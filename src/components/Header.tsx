@@ -73,12 +73,12 @@ export default function Header({ backButton = false, backHref = '/', title }: He
   )
 
   return (
-    <header className="pro11-card mx-4 mt-4 h-24">
-      <div className="flex items-center justify-between h-full">
-        <div className="flex items-center">
-          <Logo className="w-24 h-full" />
-          <div className="ml-4">
-            <p className="text-slate-400 text-sm">
+    <header className="pro11-card mx-4 mt-4 min-h-24 overflow-hidden">
+      <div className="flex items-center justify-between min-h-24 gap-2">
+        <div className="flex items-center min-w-0 shrink">
+          <Logo className="w-20 sm:w-24 h-full shrink-0" />
+          <div className="ml-2 sm:ml-4 min-w-0">
+            <p className="text-slate-400 text-xs sm:text-sm break-words">
               {title || (isEnglish ? 'Pro Clubs Tournaments' : 'Pro Clubs Turneringer')}
             </p>
           </div>

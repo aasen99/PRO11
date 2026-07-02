@@ -69,7 +69,7 @@ export default function HomePage() {
       <Header />
 
       {/* Hero Section */}
-      <main className="container mx-auto px-4 py-12 flex flex-col items-center">
+      <main className="container mx-auto px-4 py-12 flex flex-col items-center w-full max-w-full overflow-x-hidden">
 
         {/* Next Tournament Card or No Tournaments Message */}
         {isLoading ? (
@@ -79,9 +79,9 @@ export default function HomePage() {
             </div>
           </div>
         ) : nextTournament ? (
-          <div className="pro11-card p-8 mb-12 w-full max-w-4xl text-center">
+          <div className="pro11-card p-6 sm:p-8 mb-12 w-full max-w-4xl text-center overflow-hidden">
             <div className="flex flex-col md:flex-row items-center justify-center gap-8">
-              <div className="text-center">
+              <div className="text-center min-w-0 w-full max-w-full">
                 <div className="flex items-center justify-center space-x-2 mb-4">
                   <Trophy className="w-6 h-6 text-yellow-400" />
                   <span className="text-yellow-400 font-semibold">
@@ -95,19 +95,19 @@ export default function HomePage() {
                     </span>
                   </div>
                 )}
-                <h3 className="text-3xl font-bold mb-4 text-center">{nextTournament.title}</h3>
+                <h3 className="text-2xl sm:text-3xl font-bold mb-4 text-center break-words px-1">{nextTournament.title}</h3>
                 <div className="space-y-3 text-slate-300 text-center">
-                  <div className="flex items-center justify-center space-x-3">
-                    <Calendar className="w-5 h-5 text-blue-400" />
-                    <span>{nextTournament.date} - {nextTournament.time}</span>
+                  <div className="flex items-center justify-center gap-3 flex-wrap">
+                    <Calendar className="w-5 h-5 text-blue-400 shrink-0" />
+                    <span className="break-words">{nextTournament.date} - {nextTournament.time}</span>
                   </div>
-                  <div className="flex items-center justify-center space-x-3">
-                    <Trophy className="w-5 h-5 text-yellow-400" />
-                    <span>{isEnglish ? 'Prize' : 'Premie'}: {nextTournament.prize}</span>
+                  <div className="flex items-center justify-center gap-3 flex-wrap">
+                    <Trophy className="w-5 h-5 text-yellow-400 shrink-0" />
+                    <span className="break-words">{isEnglish ? 'Prize' : 'Premie'}: {nextTournament.prize}</span>
                   </div>
-                  <div className="flex items-center justify-center space-x-3">
-                    <Users className="w-5 h-5 text-green-400" />
-                    <span>
+                  <div className="flex items-center justify-center gap-3 flex-wrap">
+                    <Users className="w-5 h-5 text-green-400 shrink-0" />
+                    <span className="break-words">
                       {nextTournament.registeredTeams}/{nextTournament.maxTeams}{' '}
                       {isEnglish ? 'teams registered' : 'lag påmeldt'}
                     </span>
@@ -139,7 +139,7 @@ export default function HomePage() {
                           : (isEnglish ? 'More info' : 'Mer info')}
                       </button>
                       {showCardDescription && (
-                        <div className="mt-3 p-4 rounded-lg bg-slate-800/60 text-left text-slate-300 text-sm whitespace-pre-wrap">
+                        <div className="mt-3 p-4 rounded-lg bg-slate-800/60 text-left text-slate-300 text-sm whitespace-pre-wrap break-words overflow-hidden">
                           {stripDescriptionForDisplay(desc)}
                         </div>
                       )}
@@ -147,13 +147,13 @@ export default function HomePage() {
                   ) : null
                 })()}
               </div>
-              <div className="text-center flex flex-col items-center gap-4">
+              <div className="text-center flex flex-col items-center gap-4 w-full max-w-full min-w-0">
                 {nextTournament.status === 'ongoing' ? (
-                  <button disabled className="pro11-button-secondary text-lg px-8 py-4 inline-block opacity-50 cursor-not-allowed">
+                  <button disabled className="pro11-button-secondary text-lg px-6 sm:px-8 py-4 w-full sm:w-auto max-w-full">
                     {isEnglish ? 'Registration closed' : 'Påmelding stengt'}
                   </button>
                 ) : (
-                  <Link href="/register" className="pro11-button text-lg px-8 py-4 inline-block">
+                  <Link href="/register" className="pro11-button text-lg px-6 sm:px-8 py-4 w-full sm:w-auto max-w-full">
                     {isEnglish ? 'Register team' : 'Meld på lag'}
                   </Link>
                 )}
@@ -161,7 +161,7 @@ export default function HomePage() {
                   href="https://discord.gg/Es8UAkax8H"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="pro11-button-secondary text-lg px-8 py-3 inline-flex items-center space-x-2"
+                  className="pro11-button-secondary text-lg px-6 sm:px-8 py-3 w-full sm:w-auto max-w-full"
                 >
                   <span>{isEnglish ? 'Join Discord' : 'Bli med på Discord'}</span>
                   <ExternalLink className="w-4 h-4" />
@@ -234,24 +234,24 @@ export default function HomePage() {
         </div>
 
         {/* Quick Links */}
-        <div className="grid md:grid-cols-4 gap-6 w-full max-w-4xl">
-          <Link href="/captain/login" className="pro11-card p-6 hover:bg-slate-700/50 transition-colors text-center" style={{textDecoration: 'none'}}>
-            <h4 className="text-2xl font-semibold mb-2 text-white">{isEnglish ? 'Captain' : 'Lagleder'}</h4>
-            <p className="text-slate-400">
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-6 w-full max-w-4xl">
+          <Link href="/captain/login" className="pro11-card p-6 hover:bg-slate-700/50 transition-colors text-center min-w-0 overflow-hidden" style={{textDecoration: 'none'}}>
+            <h4 className="text-xl sm:text-2xl font-semibold mb-2 text-white break-words">{isEnglish ? 'Captain' : 'Lagleder'}</h4>
+            <p className="text-slate-400 break-words">
               {isEnglish ? 'Log in to submit results' : 'Logg inn for å legge inn resultater'}
             </p>
           </Link>
-          <Link href="/rules" className="pro11-card p-6 hover:bg-slate-700/50 transition-colors text-center" style={{textDecoration: 'none'}}>
-            <h4 className="text-2xl font-semibold mb-2 text-white">{isEnglish ? 'Tournament Rules' : 'Turneringsregler'}</h4>
-            <p className="text-slate-400">{isEnglish ? 'Find the official rules here' : 'Her finner du de offiselle reglene'}</p>
+          <Link href="/rules" className="pro11-card p-6 hover:bg-slate-700/50 transition-colors text-center min-w-0 overflow-hidden" style={{textDecoration: 'none'}}>
+            <h4 className="text-xl sm:text-2xl font-semibold mb-2 text-white break-words">{isEnglish ? 'Tournament Rules' : 'Turneringsregler'}</h4>
+            <p className="text-slate-400 break-words">{isEnglish ? 'Find the official rules here' : 'Her finner du de offisielle reglene'}</p>
           </Link>
-          <Link href="/faq" className="pro11-card p-6 hover:bg-slate-700/50 transition-colors text-center" style={{textDecoration: 'none'}}>
-            <h4 className="text-2xl font-semibold mb-2 text-white">FAQ</h4>
-            <p className="text-slate-400">{isEnglish ? 'Frequently asked questions' : 'Ofte stilte spørsmål og svar'}</p>
+          <Link href="/faq" className="pro11-card p-6 hover:bg-slate-700/50 transition-colors text-center min-w-0 overflow-hidden" style={{textDecoration: 'none'}}>
+            <h4 className="text-xl sm:text-2xl font-semibold mb-2 text-white break-words">FAQ</h4>
+            <p className="text-slate-400 break-words">{isEnglish ? 'Frequently asked questions' : 'Ofte stilte spørsmål og svar'}</p>
           </Link>
-          <Link href="/tournaments" className="pro11-card p-6 hover:bg-slate-700/50 transition-colors text-center" style={{textDecoration: 'none'}}>
-            <h4 className="text-2xl font-semibold mb-2 text-white">{isEnglish ? 'See all tournaments' : 'Se alle turneringer'}</h4>
-            <p className="text-slate-400">{isEnglish ? 'Overview of upcoming and active tournaments' : 'Oversikt over kommende og aktive turneringer'}</p>
+          <Link href="/tournaments" className="pro11-card p-6 hover:bg-slate-700/50 transition-colors text-center min-w-0 overflow-hidden" style={{textDecoration: 'none'}}>
+            <h4 className="text-xl sm:text-2xl font-semibold mb-2 text-white break-words">{isEnglish ? 'See all tournaments' : 'Se alle turneringer'}</h4>
+            <p className="text-slate-400 break-words">{isEnglish ? 'Overview of upcoming and active tournaments' : 'Oversikt over kommende og aktive turneringer'}</p>
           </Link>
         </div>
       </main>
