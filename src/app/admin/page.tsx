@@ -115,6 +115,23 @@ const getPerTeamPotFromDescription = (description?: string | null) => {
   return value ? Number(value) : null
 }
 
+const isoToDateInputValue = (iso?: string) => {
+  if (!iso) return ''
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return ''
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${y}-${m}-${day}`
+}
+
+const isoToTimeInputValue = (iso?: string) => {
+  if (!iso) return '19:00'
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return '19:00'
+  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
+}
+
 const ADMIN_SESSION_KEY = 'pro11_admin_session'
 
 async function checkAdminSession(): Promise<boolean> {
@@ -895,6 +912,10 @@ PRO11 Team`)
       } else if (tournamentData.date) {
         startDate = new Date(tournamentData.date + 'T19:00:00')
         endDate = new Date(tournamentData.date + 'T23:00:00')
+      } else if (!isNewTournament && editingTournament?.startDateRaw) {
+        startDate = new Date(editingTournament.startDateRaw)
+        endDate = new Date(startDate)
+        endDate.setHours(23, 0, 0, 0)
       } else {
         alert(t('Dato er påkrevd!', 'Date is required!'))
         return
@@ -3137,7 +3158,8 @@ PRO11 Team`)
               </button>
             </div>
 
-            <form 
+            <form
+              key={editingTournament?.id || 'new-tournament'}
               onSubmit={async (e) => {
                 e.preventDefault()
                 const formData = new FormData(e.currentTarget)
@@ -3190,7 +3212,7 @@ PRO11 Team`)
                   <input
                     type="date"
                     name="date"
-                    defaultValue={editingTournament?.date?.split(' ')[0] || ''}
+                    defaultValue={isoToDateInputValue(editingTournament?.startDateRaw)}
                     className="pro11-input"
                     required
                   />
@@ -3202,7 +3224,7 @@ PRO11 Team`)
                   <input
                     type="time"
                     name="time"
-                    defaultValue={editingTournament?.time || '19:00'}
+                    defaultValue={isoToTimeInputValue(editingTournament?.startDateRaw)}
                     className="pro11-input"
                     required
                   />
