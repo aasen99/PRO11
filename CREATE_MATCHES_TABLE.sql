@@ -33,18 +33,9 @@ DROP POLICY IF EXISTS "Admin can insert matches" ON matches;
 DROP POLICY IF EXISTS "Admin can update matches" ON matches;
 DROP POLICY IF EXISTS "Admin can delete matches" ON matches;
 
--- Create RLS Policies
+-- Create RLS Policies (read-only for public; writes via service role API only)
 CREATE POLICY "Public read access to matches" ON matches
   FOR SELECT USING (true);
-
-CREATE POLICY "Public can insert matches" ON matches
-  FOR INSERT WITH CHECK (true);
-
-CREATE POLICY "Public can update matches" ON matches
-  FOR UPDATE USING (true);
-
-CREATE POLICY "Public can delete matches" ON matches
-  FOR DELETE USING (true);
 
 -- Create trigger for updated_at if function exists
 DO $$

@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { Shield, Users, Trophy, Calendar, Download, CheckCircle, XCircle, Eye, Plus, Settings, Lock, Edit, Trash2, Mail, Key, BarChart3, LogOut, LayoutDashboard, MessageSquare, Radio, Filter, ChevronRight, Award } from 'lucide-react'
 import { useLanguage } from '@/components/LanguageProvider'
+import { apiFetch } from '@/lib/client-fetch'
 
 interface Player {
   name: string
@@ -117,7 +118,7 @@ const ADMIN_SESSION_KEY = 'pro11_admin_session'
 
 async function checkAdminSession(): Promise<boolean> {
   try {
-    const response = await fetch('/api/admin/auth', { credentials: 'include' })
+    const response = await apiFetch('/api/admin/auth', { credentials: 'include' })
     if (!response.ok) return false
     const data = await response.json()
     return data.authenticated === true
@@ -224,7 +225,7 @@ export default function AdminPage() {
     setError('')
     
     try {
-      const response = await fetch('/api/admin/auth', {
+      const response = await apiFetch('/api/admin/auth', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
@@ -249,7 +250,7 @@ export default function AdminPage() {
 
   const handleLogout = async () => {
     try {
-      await fetch('/api/admin/auth', { method: 'DELETE', credentials: 'include' })
+      await apiFetch('/api/admin/auth', { method: 'DELETE', credentials: 'include' })
       localStorage.removeItem(ADMIN_SESSION_KEY)
     } catch {}
     setIsAuthenticated(false)
@@ -265,7 +266,7 @@ export default function AdminPage() {
   useEffect(() => {
     const loadTournaments = async () => {
       try {
-        const response = await fetch('/api/tournaments')
+        const response = await apiFetch('/api/tournaments')
         if (response.ok) {
           const data = await response.json()
           if (data.tournaments) {
@@ -284,7 +285,7 @@ export default function AdminPage() {
               // Load matches for this tournament
               let matches: Match[] = []
               try {
-                const matchesResponse = await fetch(`/api/matches?tournament_id=${t.id}`)
+                const matchesResponse = await apiFetch(`/api/matches?tournament_id=${t.id}`)
                 if (matchesResponse.ok) {
                   const matchesData = await matchesResponse.json()
                   matches = (matchesData.matches || []).map((m: any) => ({
@@ -349,7 +350,7 @@ export default function AdminPage() {
   const loadTeams = React.useCallback(async () => {
     try {
       setIsLoading(true)
-      const response = await fetch('/api/teams')
+      const response = await apiFetch('/api/teams')
       if (response.ok) {
         const data = await response.json()
         if (data.teams) {
@@ -377,7 +378,7 @@ export default function AdminPage() {
   const loadMessages = async () => {
     setIsLoadingMessages(true)
     try {
-      const response = await fetch('/api/messages')
+      const response = await apiFetch('/api/messages')
       if (response.ok) {
         const data = await response.json()
         setMessages(data.messages || [])
@@ -397,7 +398,7 @@ export default function AdminPage() {
 
   const markMessageRead = async (id: string) => {
     try {
-      const response = await fetch('/api/messages', {
+      const response = await apiFetch('/api/messages', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id, status: 'resolved', readAt: new Date().toISOString() })
@@ -502,7 +503,7 @@ export default function AdminPage() {
   const updateTeamStatus = async (teamId: string, newStatus: string) => {
     try {
       // Oppdater i databasen
-      const response = await fetch('/api/teams', {
+      const response = await apiFetch('/api/teams', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -533,7 +534,7 @@ export default function AdminPage() {
 
   const updateTeamCheckIn = async (teamId: string, checkedIn: boolean) => {
     try {
-      const response = await fetch('/api/teams', {
+      const response = await apiFetch('/api/teams', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id: teamId, checkedIn })
@@ -557,7 +558,7 @@ export default function AdminPage() {
 
   const updateTournamentCheckIn = async (tournamentId: string, checkInOpen: boolean) => {
     try {
-      const response = await fetch('/api/tournaments', {
+      const response = await apiFetch('/api/tournaments', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id: tournamentId, check_in_open: checkInOpen })
@@ -632,7 +633,7 @@ export default function AdminPage() {
     }
     setCreateTeamSubmitting(true)
     try {
-      const response = await fetch('/api/teams', {
+      const response = await apiFetch('/api/teams', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -836,7 +837,7 @@ PRO11 Team`)
       if (isNewTournament) {
         console.log('Sending POST request to /api/tournaments with data:', dbData)
         
-        const response = await fetch('/api/tournaments', {
+        const response = await apiFetch('/api/tournaments', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(dbData)
@@ -902,7 +903,7 @@ PRO11 Team`)
           setIsNewTournament(false)
           
           // Reload tournaments to get fresh data (with cache busting)
-          const loadResponse = await fetch('/api/tournaments?' + new Date().getTime())
+          const loadResponse = await apiFetch('/api/tournaments?' + new Date().getTime())
           if (loadResponse.ok) {
             const data = await loadResponse.json()
             console.log('Reloaded tournaments count:', data.tournaments?.length || 0)
@@ -955,7 +956,7 @@ PRO11 Team`)
           return // Don't close modal on error
         }
       } else if (editingTournament) {
-        const response = await fetch('/api/tournaments', {
+        const response = await apiFetch('/api/tournaments', {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ id: editingTournament.id, ...dbData })
@@ -965,7 +966,7 @@ PRO11 Team`)
         
         if (response.ok) {
           // Reload tournaments
-          const loadResponse = await fetch('/api/tournaments')
+          const loadResponse = await apiFetch('/api/tournaments')
           if (loadResponse.ok) {
             const data = await loadResponse.json()
             if (data.tournaments) {
@@ -1027,13 +1028,13 @@ PRO11 Team`)
   const deleteTournament = async (tournamentId: string) => {
     if (confirm(t('Er du sikker på at du vil slette denne turneringen? Dette vil også slette alle påmeldte lag.', 'Are you sure you want to delete this tournament? This will also delete all registered teams.'))) {
       try {
-        const response = await fetch(`/api/tournaments?id=${tournamentId}`, {
+        const response = await apiFetch(`/api/tournaments?id=${tournamentId}`, {
           method: 'DELETE'
         })
         
         if (response.ok) {
           // Reload tournaments
-          const loadResponse = await fetch('/api/tournaments')
+          const loadResponse = await apiFetch('/api/tournaments')
           if (loadResponse.ok) {
             const data = await loadResponse.json()
             if (data.tournaments) {
@@ -1368,7 +1369,7 @@ PRO11 Team`)
         const baseDescription = stripGenFromDescription(tournament.description || '')
         const perTeamPot = getPerTeamPotFromDescription(tournament.description || '')
         const descriptionWithFormat = buildDescriptionWithGen(baseDescription, gen, formatText, perTeamPot, null)
-        const response = await fetch('/api/tournaments', {
+        const response = await apiFetch('/api/tournaments', {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ id: tournamentId, description: descriptionWithFormat })
@@ -1398,7 +1399,7 @@ PRO11 Team`)
         
         // Slett eksisterende kamper for denne turneringen først
         console.log('Deleting existing matches for tournament:', tournamentId)
-        const deleteResponse = await fetch(`/api/matches?tournament_id=${tournamentId}`, {
+        const deleteResponse = await apiFetch(`/api/matches?tournament_id=${tournamentId}`, {
           method: 'DELETE'
         })
         // Ignore delete errors (might not exist)
@@ -1447,7 +1448,7 @@ PRO11 Team`)
           
           console.log(`Saving match ${index + 1}/${matches.length}:`, matchData)
           
-          const response = await fetch('/api/matches', {
+          const response = await apiFetch('/api/matches', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(matchData)
@@ -1513,7 +1514,7 @@ PRO11 Team`)
         }
 
         // Oppdater turneringsstatus i databasen til 'active'
-        const statusResponse = await fetch('/api/tournaments', {
+        const statusResponse = await apiFetch('/api/tournaments', {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -1527,7 +1528,7 @@ PRO11 Team`)
         }
 
         // Last turneringer på nytt for å få oppdaterte kamper
-        const reloadResponse = await fetch('/api/tournaments')
+        const reloadResponse = await apiFetch('/api/tournaments')
         if (reloadResponse.ok) {
           const reloadData = await reloadResponse.json()
           if (reloadData.tournaments) {
@@ -1535,7 +1536,7 @@ PRO11 Team`)
             const tournamentsWithMatches = await Promise.all(
               reloadData.tournaments.map(async (t: any) => {
                 try {
-                  const matchesResponse = await fetch(`/api/matches?tournament_id=${t.id}`)
+                  const matchesResponse = await apiFetch(`/api/matches?tournament_id=${t.id}`)
                   if (matchesResponse.ok) {
                     const matchesData = await matchesResponse.json()
                     const loadedMatches = (matchesData.matches || []).map((m: any) => ({
@@ -1727,7 +1728,7 @@ PRO11 Team`)
     const saveKnockoutMatches = async () => {
       try {
         // Slett eksisterende sluttspillkamper, behold gruppespill
-        const deleteResponse = await fetch(`/api/matches?tournament_id=${tournamentId}&keep_group=true`, {
+        const deleteResponse = await apiFetch(`/api/matches?tournament_id=${tournamentId}&keep_group=true`, {
           method: 'DELETE'
         })
         if (!deleteResponse.ok) {
@@ -1737,7 +1738,7 @@ PRO11 Team`)
 
         // Lagre nye sluttspillkamper
         const insertPromises = knockoutMatches.map(async (match) => {
-          const response = await fetch('/api/matches', {
+          const response = await apiFetch('/api/matches', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -1758,7 +1759,7 @@ PRO11 Team`)
         await Promise.all(insertPromises)
 
         // Reload matches for this tournament
-        const matchesResponse = await fetch(`/api/matches?tournament_id=${tournamentId}`)
+        const matchesResponse = await apiFetch(`/api/matches?tournament_id=${tournamentId}`)
         if (matchesResponse.ok) {
           const matchesData = await matchesResponse.json()
           const refreshedMatches = (matchesData.matches || []).map((m: any) => ({
@@ -3168,7 +3169,7 @@ PRO11 Team`)
                       if (!tournamentDescription.trim()) return
                       setIsTranslating(true)
                       try {
-                        const res = await fetch('/api/translate', {
+                        const res = await apiFetch('/api/translate', {
                           method: 'POST',
                           headers: { 'Content-Type': 'application/json' },
                           body: JSON.stringify({ text: tournamentDescription, source: 'no', target: 'en' })

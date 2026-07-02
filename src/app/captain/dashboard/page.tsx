@@ -7,6 +7,7 @@ import Toast, { ToastContainer } from '@/components/Toast'
 import type { ToastType } from '@/components/Toast'
 import { useLanguage } from '@/components/LanguageProvider'
 import { validatePasswordClient } from '@/lib/utils'
+import { apiFetch } from '@/lib/client-fetch'
 
 interface Team {
   id: string
@@ -200,7 +201,7 @@ export default function CaptainDashboardPage() {
 
     const init = async () => {
       try {
-        const sessionRes = await fetch('/api/captain/session', { credentials: 'include' })
+        const sessionRes = await apiFetch('/api/captain/session', { credentials: 'include' })
         if (!sessionRes.ok) {
           window.location.href = '/captain/login'
           return
@@ -224,7 +225,7 @@ export default function CaptainDashboardPage() {
       const refreshPaymentStatus = async () => {
         if (parsedTeam.paymentStatus) return
         try {
-          const response = await fetch('/api/teams')
+          const response = await apiFetch('/api/teams')
           if (!response.ok) return
           const data = await response.json()
           const freshTeam = (data.teams || []).find((t: any) => t.id === parsedTeam.id)
@@ -263,7 +264,7 @@ export default function CaptainDashboardPage() {
               currentRanking: 0
             })
             try {
-              const allRes = await fetch('/api/tournaments')
+              const allRes = await apiFetch('/api/tournaments')
               if (allRes.ok) {
                 const allData = await allRes.json()
                 const list = (allData.tournaments || []).filter(
@@ -281,9 +282,9 @@ export default function CaptainDashboardPage() {
           const tournamentPromises = tournamentIds.map(async (tournamentId: string) => {
             try {
               const [tournamentResponse, matchesResponse, teamsResponse] = await Promise.all([
-                fetch(`/api/tournaments?id=${tournamentId}`),
-                fetch(`/api/matches?tournament_id=${tournamentId}`),
-                fetch(`/api/teams?tournamentId=${tournamentId}`)
+                apiFetch(`/api/tournaments?id=${tournamentId}`),
+                apiFetch(`/api/matches?tournament_id=${tournamentId}`),
+                apiFetch(`/api/teams?tournamentId=${tournamentId}`)
               ])
               
               let tournament = null
@@ -732,7 +733,7 @@ export default function CaptainDashboardPage() {
 
   const handleLogout = async () => {
     try {
-      await fetch('/api/captain/logout', { method: 'POST', credentials: 'include' })
+      await apiFetch('/api/captain/logout', { method: 'POST', credentials: 'include' })
     } catch {}
     localStorage.removeItem('captainTeam')
     window.location.href = '/captain/login'
@@ -742,7 +743,7 @@ export default function CaptainDashboardPage() {
     if (!team) return
     setRegisteringForTournamentId(tournamentId)
     try {
-      const res = await fetch('/api/teams', {
+      const res = await apiFetch('/api/teams', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -809,7 +810,7 @@ export default function CaptainDashboardPage() {
     formData.append('team_name', teamName)
     formData.append('proof', file)
 
-    const response = await fetch('/api/matches/proof', {
+    const response = await apiFetch('/api/matches/proof', {
       method: 'POST',
       body: formData
     })
@@ -849,7 +850,7 @@ export default function CaptainDashboardPage() {
       const teamScore1 = isTeam1 ? resultScore1 : resultScore2
       const teamScore2 = isTeam1 ? resultScore2 : resultScore1
 
-      const response = await fetch('/api/matches', {
+      const response = await apiFetch('/api/matches', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -900,7 +901,7 @@ export default function CaptainDashboardPage() {
     if (!team) return
     setIsSavingDiscord(true)
     try {
-      const response = await fetch('/api/teams', {
+      const response = await apiFetch('/api/teams', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -950,7 +951,7 @@ export default function CaptainDashboardPage() {
     }
     setIsChangingPassword(true)
     try {
-      const response = await fetch('/api/teams', {
+      const response = await apiFetch('/api/teams', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -1007,7 +1008,7 @@ export default function CaptainDashboardPage() {
 
     setIsConfirmingResult(true)
     try {
-      const matchResponse = await fetch(`/api/matches?tournament_id=${match.tournamentId}`)
+      const matchResponse = await apiFetch(`/api/matches?tournament_id=${match.tournamentId}`)
       if (!matchResponse.ok) {
         alert(t('Kunne ikke hente kampdata. Prøv igjen.', 'Could not fetch match data. Please try again.'))
         return
@@ -1041,7 +1042,7 @@ export default function CaptainDashboardPage() {
       const opponentScore = opponentScore1
       const proofUrl = await uploadMatchProof(match.id, team.teamName, confirmProofFile)
 
-      const response = await fetch('/api/matches', {
+      const response = await apiFetch('/api/matches', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -1095,7 +1096,7 @@ export default function CaptainDashboardPage() {
 
     try {
       // Reset the match to pending_result by clearing submitted fields
-      const response = await fetch('/api/matches', {
+      const response = await apiFetch('/api/matches', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -1170,7 +1171,7 @@ export default function CaptainDashboardPage() {
 
     const handleCheckIn = async (teamId: string, tournamentId: string) => {
     try {
-      const response = await fetch('/api/teams', {
+      const response = await apiFetch('/api/teams', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -1219,7 +1220,7 @@ export default function CaptainDashboardPage() {
     const score2 = isTeam1 ? 0 : 3
 
     try {
-      const response = await fetch('/api/matches', {
+      const response = await apiFetch('/api/matches', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

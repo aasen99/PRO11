@@ -258,7 +258,7 @@ export async function PUT(request: NextRequest) {
       if (!captainInMatch(captain, currentMatch)) return forbiddenResponse()
     } else if (isCaptainRejectSubmission(body) || isCaptainWalkoverSubmission(body)) {
       if (!captain || !captainInMatch(captain, currentMatch)) {
-        if (!admin) return unauthorizedResponse()
+        return unauthorizedResponse()
       }
     } else if (!admin) {
       return unauthorizedResponse()

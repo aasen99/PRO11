@@ -7,6 +7,7 @@ import { ArrowLeft, Trophy, Users, Calendar, Edit, Save, X, RefreshCw, Wrench } 
 import { ToastContainer } from '@/components/Toast'
 import type { ToastType } from '@/components/Toast'
 import { useLanguage } from '@/components/LanguageProvider'
+import { apiFetch } from '@/lib/client-fetch'
 
 interface ToastMessage {
   id: string
@@ -281,7 +282,7 @@ export default function TournamentMatchesPage() {
 
       let hasError = false
       await Promise.all(updates.map(async update => {
-        const response = await fetch('/api/matches', {
+        const response = await apiFetch('/api/matches', {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(update)
@@ -333,7 +334,7 @@ export default function TournamentMatchesPage() {
       let tournamentStartDate: string | null = null
 
       try {
-        const tournamentResponse = await fetch(`/api/tournaments?id=${tournamentId}`)
+        const tournamentResponse = await apiFetch(`/api/tournaments?id=${tournamentId}`)
         console.log('Tournament API response status:', tournamentResponse.status)
         if (tournamentResponse.ok) {
           const tournamentData = await tournamentResponse.json()
@@ -352,7 +353,7 @@ export default function TournamentMatchesPage() {
         // Load matches
         const matchesUrl = `/api/matches?tournament_id=${tournamentId}`
         console.log('Fetching matches from:', matchesUrl)
-        const matchesResponse = await fetch(matchesUrl)
+        const matchesResponse = await apiFetch(matchesUrl)
         console.log('Matches API response status:', matchesResponse.status)
         
         if (matchesResponse.ok) {
@@ -525,7 +526,7 @@ export default function TournamentMatchesPage() {
 
                 if (matchesToCreate.length > 0) {
                   const insertPromises = matchesToCreate.map(async (match) => {
-                    const response = await fetch('/api/matches', {
+                    const response = await apiFetch('/api/matches', {
                       method: 'POST',
                       headers: { 'Content-Type': 'application/json' },
                       body: JSON.stringify(match)
@@ -542,11 +543,11 @@ export default function TournamentMatchesPage() {
                   if (semifinalByes && semifinalByes.length === 2) {
                     const byeTag = `[KNOCKOUT_BYES:Semifinaler:${semifinalByes.join('§')}]`
                     try {
-                      const tRes = await fetch(`/api/tournaments?id=${tournamentId}`)
+                      const tRes = await apiFetch(`/api/tournaments?id=${tournamentId}`)
                       const tData = tRes.ok ? await tRes.json() : {}
                       const currentDesc = (tData.tournament?.description || '').replace(/\[KNOCKOUT_BYES:[^\]]+\]/g, '').trim()
                       const newDesc = currentDesc ? `${currentDesc}\n${byeTag}` : byeTag
-                      await fetch('/api/tournaments', {
+                      await apiFetch('/api/tournaments', {
                         method: 'PUT',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ id: tournamentId, description: newDesc })
@@ -1039,7 +1040,7 @@ export default function TournamentMatchesPage() {
     const results = await Promise.all(
       toUpdate.map(async match => {
         try {
-          const response = await fetch('/api/matches', {
+          const response = await apiFetch('/api/matches', {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ id: match.id, status: 'live' })
@@ -1070,7 +1071,7 @@ export default function TournamentMatchesPage() {
       status: match.status
     })
     setMatchLog([])
-    fetch(`/api/match-log?match_id=${match.id}`)
+    apiFetch(`/api/match-log?match_id=${match.id}`)
       .then(r => r.json())
       .then(d => setMatchLog(d.logs || []))
       .catch(() => setMatchLog([]))
@@ -1106,7 +1107,7 @@ export default function TournamentMatchesPage() {
       
       console.log('Saving match with data:', requestBody)
       
-      const response = await fetch('/api/matches', {
+      const response = await apiFetch('/api/matches', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(requestBody)
@@ -1144,7 +1145,7 @@ export default function TournamentMatchesPage() {
     const score2 = winner === 'team1' ? 0 : 3
 
     try {
-      const response = await fetch('/api/matches', {
+      const response = await apiFetch('/api/matches', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -1199,7 +1200,7 @@ export default function TournamentMatchesPage() {
     const results = await Promise.all(
       Array.from(selectedMatchIds).map(async matchId => {
         try {
-          const response = await fetch('/api/matches', {
+          const response = await apiFetch('/api/matches', {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ id: matchId, scheduled_time: scheduledTimeIso })
@@ -1989,7 +1990,7 @@ export default function TournamentMatchesPage() {
                 onClick={async () => {
                   setIsLoading(true)
                   try {
-                    const matchesResponse = await fetch(`/api/matches?tournament_id=${tournamentId}`)
+                    const matchesResponse = await apiFetch(`/api/matches?tournament_id=${tournamentId}`)
                     if (matchesResponse.ok) {
                       const matchesData = await matchesResponse.json()
                       setMatches(matchesData.matches || [])

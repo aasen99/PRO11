@@ -168,58 +168,20 @@ ALTER TABLE captain_messages ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Public read access to tournaments" ON tournaments
   FOR SELECT USING (true);
 
-CREATE POLICY "Public can insert tournaments" ON tournaments
-  FOR INSERT WITH CHECK (true);
-
-CREATE POLICY "Public can update tournaments" ON tournaments
-  FOR UPDATE USING (true);
-
-CREATE POLICY "Public can delete tournaments" ON tournaments
-  FOR DELETE USING (true);
-
 -- RLS Policies for teams
-CREATE POLICY "Public can insert teams" ON teams
-  FOR INSERT WITH CHECK (true);
-
 CREATE POLICY "Public can read teams" ON teams
   FOR SELECT USING (true);
 
-CREATE POLICY "Teams can update own data" ON teams
-  FOR UPDATE USING (true);
-
 -- RLS Policies for players
-CREATE POLICY "Public can insert players" ON players
-  FOR INSERT WITH CHECK (true);
-
 CREATE POLICY "Public can read players" ON players
   FOR SELECT USING (true);
 
--- RLS Policies for payments
-CREATE POLICY "Public can insert payments" ON payments
-  FOR INSERT WITH CHECK (true);
-
-CREATE POLICY "Public can read payments" ON payments
-  FOR SELECT USING (true);
-
-CREATE POLICY "Public can update payments" ON payments
-  FOR UPDATE USING (true);
-
 -- RLS Policies for matches
-CREATE POLICY "Public can insert matches" ON matches
-  FOR INSERT WITH CHECK (true);
-
 CREATE POLICY "Public can read matches" ON matches
   FOR SELECT USING (true);
 
-CREATE POLICY "Public can update matches" ON matches
-  FOR UPDATE USING (true);
-
 -- RLS Policies for captain_messages
-CREATE POLICY "Public can insert captain messages" ON captain_messages
-  FOR INSERT WITH CHECK (true);
-
-CREATE POLICY "Public can read captain messages" ON captain_messages
-  FOR SELECT USING (true);
+-- No public access; API uses service role
 
 -- RLS Policies for admin_users (restrictive - only service role should access)
 CREATE POLICY "No public access to admin users" ON admin_users
