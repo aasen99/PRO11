@@ -5,6 +5,12 @@
   "installCommand": "npm install",
   "devCommand": "npm run dev",
   "regions": ["iad1"],
+  "crons": [
+    {
+      "path": "/api/cron/keep-alive",
+      "schedule": "0 8 * * 1,4"
+    }
+  ],
   "functions": {
     "src/app/api/**/*.ts": {
       "maxDuration": 30
