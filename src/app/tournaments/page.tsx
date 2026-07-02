@@ -10,12 +10,14 @@ import { useLanguage } from '@/components/LanguageProvider'
 const GEN_TAG_REGEX = /\[GEN:\s*(NEW GEN|OLD GEN|BOTH)\]/i
 const FORMAT_TAG_REGEX = /\[FORMAT\][\s\S]*?\[\/FORMAT\]/i
 const POT_PER_TEAM_TAG_REGEX = /\[POT_PER_TEAM:(\d+)\]/i
+const DEMO_TAG_REGEX = /\[DEMO\]/i
 
 const stripMetadataTags = (description?: string) => {
   return (description || '')
     .replace(GEN_TAG_REGEX, '')
     .replace(FORMAT_TAG_REGEX, '')
     .replace(POT_PER_TEAM_TAG_REGEX, '')
+    .replace(DEMO_TAG_REGEX, '')
     .trim()
 }
 
@@ -111,12 +113,19 @@ export default function TournamentsPage() {
                 <div className="grid md:grid-cols-3 gap-6 items-center">
                   {/* Tournament Info */}
                   <div className="md:col-span-2">
-                    <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center justify-between mb-4 gap-3 flex-wrap">
                       <h3 className="text-2xl font-bold">{tournament.title}</h3>
-                      <span className={`inline-flex items-center space-x-2 px-3 py-1 rounded-full text-sm font-semibold ${getStatusColor(tournament.status)}`}>
-                        {getStatusIcon(tournament.status)}
-                        <span>{tournament.statusText}</span>
-                      </span>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        {tournament.isDemo && (
+                          <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-purple-600/30 text-purple-200 border border-purple-500/40">
+                            DEMO
+                          </span>
+                        )}
+                        <span className={`inline-flex items-center space-x-2 px-3 py-1 rounded-full text-sm font-semibold ${getStatusColor(tournament.status)}`}>
+                          {getStatusIcon(tournament.status)}
+                          <span>{tournament.statusText}</span>
+                        </span>
+                      </div>
                     </div>
                     
                     <p className="text-slate-300 mb-4">{stripMetadataTags(isEnglish && tournament.description_en ? tournament.description_en : tournament.description)}</p>
@@ -143,13 +152,18 @@ export default function TournamentsPage() {
 
                   {/* Actions */}
                   <div className="flex flex-col space-y-3">
-                    {tournament.status === 'open' && (
+                    {tournament.status === 'open' && !tournament.isDemo && (
                       <Link 
                         href={`/register?tournament=${tournament.id}`}
                         className="pro11-button text-center"
                       >
                         {isEnglish ? 'Register team' : 'Meld på lag'}
                       </Link>
+                    )}
+                    {tournament.isDemo && (
+                      <p className="text-purple-200 text-sm text-center px-2">
+                        {isEnglish ? 'Demo — registration closed' : 'Demo — påmelding stengt'}
+                      </p>
                     )}
                     {tournament.status === 'ongoing' && (
                       <button disabled className="pro11-button-secondary text-center opacity-50 cursor-not-allowed">
@@ -168,7 +182,7 @@ export default function TournamentsPage() {
                 </div>
 
                 {/* Progress bar for registration */}
-                {tournament.status === 'open' && (
+                {tournament.status === 'open' && !tournament.isDemo && (
                   <div className="mt-4">
                     <div className="flex justify-between text-sm text-slate-400 mb-2">
                       <span>{isEnglish ? 'Registration' : 'Påmelding'}</span>

@@ -10,12 +10,14 @@ import { useLanguage } from '@/components/LanguageProvider'
 const GEN_TAG_REGEX = /\[GEN:\s*(NEW GEN|OLD GEN|BOTH)\]/gi
 const FORMAT_TAG_REGEX = /\[FORMAT\][\s\S]*?\[\/FORMAT\]/gi
 const POT_PER_TEAM_TAG_REGEX = /\[POT_PER_TEAM:\d+\]/gi
+const DEMO_TAG_REGEX = /\[DEMO\]/gi
 function stripDescriptionForDisplay(description?: string | null): string {
   if (!description?.trim()) return ''
   return description
     .replace(FORMAT_TAG_REGEX, '')
     .replace(GEN_TAG_REGEX, '')
     .replace(POT_PER_TEAM_TAG_REGEX, '')
+    .replace(DEMO_TAG_REGEX, '')
     .replace(/\n{3,}/g, '\n\n')
     .trim()
 }
@@ -89,9 +91,16 @@ export default function HomePage() {
                   </span>
                 </div>
                 {genLabel && (
-                  <div className="mb-3 flex justify-center">
+                  <div className="mb-3 flex justify-center gap-2 flex-wrap">
                     <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-slate-800 text-slate-200">
                       {genLabel}
+                    </span>
+                  </div>
+                )}
+                {nextTournament.isDemo && (
+                  <div className="mb-3 flex justify-center">
+                    <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-purple-600/30 text-purple-200 border border-purple-500/40">
+                      DEMO
                     </span>
                   </div>
                 )}
@@ -148,10 +157,19 @@ export default function HomePage() {
                 })()}
               </div>
               <div className="text-center flex flex-col items-center gap-4 w-full max-w-full min-w-0">
-                {nextTournament.status === 'ongoing' ? (
-                  <button disabled className="pro11-button-secondary text-lg px-6 sm:px-8 py-4 w-full sm:w-auto max-w-full">
-                    {isEnglish ? 'Registration closed' : 'Påmelding stengt'}
-                  </button>
+                {nextTournament.status === 'ongoing' || nextTournament.isDemo ? (
+                  nextTournament.isDemo ? (
+                    <Link
+                      href={`/tournaments/${nextTournament.id}`}
+                      className="pro11-button text-lg px-6 sm:px-8 py-4 w-full sm:w-auto max-w-full"
+                    >
+                      {isEnglish ? 'View demo tournament' : 'Se demo-turnering'}
+                    </Link>
+                  ) : (
+                    <button disabled className="pro11-button-secondary text-lg px-6 sm:px-8 py-4 w-full sm:w-auto max-w-full">
+                      {isEnglish ? 'Registration closed' : 'Påmelding stengt'}
+                    </button>
+                  )
                 ) : (
                   <Link href="/register" className="pro11-button text-lg px-6 sm:px-8 py-4 w-full sm:w-auto max-w-full">
                     {isEnglish ? 'Register team' : 'Meld på lag'}

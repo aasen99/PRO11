@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { Shield, Users, Trophy, Calendar, Download, CheckCircle, XCircle, Eye, Plus, Settings, Lock, Edit, Trash2, Mail, Key, BarChart3, LogOut, LayoutDashboard, MessageSquare, Radio, Filter, ChevronRight, Award } from 'lucide-react'
 import { useLanguage } from '@/components/LanguageProvider'
 import { apiFetch } from '@/lib/client-fetch'
+import { isDemoTournament, DEMO_PASSWORD } from '@/lib/demo-tournament'
 
 interface Player {
   name: string
@@ -212,6 +213,19 @@ export default function AdminPage() {
     perTeamBonus: 500,
     currentPrize: 10000
   })
+
+  const [demoTeamCount, setDemoTeamCount] = useState(8)
+  const [demoNumGroups, setDemoNumGroups] = useState(2)
+  const [demoLoading, setDemoLoading] = useState(false)
+  const [demoDeletingId, setDemoDeletingId] = useState('')
+  const [demoError, setDemoError] = useState('')
+  const [demoResult, setDemoResult] = useState<{
+    tournamentId: string
+    title: string
+    teamCount: number
+    matchCount: number
+    emails: string[]
+  } | null>(null)
 
   useEffect(() => {
     checkAdminSession().then((authenticated) => {
@@ -720,6 +734,99 @@ export default function AdminPage() {
     a.download = `lag_${selectedTournament || 'alle'}_${new Date().toISOString().split('T')[0]}.csv`
     a.click()
     window.URL.revokeObjectURL(url)
+  }
+
+  const demoTournaments = tournaments.filter(tournament =>
+    isDemoTournament({ title: tournament.title, description: tournament.description })
+  )
+
+  const createDemoTournament = async () => {
+    setDemoError('')
+    setDemoLoading(true)
+    try {
+      const response = await apiFetch('/api/admin/demo', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          teamCount: demoTeamCount,
+          numGroups: demoNumGroups,
+          generateMatches: true,
+          format: 'mixed'
+        })
+      })
+      const data = await response.json()
+      if (!response.ok) {
+        throw new Error(data.error || t('Kunne ikke opprette demo-turnering', 'Could not create demo tournament'))
+      }
+
+      const startDate = new Date(data.tournament.start_date)
+      const date = startDate.toLocaleDateString('nb-NO', { day: 'numeric', month: 'long', year: 'numeric' })
+      const time = startDate.toLocaleTimeString('nb-NO', { hour: '2-digit', minute: '2-digit' })
+      const transformed: Tournament = {
+        id: data.tournament.id,
+        title: data.tournament.title,
+        date,
+        time,
+        registeredTeams: data.tournament.current_teams || demoTeamCount,
+        maxTeams: data.tournament.max_teams,
+        status: 'ongoing',
+        prize: '0 NOK',
+        prizePoolRaw: 0,
+        entryFee: 0,
+        description: data.tournament.description || '',
+        description_en: data.tournament.description_en || undefined,
+        format: 'mixed',
+        checkInOpen: true,
+        startDateRaw: data.tournament.start_date,
+        matches: []
+      }
+
+      setTournaments(prev => [transformed, ...prev])
+      await loadTeams()
+      setDemoResult({
+        tournamentId: data.tournament.id,
+        title: data.tournament.title,
+        teamCount: data.teams?.length || demoTeamCount,
+        matchCount: data.matchCount || 0,
+        emails: data.credentials?.emails || []
+      })
+      setSelectedTournament(data.tournament.id)
+    } catch (error: any) {
+      setDemoError(error.message || t('Ukjent feil', 'Unknown error'))
+    } finally {
+      setDemoLoading(false)
+    }
+  }
+
+  const deleteDemoTournament = async (tournamentId: string) => {
+    if (!confirm(t('Slette demo-turneringen og alle tilhørende lag og kamper?', 'Delete the demo tournament and all related teams and matches?'))) {
+      return
+    }
+    setDemoDeletingId(tournamentId)
+    setDemoError('')
+    try {
+      const response = await apiFetch(`/api/admin/demo?id=${tournamentId}`, {
+        method: 'DELETE',
+        credentials: 'include'
+      })
+      const data = await response.json()
+      if (!response.ok) {
+        throw new Error(data.error || t('Kunne ikke slette demo-turnering', 'Could not delete demo tournament'))
+      }
+      setTournaments(prev => prev.filter(t => t.id !== tournamentId))
+      setTeams(prev => prev.filter(team => (team.tournamentId || team.tournament_id) !== tournamentId))
+      if (demoResult?.tournamentId === tournamentId) {
+        setDemoResult(null)
+      }
+      if (selectedTournament === tournamentId) {
+        setSelectedTournament('')
+      }
+    } catch (error: any) {
+      setDemoError(error.message || t('Ukjent feil', 'Unknown error'))
+    } finally {
+      setDemoDeletingId('')
+    }
   }
 
   const sendEmailToTeam = (team: Team) => {
@@ -2804,6 +2911,90 @@ PRO11 Team`)
                 </div>
                 
                 <div className="grid md:grid-cols-2 gap-4">
+                  <div className="pro11-card p-4 md:col-span-2">
+                    <h4 className="font-semibold mb-2 text-sm">Demo-turnering</h4>
+                    <p className="text-slate-400 text-xs mb-4">
+                      {t(
+                        'Opprett en testturnering med fiktive lag og kamper. Vises på forsiden, men offentlig påmelding er stengt.',
+                        'Create a test tournament with fake teams and matches. Visible on the homepage, but public registration is closed.'
+                      )}
+                    </p>
+                    <div className="grid sm:grid-cols-2 gap-3 mb-4">
+                      <div>
+                        <label className="block text-xs text-slate-400 mb-1">{t('Antall lag', 'Number of teams')}</label>
+                        <input
+                          type="number"
+                          min={2}
+                          max={24}
+                          value={demoTeamCount}
+                          onChange={(e) => setDemoTeamCount(Number(e.target.value) || 8)}
+                          className="pro11-input w-full text-sm"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs text-slate-400 mb-1">{t('Antall grupper', 'Number of groups')}</label>
+                        <input
+                          type="number"
+                          min={1}
+                          max={8}
+                          value={demoNumGroups}
+                          onChange={(e) => setDemoNumGroups(Number(e.target.value) || 2)}
+                          className="pro11-input w-full text-sm"
+                        />
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={createDemoTournament}
+                      disabled={demoLoading}
+                      className="pro11-button text-sm flex items-center gap-2 disabled:opacity-50"
+                    >
+                      <Plus className="w-3 h-3" />
+                      <span>{demoLoading ? t('Oppretter...', 'Creating...') : t('Opprett demo-turnering', 'Create demo tournament')}</span>
+                    </button>
+                    {demoError && <p className="text-red-400 text-xs mt-3">{demoError}</p>}
+                    {demoResult && (
+                      <div className="mt-4 rounded-lg border border-green-500/30 bg-green-900/20 p-4 text-xs space-y-2">
+                        <p className="text-green-300 font-semibold">{t('Demo opprettet', 'Demo created')}: {demoResult.title}</p>
+                        <p>{t('Lag', 'Teams')}: {demoResult.teamCount} · {t('Kamper', 'Matches')}: {demoResult.matchCount}</p>
+                        <p>
+                          {t('Passord for alle demo-lag', 'Password for all demo teams')}:{' '}
+                          <code className="text-green-200">{DEMO_PASSWORD}</code>
+                        </p>
+                        <p className="text-slate-300">
+                          {t('E-post', 'Email')}: demo1@pro11.no … demo{demoResult.teamCount}@pro11.no
+                        </p>
+                        <Link href={`/tournaments/${demoResult.tournamentId}`} className="pro11-button-secondary text-xs inline-flex mt-2">
+                          {t('Åpne turnering', 'Open tournament')}
+                        </Link>
+                      </div>
+                    )}
+                    {demoTournaments.length > 0 && (
+                      <div className="mt-5 border-t border-slate-700 pt-4">
+                        <h5 className="text-xs font-semibold text-slate-300 mb-2">{t('Aktive demo-turneringer', 'Active demo tournaments')}</h5>
+                        <div className="space-y-2">
+                          {demoTournaments.map(demo => (
+                            <div key={demo.id} className="flex items-center justify-between gap-3 rounded-lg bg-slate-800/50 p-3 text-xs">
+                              <div className="min-w-0">
+                                <p className="font-medium truncate">{demo.title}</p>
+                                <p className="text-slate-400">{demo.registeredTeams || 0} {t('lag', 'teams')}</p>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => deleteDemoTournament(demo.id)}
+                                disabled={demoDeletingId === demo.id}
+                                className="pro11-button-secondary text-xs flex items-center gap-1 shrink-0 disabled:opacity-50"
+                              >
+                                <Trash2 className="w-3 h-3" />
+                                <span>{demoDeletingId === demo.id ? t('Sletter...', 'Deleting...') : t('Slett', 'Delete')}</span>
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
                   <div className="pro11-card p-4">
                     <h4 className="font-semibold mb-3 text-sm">{t('Admin-innstillinger', 'Admin settings')}</h4>
                     <div className="space-y-3">

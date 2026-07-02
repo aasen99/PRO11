@@ -7,6 +7,7 @@ import Header from '../../components/Header'
 import { fetchTournamentById } from '../../lib/tournaments'
 import { useLanguage } from '@/components/LanguageProvider'
 import { validatePasswordClient } from '@/lib/utils'
+import { isDemoTournament } from '@/lib/demo-tournament'
 
 interface TeamRegistration {
   teamName: string
@@ -66,7 +67,11 @@ export default function RegisterPage() {
           const data = await response.json()
           if (data.tournaments && data.tournaments.length > 0) {
             const preferredTournament =
-              data.tournaments.find((t: any) => ['open', 'ongoing', 'upcoming'].includes(t.status)) ||
+              data.tournaments.find(
+                (t: any) =>
+                  !isDemoTournament(t) && ['open', 'ongoing', 'upcoming', 'active'].includes(t.status)
+              ) ||
+              data.tournaments.find((t: any) => !isDemoTournament(t)) ||
               data.tournaments[0]
             const t = preferredTournament
             setFormData(prev => ({ ...prev, tournamentId: t.id }))
@@ -84,7 +89,8 @@ export default function RegisterPage() {
               time,
               prize: `${computedPrizePool.toLocaleString('nb-NO')} NOK`,
               entryFee: t.entry_fee,
-              description: t.description || ''
+              description: t.description || '',
+              isDemo: isDemoTournament(t)
             })
           }
         }
@@ -104,8 +110,19 @@ export default function RegisterPage() {
     setFormData({ ...formData, clubLogo: file })
   }
 
+  const isDemo = Boolean(tournament?.isDemo || isDemoTournament(tournament))
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+
+    if (isDemo) {
+      alert(
+        isEnglish
+          ? 'This is a demo tournament. Public registration is closed.'
+          : 'Dette er en demo-turnering. Offentlig påmelding er stengt.'
+      )
+      return
+    }
     
     // Validate form
     if (!formData.teamName || !formData.captainName || !formData.captainEmail) {
@@ -192,6 +209,14 @@ export default function RegisterPage() {
 
     if (!formData.tournamentId) {
       setLoginError(isEnglish ? 'No tournament selected.' : 'Ingen turnering valgt.')
+      return
+    }
+    if (isDemo) {
+      setLoginError(
+        isEnglish
+          ? 'Demo tournaments do not accept new registrations.'
+          : 'Demo-turneringer tar ikke imot nye påmeldinger.'
+      )
       return
     }
 
@@ -356,6 +381,19 @@ export default function RegisterPage() {
           </div>
           <div className="pro11-card p-4 sm:p-5 mb-6 border border-blue-600/30 bg-blue-900/10">
             <div className="flex flex-col gap-4">
+              {isDemo && (
+                <div className="rounded-lg border border-purple-500/40 bg-purple-900/20 p-4 text-center">
+                  <p className="text-purple-200 font-semibold mb-1">DEMO-turnering</p>
+                  <p className="text-slate-300 text-sm">
+                    {isEnglish
+                      ? 'This tournament is for internal testing only. Public registration is closed. Demo captains can still log in at /captain.'
+                      : 'Denne turneringen er kun for intern testing. Offentlig påmelding er stengt. Demo-kapteiner kan logge inn på /captain.'}
+                  </p>
+                  <Link href={`/tournaments/${formData.tournamentId}`} className="pro11-button-secondary text-sm mt-3 inline-flex">
+                    {isEnglish ? 'View tournament' : 'Se turnering'}
+                  </Link>
+                </div>
+              )}
               <div className="text-center">
                 <h2 className="text-sm font-semibold text-slate-100">
                   {isEnglish ? 'Captain login to join' : 'Lagleder login for påmelding'}
@@ -430,7 +468,7 @@ export default function RegisterPage() {
             </div>
           </div>
 
-          <form onSubmit={handleSubmit} className="pro11-card p-6 sm:p-8">
+          <form onSubmit={handleSubmit} className="pro11-card p-6 sm:p-8" aria-disabled={isDemo}>
             {/* Tournament Info */}
             <div className="mb-8 p-4 bg-blue-600/20 rounded-lg border border-blue-500/30">
               <h3 className="text-xl font-semibold mb-2">{isEnglish ? 'Tournament' : 'Turnering'}</h3>
@@ -442,6 +480,11 @@ export default function RegisterPage() {
               ) : (
                 <>
                   <p className="text-slate-300">{tournament?.title} - {tournament?.date}</p>
+                  {isDemo && (
+                    <p className="text-purple-300 text-sm mt-2">
+                      {isEnglish ? 'Demo tournament — registration closed' : 'Demo-turnering — påmelding stengt'}
+                    </p>
+                  )}
                   <p className="text-slate-400 text-sm">
                     {isEnglish ? 'Prize' : 'Premie'}: {tournament?.prize} | {isEnglish ? 'Entry fee' : 'Påmeldingsgebyr'}:{' '}
                     {tournament?.entryFee === 0 ? (
@@ -601,7 +644,7 @@ export default function RegisterPage() {
 
             {/* Submit */}
             <div className="text-center">
-              <button type="submit" className="pro11-button text-lg px-8 py-4">
+              <button type="submit" disabled={isDemo} className="pro11-button text-lg px-8 py-4 disabled:opacity-50 disabled:cursor-not-allowed">
                 {isEnglish ? 'Register team' : 'Registrer lag'}
               </button>
               <p className="text-slate-400 text-sm mt-4">

@@ -1,3 +1,5 @@
+import { isDemoTournament } from './demo-tournament'
+
 export interface Tournament {
   id: string
   title: string
@@ -12,6 +14,7 @@ export interface Tournament {
   description: string
   description_en?: string
   format: 'group_stage' | 'knockout' | 'mixed'
+  isDemo: boolean
 }
 
 // Database tournament interface
@@ -114,7 +117,8 @@ function transformTournament(dbTournament: DatabaseTournament): Tournament {
     statusText: getStatusText(status),
     description: dbTournament.description || '',
     description_en: dbTournament.description_en || undefined,
-    format: 'mixed' // Default format, can be extended later
+    format: 'mixed', // Default format, can be extended later
+    isDemo: isDemoTournament(dbTournament)
   }
 }
 

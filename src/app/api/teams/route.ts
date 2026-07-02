@@ -7,6 +7,7 @@ import {
   getCaptainSession,
   unauthorizedResponse
 } from '@/lib/session'
+import { isDemoTournament } from '@/lib/demo-tournament'
 
 export async function POST(request: NextRequest) {
   try {
@@ -47,11 +48,17 @@ export async function POST(request: NextRequest) {
     if (tournamentUuid) {
       const { data: tournamentMeta, error: tournamentMetaError } = await supabase
         .from('tournaments')
-        .select('entry_fee')
+        .select('title, description, entry_fee')
         .eq('id', tournamentUuid)
         .single()
       if (tournamentMetaError) {
         return NextResponse.json({ error: 'Failed to read tournament settings.' }, { status: 400 })
+      }
+      if (isDemoTournament(tournamentMeta) && !getAdminSession(request)) {
+        return NextResponse.json(
+          { error: 'Demo-turneringer tar ikke imot offentlig påmelding.' },
+          { status: 403 }
+        )
       }
       const entryFee = Number(tournamentMeta?.entry_fee ?? 0)
       isFreeTournament = Number.isFinite(entryFee) && entryFee <= 0
