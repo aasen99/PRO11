@@ -329,11 +329,6 @@ export default function AdminPage() {
             
             const transformed = await Promise.all(transformedPromises)
             setTournaments(transformed)
-            // Set first tournament as selected if none selected
-            if (transformed.length > 0 && !selectedTournament) {
-              const latestId = getLatestTournamentId(transformed)
-              if (latestId) setSelectedTournament(latestId)
-            }
           }
         }
       } catch (error) {
@@ -344,7 +339,7 @@ export default function AdminPage() {
     if (isAuthenticated) {
       loadTournaments()
     }
-  }, [isAuthenticated, selectedTournament])
+  }, [isAuthenticated])
 
   // Hent teams fra database via API (kan kalles på nytt f.eks. etter opprettelse av lag)
   const loadTeams = React.useCallback(async () => {
@@ -416,11 +411,11 @@ export default function AdminPage() {
   }
 
   // Show all teams if no tournament is selected, otherwise filter by tournament
-  const tournamentTeams = selectedTournament
+  const visibleTeams = selectedTournament
     ? teams.filter(team => (team.tournamentId || team.tournament_id) === selectedTournament)
     : teams
 
-  const filteredTeams = tournamentTeams.filter(team => {
+  const filteredTeams = visibleTeams.filter(team => {
     if (teamFilter === 'pending') return team.status === 'pending'
     if (teamFilter === 'approved') return team.status === 'approved'
     if (teamFilter === 'not_checked_in') {
@@ -650,7 +645,7 @@ export default function AdminPage() {
       if (response.ok && data.success) {
         setShowCreateTeamModal(false)
         await loadTeams()
-        if (selectedTournament !== tid) setSelectedTournament(tid)
+        if (selectedTournament && selectedTournament !== tid) setSelectedTournament(tid)
         alert(t('Lag opprettet. Passord til kaptein: ', 'Team created. Captain password: ') + (data.password || ''))
       } else {
         setCreateTeamError(data.error || t('Kunne ikke opprette lag.', 'Could not create team.'))
@@ -694,9 +689,11 @@ export default function AdminPage() {
   }, [teams])
 
   const exportTeams = () => {
+    const includeTournament = !selectedTournament
     const csvContent = [
       [
         t('Lag', 'Team'),
+        ...(includeTournament ? [t('Turnering', 'Tournament')] : []),
         t('Kaptein', 'Captain'),
         t('E-post', 'Email'),
         t('Forventet spillere', 'Expected players'),
@@ -706,6 +703,7 @@ export default function AdminPage() {
       ],
       ...filteredTeams.map(team => [
         team.teamName || team.team_name,
+        ...(includeTournament ? [getTournamentTitleById(team.tournamentId || team.tournament_id)] : []),
         team.captainName || team.captain_name,
         team.captainEmail || team.captain_email,
         team.expectedPlayers || team.expected_players || team.players?.length || 0,
@@ -719,7 +717,7 @@ export default function AdminPage() {
     const url = window.URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
-    a.download = `lag_${selectedTournament}_${new Date().toISOString().split('T')[0]}.csv`
+    a.download = `lag_${selectedTournament || 'alle'}_${new Date().toISOString().split('T')[0]}.csv`
     a.click()
     window.URL.revokeObjectURL(url)
   }
@@ -895,9 +893,6 @@ PRO11 Team`)
           
           // Update tournaments list immediately
           setTournaments(prev => [transformedNewTournament, ...prev])
-          if (!selectedTournament) {
-            setSelectedTournament(transformedNewTournament.id)
-          }
           setShowTournamentModal(false)
           setEditingTournament(null)
           setIsNewTournament(false)
@@ -940,10 +935,6 @@ PRO11 Team`)
                 }
               })
               setTournaments(transformed)
-              if (transformed.length > 0 && !selectedTournament) {
-                const latestId = getLatestTournamentId(transformed)
-                if (latestId) setSelectedTournament(latestId)
-              }
               setShowTournamentModal(false)
               setEditingTournament(null)
               setIsNewTournament(false)
@@ -1001,10 +992,6 @@ PRO11 Team`)
                 }
               })
               setTournaments(transformed)
-              if (transformed.length > 0 && !selectedTournament) {
-                const latestId = getLatestTournamentId(transformed)
-                if (latestId) setSelectedTournament(latestId)
-              }
               setShowTournamentModal(false)
               setEditingTournament(null)
               setIsNewTournament(false)
@@ -1067,8 +1054,7 @@ PRO11 Team`)
               })
               setTournaments(transformed)
               if (selectedTournament === tournamentId) {
-                const latestId = getLatestTournamentId(transformed)
-                setSelectedTournament(latestId)
+                setSelectedTournament('')
               }
             }
           }
@@ -1824,16 +1810,22 @@ PRO11 Team`)
   }, 0)
 
   const tournamentTeamStats = {
-    total: tournamentTeams.length,
-    pending: tournamentTeams.filter(team => team.status === 'pending').length,
-    approved: tournamentTeams.filter(team => team.status === 'approved').length,
-    checkedIn: tournamentTeams.filter(team => isTeamCheckedIn(team)).length,
-    paid: tournamentTeams.filter(team => isTeamPaid(team)).length
+    total: visibleTeams.length,
+    pending: visibleTeams.filter(team => team.status === 'pending').length,
+    approved: visibleTeams.filter(team => team.status === 'approved').length,
+    checkedIn: visibleTeams.filter(team => isTeamCheckedIn(team)).length,
+    paid: visibleTeams.filter(team => isTeamPaid(team)).length
   }
+
+  const shortcutTournamentId = selectedTournament || getLatestTournamentId(tournaments)
+  const shortcutTournamentData = tournaments.find(t => t.id === shortcutTournamentId)
+  const selectedTournamentData = selectedTournament
+    ? tournaments.find(t => t.id === selectedTournament)
+    : null
+  const showAllTeams = !selectedTournament
 
   const unreadMessagesCount = messages.filter(message => message.status !== 'resolved').length
   const activeTournaments = tournaments.filter(t => t.status === 'open' || t.status === 'ongoing')
-  const selectedTournamentData = tournaments.find(t => t.id === selectedTournament)
 
   const getTournamentStatusLabel = (status: Tournament['status']) => {
     switch (status) {
@@ -2025,9 +2017,9 @@ PRO11 Team`)
                     <Radio className="w-4 h-4 text-red-400" />
                     {t('Live-panel', 'Live panel')}
                   </Link>
-                  {selectedTournamentData && (
+                  {shortcutTournamentData && (
                     <Link
-                      href={`/admin/matches/${selectedTournamentData.id}`}
+                      href={`/admin/matches/${shortcutTournamentData.id}`}
                       className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-slate-300 hover:bg-slate-800/60 transition-colors"
                     >
                       <Trophy className="w-4 h-4 text-blue-400" />
@@ -2162,13 +2154,14 @@ PRO11 Team`)
                 <div className="flex flex-col lg:flex-row lg:items-end gap-4">
                   <div className="flex-1">
                     <label className="block text-sm font-medium text-slate-300 mb-1">
-                      {t('Turnering', 'Tournament')}
+                      {t('Filtrer på turnering', 'Filter by tournament')}
                     </label>
                     <select
                       value={selectedTournament}
                       onChange={(e) => setSelectedTournament(e.target.value)}
                       className="pro11-input w-full max-w-md"
                     >
+                      <option value="">{t('Alle turneringer', 'All tournaments')}</option>
                       {tournaments.map(tournament => (
                         <option key={tournament.id} value={tournament.id}>
                           {tournament.title}
@@ -2178,8 +2171,7 @@ PRO11 Team`)
                   </div>
                 </div>
 
-                {selectedTournamentData && (
-                  <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+                <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
                     {[
                       { label: t('Totalt', 'Total'), value: tournamentTeamStats.total },
                       { label: t('Venter', 'Pending'), value: tournamentTeamStats.pending, highlight: 'text-yellow-400' },
@@ -2193,7 +2185,6 @@ PRO11 Team`)
                       </div>
                     ))}
                   </div>
-                )}
 
                 <div className="flex flex-wrap gap-2">
                   {([
@@ -2235,6 +2226,9 @@ PRO11 Team`)
                     <thead>
                       <tr className="border-b border-slate-700 bg-slate-800/50">
                         <th className="py-3 px-3 text-left text-xs font-medium text-slate-400 uppercase">{t('Lag', 'Team')}</th>
+                        {showAllTeams && (
+                          <th className="py-3 px-3 text-left text-xs font-medium text-slate-400 uppercase">{t('Turnering', 'Tournament')}</th>
+                        )}
                         <th className="py-3 px-3 text-left text-xs font-medium text-slate-400 uppercase">{t('Kaptein', 'Captain')}</th>
                         <th className="py-3 px-3 text-left text-xs font-medium text-slate-400 uppercase">{t('Spillere', 'Players')}</th>
                         <th className="py-3 px-3 text-left text-xs font-medium text-slate-400 uppercase">{t('Status', 'Status')}</th>
@@ -2252,6 +2246,11 @@ PRO11 Team`)
                               <div className="text-xs text-slate-500">{team.captainEmail || team.captain_email}</div>
                             </div>
                           </td>
+                          {showAllTeams && (
+                            <td className="py-3 px-3 text-sm text-slate-300">
+                              {getTournamentTitleById(team.tournamentId || team.tournament_id)}
+                            </td>
+                          )}
                           <td className="py-3 px-3 text-sm">{team.captainName || team.captain_name}</td>
                           <td className="py-3 px-3 text-sm text-slate-300">
                             {team.expectedPlayers || team.expected_players || team.players?.length || 0}
@@ -2341,7 +2340,7 @@ PRO11 Team`)
 
                     <div className="flex justify-between items-center pt-2">
                       <p className="text-xs text-slate-500">
-                        {t(`Viser ${filteredTeams.length} av ${tournamentTeams.length} lag`, `Showing ${filteredTeams.length} of ${tournamentTeams.length} teams`)}
+                        {t(`Viser ${filteredTeams.length} av ${visibleTeams.length} lag`, `Showing ${filteredTeams.length} of ${visibleTeams.length} teams`)}
                       </p>
                       <button
                         onClick={exportTeams}
