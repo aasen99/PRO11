@@ -1,6 +1,6 @@
 {
   "name": "pro11",
-  "version": "1.0.1",
+  "version": "2.0.0",
   "main": "index.js",
   "scripts": {
     "dev": "next dev",

@@ -2827,11 +2827,11 @@ PRO11 Team`)
                     <div className="space-y-2 text-xs">
                       <div className="flex justify-between">
                         <span>Versjon:</span>
-                        <span>1.0.0</span>
+                        <span>2.0</span>
                       </div>
                       <div className="flex justify-between">
                         <span>{t('Oppdatert:', 'Updated:')}</span>
-                        <span>15. januar 2025</span>
+                        <span>{t('19. juni 2026', '19 June 2026')}</span>
                       </div>
                       <div className="flex justify-between">
                         <span>{t('Status:', 'Status:')}</span>
