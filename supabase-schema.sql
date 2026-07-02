@@ -185,6 +185,7 @@ ALTER TABLE payments ENABLE ROW LEVEL SECURITY;
 ALTER TABLE matches ENABLE ROW LEVEL SECURITY;
 ALTER TABLE admin_users ENABLE ROW LEVEL SECURITY;
 ALTER TABLE captain_messages ENABLE ROW LEVEL SECURITY;
+ALTER TABLE tournament_events ENABLE ROW LEVEL SECURITY;
 
 -- RLS Policies for tournaments
 CREATE POLICY "Public read access to tournaments" ON tournaments
@@ -204,6 +205,8 @@ CREATE POLICY "Public can read matches" ON matches
 
 -- RLS Policies for captain_messages
 -- No public access; API uses service role
+
+-- tournament_events: RLS enabled, no anon/authenticated policies (service role only)
 
 -- RLS Policies for admin_users (restrictive - only service role should access)
 CREATE POLICY "No public access to admin users" ON admin_users

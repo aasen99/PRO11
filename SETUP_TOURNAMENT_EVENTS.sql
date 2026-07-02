@@ -1,4 +1,4 @@
--- Live center activity log
+-- Live center activity log (secure: RLS on, no public/anon access)
 -- Run in Supabase SQL Editor
 
 CREATE TABLE IF NOT EXISTS tournament_events (
@@ -18,8 +18,7 @@ CREATE INDEX IF NOT EXISTS idx_tournament_events_created_at ON tournament_events
 
 ALTER TABLE tournament_events ENABLE ROW LEVEL SECURITY;
 
-DROP POLICY IF EXISTS "Public read tournament events" ON tournament_events;
-CREATE POLICY "Public read tournament events"
-ON tournament_events FOR SELECT
-TO public
-USING (true);
+-- No SELECT/INSERT/UPDATE/DELETE policies for anon or authenticated.
+-- Server-side admin API uses SUPABASE_SERVICE_ROLE_KEY (bypasses RLS).
+
+REVOKE ALL ON TABLE tournament_events FROM anon, authenticated;
