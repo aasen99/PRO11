@@ -34,6 +34,7 @@ export default function CaptainLoginPage() {
       const response = await fetch('/api/captain/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({ email: email.trim(), password })
       })
       const data = await response.json()

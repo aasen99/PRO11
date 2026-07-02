@@ -1,10 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { isUnauthorized, requireAdmin } from '@/lib/session'
 
 const LIBRE_URL = 'https://libretranslate.com/translate'
 
 /** POST body: { text: string, source?: string, target?: string } -> { translated: string } */
 export async function POST(request: NextRequest) {
   try {
+    const admin = requireAdmin(request)
+    if (isUnauthorized(admin)) return admin
+
     const body = await request.json()
     const text = typeof body?.text === 'string' ? body.text.trim() : ''
     const source = (body?.source as string) || 'no'

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSupabase, getSupabaseAdmin } from '@/lib/supabase'
+import { isUnauthorized, requireAdmin } from '@/lib/session'
 
 export async function GET(request: NextRequest) {
   try {
@@ -136,6 +137,9 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    const admin = requireAdmin(request)
+    if (isUnauthorized(admin)) return admin
+
     const body = await request.json()
     const { title, description, description_en, start_date, end_date, max_teams, prize_pool, entry_fee, status } = body
     const normalizedEntryFee = Number(entry_fee)
@@ -220,6 +224,9 @@ export async function POST(request: NextRequest) {
 
 export async function PUT(request: NextRequest) {
   try {
+    const admin = requireAdmin(request)
+    if (isUnauthorized(admin)) return admin
+
     const body = await request.json()
     const { id, title, description, description_en, start_date, end_date, max_teams, prize_pool, entry_fee, status, check_in_open } = body
 
@@ -275,6 +282,9 @@ export async function PUT(request: NextRequest) {
 
 export async function DELETE(request: NextRequest) {
   try {
+    const admin = requireAdmin(request)
+    if (isUnauthorized(admin)) return admin
+
     const { searchParams } = new URL(request.url)
     const id = searchParams.get('id')
 

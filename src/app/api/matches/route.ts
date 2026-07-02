@@ -1,5 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabase'
+import {
+  captainInMatch,
+  forbiddenResponse,
+  getAdminSession,
+  getCaptainSession,
+  isCaptainRejectSubmission,
+  isCaptainResultSubmission,
+  isCaptainWalkoverSubmission,
+  isUnauthorized,
+  requireAdmin,
+  unauthorizedResponse
+} from '@/lib/session'
 
 export async function GET(request: NextRequest) {
   try {
@@ -78,6 +90,9 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    const admin = requireAdmin(request)
+    if (isUnauthorized(admin)) return admin
+
     const body = await request.json()
     const { tournament_id, team1_name, team2_name, round, group_name, group_round, status, scheduled_time } = body
 
@@ -233,6 +248,21 @@ export async function PUT(request: NextRequest) {
     }
 
     const currentMatch = currentMatchRaw as any
+
+    const admin = getAdminSession(request)
+    const captain = getCaptainSession(request)
+
+    if (isCaptainResultSubmission(body)) {
+      if (!captain) return unauthorizedResponse()
+      if (captain.teamName !== body.team_name) return forbiddenResponse()
+      if (!captainInMatch(captain, currentMatch)) return forbiddenResponse()
+    } else if (isCaptainRejectSubmission(body) || isCaptainWalkoverSubmission(body)) {
+      if (!captain || !captainInMatch(captain, currentMatch)) {
+        if (!admin) return unauthorizedResponse()
+      }
+    } else if (!admin) {
+      return unauthorizedResponse()
+    }
 
     const updateData: any = {}
     
@@ -633,6 +663,9 @@ export async function PUT(request: NextRequest) {
 
 export async function DELETE(request: NextRequest) {
   try {
+    const admin = requireAdmin(request)
+    if (isUnauthorized(admin)) return admin
+
     const { searchParams } = new URL(request.url)
     const tournamentId = searchParams.get('tournament_id')
     const keepGroup = searchParams.get('keep_group') === 'true'

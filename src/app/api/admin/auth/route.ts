@@ -1,5 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { checkRateLimit, getClientIdentifier, recordFailedAttempt } from '@/lib/rateLimit'
+import {
+  clearAdminSessionCookie,
+  getAdminSession,
+  setAdminSessionCookie
+} from '@/lib/session'
 import crypto from 'crypto'
 
 function timingSafeEqual(a: string, b: string): boolean {
@@ -11,6 +16,16 @@ function timingSafeEqual(a: string, b: string): boolean {
   } catch {
     return false
   }
+}
+
+export async function GET(request: NextRequest) {
+  return NextResponse.json({ authenticated: Boolean(getAdminSession(request)) })
+}
+
+export async function DELETE() {
+  const response = NextResponse.json({ success: true })
+  clearAdminSessionCookie(response)
+  return response
 }
 
 export async function POST(request: NextRequest) {
@@ -33,9 +48,21 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, error: 'Server configuration error' }, { status: 500 })
     }
 
-    if (timingSafeEqual(password, adminPassword)) {
-      return NextResponse.json({ success: true })
+    if (!process.env.NEXTAUTH_SECRET && !process.env.SESSION_SECRET) {
+      return NextResponse.json({
+        success: false,
+        error: 'Server configuration error: NEXTAUTH_SECRET is missing'
+      }, { status: 500 })
     }
+
+    if (timingSafeEqual(password, adminPassword)) {
+      const response = NextResponse.json({ success: true })
+      if (!setAdminSessionCookie(response)) {
+        return NextResponse.json({ success: false, error: 'Server configuration error' }, { status: 500 })
+      }
+      return response
+    }
+
     recordFailedAttempt(ip, 'admin')
     return NextResponse.json({ success: false, error: 'Feil passord' }, { status: 401 })
   } catch (error: any) {
@@ -43,4 +70,3 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ success: false, error: 'Internal server error' }, { status: 500 })
   }
 }
-

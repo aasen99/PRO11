@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseAdmin, getSupabase } from '@/lib/supabase'
 import { comparePassword } from '@/lib/password'
 import { checkRateLimit, getClientIdentifier, recordFailedAttempt } from '@/lib/rateLimit'
+import { setCaptainSessionCookie } from '@/lib/session'
 
 export async function POST(request: NextRequest) {
   try {
@@ -83,7 +84,26 @@ export async function POST(request: NextRequest) {
       created_at: teams[0].created_at
     }
 
-    return NextResponse.json({ success: true, team: teamData })
+    if (!process.env.NEXTAUTH_SECRET && !process.env.SESSION_SECRET) {
+      return NextResponse.json(
+        { error: 'Server configuration error: NEXTAUTH_SECRET is missing' },
+        { status: 500 }
+      )
+    }
+
+    const response = NextResponse.json({ success: true, team: teamData })
+    if (!setCaptainSessionCookie(response, {
+      teamId: teamData.id,
+      teamName: teamData.teamName,
+      captainEmail: teamData.captainEmail
+    })) {
+      return NextResponse.json(
+        { error: 'Server configuration error' },
+        { status: 500 }
+      )
+    }
+
+    return response
   } catch (err: any) {
     console.error('Captain login error:', err)
     return NextResponse.json(

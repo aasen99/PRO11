@@ -1,5 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabase'
+import {
+  forbiddenResponse,
+  isUnauthorized,
+  requireCaptain
+} from '@/lib/session'
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024 // 5 MB
 const ALLOWED_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/gif'])
@@ -10,6 +15,9 @@ function sanitizeFileName(name: string): string {
 
 export async function POST(request: NextRequest) {
   try {
+    const captain = requireCaptain(request)
+    if (isUnauthorized(captain)) return captain
+
     const formData = await request.formData()
     const matchId = String(formData.get('match_id') || '').trim()
     const teamName = String(formData.get('team_name') || '').trim()
@@ -52,6 +60,10 @@ export async function POST(request: NextRequest) {
     const isTeam2 = match.team2_name === teamName
     if (!isTeam1 && !isTeam2) {
       return NextResponse.json({ error: 'Lagnavnet matcher ikke denne kampen' }, { status: 400 })
+    }
+
+    if (captain.teamName !== teamName) {
+      return forbiddenResponse()
     }
 
     const extension = file.type === 'image/png'

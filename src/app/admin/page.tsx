@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react'
 import Link from 'next/link'
-import { Shield, Users, Trophy, Calendar, Download, CheckCircle, XCircle, Eye, Plus, Settings, Lock, Edit, Trash2, Mail, Key, BarChart3, LogOut } from 'lucide-react'
+import { Shield, Users, Trophy, Calendar, Download, CheckCircle, XCircle, Eye, Plus, Settings, Lock, Edit, Trash2, Mail, Key, BarChart3, LogOut, LayoutDashboard, MessageSquare, Radio, Filter, ChevronRight, Award } from 'lucide-react'
 import { useLanguage } from '@/components/LanguageProvider'
 
 interface Player {
@@ -114,28 +114,16 @@ const getPerTeamPotFromDescription = (description?: string | null) => {
 }
 
 const ADMIN_SESSION_KEY = 'pro11_admin_session'
-const ADMIN_SESSION_MAX_AGE_MS = 24 * 60 * 60 * 1000 // 24 timer
 
-function getStoredAdminSession(): boolean {
-  if (typeof window === 'undefined') return false
+async function checkAdminSession(): Promise<boolean> {
   try {
-    const stored = localStorage.getItem(ADMIN_SESSION_KEY)
-    if (!stored) return false
-    const at = parseInt(stored, 10)
-    if (!Number.isFinite(at) || Date.now() - at > ADMIN_SESSION_MAX_AGE_MS) {
-      localStorage.removeItem(ADMIN_SESSION_KEY)
-      return false
-    }
-    return true
+    const response = await fetch('/api/admin/auth', { credentials: 'include' })
+    if (!response.ok) return false
+    const data = await response.json()
+    return data.authenticated === true
   } catch {
     return false
   }
-}
-
-function setAdminSession() {
-  try {
-    localStorage.setItem(ADMIN_SESSION_KEY, String(Date.now()))
-  } catch {}
 }
 
 const buildDescriptionWithGen = (
@@ -157,7 +145,8 @@ export default function AdminPage() {
   const [sessionChecked, setSessionChecked] = useState(false)
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
-  const [activeTab, setActiveTab] = useState<'teams' | 'tournaments' | 'prizes' | 'statistics' | 'settings' | 'messages'>('teams')
+  const [activeTab, setActiveTab] = useState<'overview' | 'teams' | 'tournaments' | 'prizes' | 'statistics' | 'settings' | 'messages'>('overview')
+  const [teamFilter, setTeamFilter] = useState<'all' | 'pending' | 'approved' | 'not_checked_in'>('all')
   const [selectedTournament, setSelectedTournament] = useState('')
   const getLatestTournamentId = (list: any[]) => {
     if (!list.length) return ''
@@ -224,8 +213,10 @@ export default function AdminPage() {
   })
 
   useEffect(() => {
-    setIsAuthenticated(getStoredAdminSession())
-    setSessionChecked(true)
+    checkAdminSession().then((authenticated) => {
+      setIsAuthenticated(authenticated)
+      setSessionChecked(true)
+    })
   }, [])
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -236,13 +227,13 @@ export default function AdminPage() {
       const response = await fetch('/api/admin/auth', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({ password })
       })
       
       const data = await response.json()
       
       if (data.success) {
-        setAdminSession()
         setIsAuthenticated(true)
         setPassword('')
       } else {
@@ -256,8 +247,9 @@ export default function AdminPage() {
     }
   }
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
     try {
+      await fetch('/api/admin/auth', { method: 'DELETE', credentials: 'include' })
       localStorage.removeItem(ADMIN_SESSION_KEY)
     } catch {}
     setIsAuthenticated(false)
@@ -423,11 +415,21 @@ export default function AdminPage() {
   }
 
   // Show all teams if no tournament is selected, otherwise filter by tournament
-  const filteredTeams = selectedTournament 
-    ? teams.filter(team => 
-        (team.tournamentId || team.tournament_id) === selectedTournament
-      )
+  const tournamentTeams = selectedTournament
+    ? teams.filter(team => (team.tournamentId || team.tournament_id) === selectedTournament)
     : teams
+
+  const filteredTeams = tournamentTeams.filter(team => {
+    if (teamFilter === 'pending') return team.status === 'pending'
+    if (teamFilter === 'approved') return team.status === 'approved'
+    if (teamFilter === 'not_checked_in') {
+      const eligible =
+        team.status === 'approved' || team.paymentStatus === 'paid' || team.payment_status === 'completed'
+      const checkedIn = team.checkedIn ?? team.checked_in ?? false
+      return eligible && !checkedIn
+    }
+    return true
+  })
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -1820,6 +1822,50 @@ PRO11 Team`)
     return sum + (entryFeeTotal - prizePool)
   }, 0)
 
+  const tournamentTeamStats = {
+    total: tournamentTeams.length,
+    pending: tournamentTeams.filter(team => team.status === 'pending').length,
+    approved: tournamentTeams.filter(team => team.status === 'approved').length,
+    checkedIn: tournamentTeams.filter(team => isTeamCheckedIn(team)).length,
+    paid: tournamentTeams.filter(team => isTeamPaid(team)).length
+  }
+
+  const unreadMessagesCount = messages.filter(message => message.status !== 'resolved').length
+  const activeTournaments = tournaments.filter(t => t.status === 'open' || t.status === 'ongoing')
+  const selectedTournamentData = tournaments.find(t => t.id === selectedTournament)
+
+  const getTournamentStatusLabel = (status: Tournament['status']) => {
+    switch (status) {
+      case 'open': return t('Åpen', 'Open')
+      case 'ongoing': return t('Pågår', 'Live')
+      case 'closed': return t('Stengt', 'Closed')
+      case 'completed': return t('Fullført', 'Completed')
+      case 'archived': return t('Arkivert', 'Archived')
+      default: return status
+    }
+  }
+
+  const getTournamentStatusColor = (status: Tournament['status']) => {
+    switch (status) {
+      case 'open': return 'bg-green-600/20 text-green-400 border-green-600/30'
+      case 'ongoing': return 'bg-blue-600/20 text-blue-400 border-blue-600/30'
+      case 'closed': return 'bg-slate-600/20 text-slate-400 border-slate-600/30'
+      case 'completed': return 'bg-purple-600/20 text-purple-400 border-purple-600/30'
+      case 'archived': return 'bg-slate-700/20 text-slate-500 border-slate-700/30'
+      default: return 'bg-slate-600/20 text-slate-400 border-slate-600/30'
+    }
+  }
+
+  const adminTabs = [
+    { id: 'overview' as const, label: t('Oversikt', 'Overview'), icon: LayoutDashboard },
+    { id: 'teams' as const, label: t('Lag', 'Teams'), icon: Users, badge: pendingTeams > 0 ? pendingTeams : undefined },
+    { id: 'tournaments' as const, label: t('Turneringer', 'Tournaments'), icon: Trophy, badge: activeTournaments.length > 0 ? activeTournaments.length : undefined },
+    { id: 'messages' as const, label: t('Meldinger', 'Messages'), icon: MessageSquare, badge: unreadMessagesCount > 0 ? unreadMessagesCount : undefined },
+    { id: 'prizes' as const, label: t('Premier', 'Prizes'), icon: Award },
+    { id: 'statistics' as const, label: t('Statistikk', 'Statistics'), icon: BarChart3 },
+    { id: 'settings' as const, label: t('Innstillinger', 'Settings'), icon: Settings }
+  ]
+
   // Session check: vis kort loading så vi ikke blinker innloggingsskjema
   if (!sessionChecked) {
     return (
@@ -1924,133 +1970,203 @@ PRO11 Team`)
         </div>
       </header>
 
-      <main className="container mx-auto px-4 py-4 flex flex-col items-center">
-        <div className="max-w-7xl w-full">
-          {/* Page Header */}
-          <div className="text-center mb-6">
-            <h1 className="text-3xl font-bold mb-2">Admin Dashboard</h1>
-            <p className="text-slate-300 text-base">
-              {t('Administrer lag, turneringer og innstillinger', 'Manage teams, tournaments, and settings')}
-            </p>
-          </div>
+      <main className="container mx-auto px-4 py-6">
+        <div className="max-w-7xl mx-auto">
+          <div className="flex flex-col lg:flex-row gap-6">
+            {/* Sidebar navigation */}
+            <aside className="lg:w-60 shrink-0">
+              <div className="pro11-card p-4 lg:sticky lg:top-4">
+                <div className="mb-4">
+                  <h1 className="text-xl font-bold">{t('Admin', 'Admin')}</h1>
+                  <p className="text-slate-400 text-sm mt-1">
+                    {t('Turneringsadministrasjon', 'Tournament management')}
+                  </p>
+                </div>
 
-          {/* Stats Overview */}
-          <div className="grid md:grid-cols-2 gap-4 mb-6">
-            <div className="pro11-card p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-slate-400 text-sm">{t('Totalt lag', 'Total teams')}</p>
-                  <p className="text-2xl font-bold">{totalTeams}</p>
-                </div>
-                <Users className="w-6 h-6 text-blue-400" />
-              </div>
-            </div>
-            <div className="pro11-card p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-slate-400 text-sm">Venter godkjenning</p>
-                  <p className="text-2xl font-bold">{pendingTeams}</p>
-                </div>
-                <CheckCircle className="w-6 h-6 text-yellow-400" />
-              </div>
-            </div>
-            <div className="pro11-card p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-slate-400 text-sm">Godkjent</p>
-                  <p className="text-2xl font-bold">{approvedTeams}</p>
-                </div>
-                <CheckCircle className="w-6 h-6 text-green-400" />
-              </div>
-            </div>
-            <div className="pro11-card p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-slate-400 text-sm">{t('Inntekter', 'Revenue')}</p>
-                  <p className="text-2xl font-bold">{totalRevenue} NOK</p>
-                </div>
-                <Trophy className="w-6 h-6 text-blue-400" />
-              </div>
-            </div>
-          </div>
+                <nav className="space-y-1">
+                  {adminTabs.map(tab => {
+                    const Icon = tab.icon
+                    return (
+                      <button
+                        key={tab.id}
+                        type="button"
+                        onClick={() => setActiveTab(tab.id)}
+                        className={`w-full flex items-center justify-between gap-2 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+                          activeTab === tab.id
+                            ? 'bg-blue-600 text-white'
+                            : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
+                        }`}
+                      >
+                        <span className="flex items-center gap-2">
+                          <Icon className="w-4 h-4 shrink-0" />
+                          {tab.label}
+                        </span>
+                        {tab.badge !== undefined && (
+                          <span className={`text-xs px-2 py-0.5 rounded-full ${
+                            activeTab === tab.id ? 'bg-white/20 text-white' : 'bg-yellow-600/20 text-yellow-400'
+                          }`}>
+                            {tab.badge}
+                          </span>
+                        )}
+                      </button>
+                    )
+                  })}
+                </nav>
 
-          {/* Tabs */}
-          <div className="pro11-card p-4 mb-6">
-            <div className="flex space-x-1 mb-4">
-              <button
-                onClick={() => setActiveTab('teams')}
-                className={`px-3 py-1.5 rounded-lg font-medium transition-colors text-sm ${
-                  activeTab === 'teams' 
-                    ? 'bg-blue-600 text-white' 
-                    : 'text-slate-400 hover:text-white'
-                }`}
-              >
-                {t('Lag', 'Teams')}
-              </button>
-              <button
-                onClick={() => setActiveTab('tournaments')}
-                className={`px-3 py-1.5 rounded-lg font-medium transition-colors text-sm ${
-                  activeTab === 'tournaments' 
-                    ? 'bg-blue-600 text-white' 
-                    : 'text-slate-400 hover:text-white'
-                }`}
-              >
-                {t('Turneringer', 'Tournaments')}
-              </button>
-              <button
-                onClick={() => setActiveTab('prizes')}
-                className={`px-3 py-1.5 rounded-lg font-medium transition-colors text-sm ${
-                  activeTab === 'prizes' 
-                    ? 'bg-blue-600 text-white' 
-                    : 'text-slate-400 hover:text-white'
-                }`}
-              >
-                {t('Premier', 'Prizes')}
-              </button>
-              <button
-                onClick={() => setActiveTab('statistics')}
-                className={`px-3 py-1.5 rounded-lg font-medium transition-colors text-sm ${
-                  activeTab === 'statistics' 
-                    ? 'bg-blue-600 text-white' 
-                    : 'text-slate-400 hover:text-white'
-                }`}
-              >
-                {t('Statistikk', 'Statistics')}
-              </button>
-              <button
-                onClick={() => setActiveTab('settings')}
-                className={`px-3 py-1.5 rounded-lg font-medium transition-colors text-sm ${
-                  activeTab === 'settings' 
-                    ? 'bg-blue-600 text-white' 
-                    : 'text-slate-400 hover:text-white'
-                }`}
-              >
-                {t('Innstillinger', 'Settings')}
-              </button>
-              <button
-                onClick={() => setActiveTab('messages')}
-                className={`px-3 py-1.5 rounded-lg font-medium transition-colors text-sm ${
-                  activeTab === 'messages' 
-                    ? 'bg-blue-600 text-white' 
-                    : 'text-slate-400 hover:text-white'
-                }`}
-              >
-                {t('Meldinger', 'Messages')}
-              </button>
-            </div>
+                <div className="mt-6 pt-4 border-t border-slate-700 space-y-2">
+                  <p className="text-xs font-medium text-slate-500 uppercase tracking-wide">
+                    {t('Snarveier', 'Shortcuts')}
+                  </p>
+                  <Link
+                    href="/admin/live"
+                    className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-slate-300 hover:bg-slate-800/60 transition-colors"
+                  >
+                    <Radio className="w-4 h-4 text-red-400" />
+                    {t('Live-panel', 'Live panel')}
+                  </Link>
+                  {selectedTournamentData && (
+                    <Link
+                      href={`/admin/matches/${selectedTournamentData.id}`}
+                      className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-slate-300 hover:bg-slate-800/60 transition-colors"
+                    >
+                      <Trophy className="w-4 h-4 text-blue-400" />
+                      {t('Kamper', 'Matches')}
+                    </Link>
+                  )}
+                </div>
+              </div>
+            </aside>
+
+            {/* Main content */}
+            <div className="flex-1 min-w-0">
+              <div className="pro11-card p-5 md:p-6">
+                {activeTab === 'overview' && (
+                  <div className="space-y-6">
+                    <div>
+                      <h2 className="text-2xl font-bold">{t('Oversikt', 'Overview')}</h2>
+                      <p className="text-slate-400 text-sm mt-1">
+                        {t('Status og ting som krever handling', 'Status and items that need attention')}
+                      </p>
+                    </div>
+
+                    <div className="grid sm:grid-cols-2 xl:grid-cols-4 gap-3">
+                      <div className="rounded-lg border border-slate-700 bg-slate-800/40 p-4">
+                        <p className="text-slate-400 text-xs uppercase tracking-wide">{t('Totalt lag', 'Total teams')}</p>
+                        <p className="text-2xl font-bold mt-1">{totalTeams}</p>
+                      </div>
+                      <div className="rounded-lg border border-yellow-600/30 bg-yellow-600/10 p-4">
+                        <p className="text-yellow-400/80 text-xs uppercase tracking-wide">{t('Venter godkjenning', 'Pending approval')}</p>
+                        <p className="text-2xl font-bold mt-1 text-yellow-400">{pendingTeams}</p>
+                      </div>
+                      <div className="rounded-lg border border-green-600/30 bg-green-600/10 p-4">
+                        <p className="text-green-400/80 text-xs uppercase tracking-wide">{t('Aktive turneringer', 'Active tournaments')}</p>
+                        <p className="text-2xl font-bold mt-1 text-green-400">{activeTournaments.length}</p>
+                      </div>
+                      <div className="rounded-lg border border-blue-600/30 bg-blue-600/10 p-4">
+                        <p className="text-blue-400/80 text-xs uppercase tracking-wide">{t('Inntekter', 'Revenue')}</p>
+                        <p className="text-2xl font-bold mt-1 text-blue-400">{totalRevenue.toLocaleString('nb-NO')} NOK</p>
+                      </div>
+                    </div>
+
+                    {(pendingTeams > 0 || unreadMessagesCount > 0) && (
+                      <div className="rounded-lg border border-amber-600/30 bg-amber-600/10 p-4">
+                        <h3 className="font-semibold text-amber-300 mb-3">{t('Krever handling', 'Needs attention')}</h3>
+                        <div className="space-y-2">
+                          {pendingTeams > 0 && (
+                            <button
+                              type="button"
+                              onClick={() => { setActiveTab('teams'); setTeamFilter('pending') }}
+                              className="w-full flex items-center justify-between gap-3 px-3 py-2 rounded-lg bg-slate-900/50 hover:bg-slate-900 transition-colors text-left"
+                            >
+                              <span className="text-sm">{t(`${pendingTeams} lag venter godkjenning`, `${pendingTeams} teams pending approval`)}</span>
+                              <ChevronRight className="w-4 h-4 text-slate-400 shrink-0" />
+                            </button>
+                          )}
+                          {unreadMessagesCount > 0 && (
+                            <button
+                              type="button"
+                              onClick={() => setActiveTab('messages')}
+                              className="w-full flex items-center justify-between gap-3 px-3 py-2 rounded-lg bg-slate-900/50 hover:bg-slate-900 transition-colors text-left"
+                            >
+                              <span className="text-sm">{t(`${unreadMessagesCount} uleste meldinger`, `${unreadMessagesCount} unread messages`)}</span>
+                              <ChevronRight className="w-4 h-4 text-slate-400 shrink-0" />
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    <div>
+                      <div className="flex items-center justify-between mb-3">
+                        <h3 className="font-semibold">{t('Turneringer', 'Tournaments')}</h3>
+                        <button
+                          type="button"
+                          onClick={() => setActiveTab('tournaments')}
+                          className="text-sm text-blue-400 hover:text-blue-300"
+                        >
+                          {t('Se alle', 'View all')}
+                        </button>
+                      </div>
+                      {tournaments.length === 0 ? (
+                        <p className="text-sm text-slate-400">{t('Ingen turneringer ennå.', 'No tournaments yet.')}</p>
+                      ) : (
+                        <div className="space-y-2">
+                          {tournaments.slice(0, 5).map(tournament => (
+                            <div
+                              key={tournament.id}
+                              className="flex items-center justify-between gap-3 rounded-lg border border-slate-700 bg-slate-800/30 px-4 py-3"
+                            >
+                              <div className="min-w-0">
+                                <p className="font-medium truncate">{tournament.title}</p>
+                                <p className="text-xs text-slate-400">{tournament.date} · {tournament.registeredTeams}/{tournament.maxTeams} {t('lag', 'teams')}</p>
+                              </div>
+                              <div className="flex items-center gap-2 shrink-0">
+                                <span className={`text-xs px-2 py-1 rounded-full border ${getTournamentStatusColor(tournament.status)}`}>
+                                  {getTournamentStatusLabel(tournament.status)}
+                                </span>
+                                <Link
+                                  href={`/admin/matches/${tournament.id}`}
+                                  className="text-blue-400 hover:text-blue-300 text-xs"
+                                >
+                                  {t('Kamper', 'Matches')}
+                                </Link>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
 
             {activeTab === 'teams' && (
-              <div>
-                {/* Tournament Selector + Opprett lag */}
-                <div className="mb-4 flex flex-wrap items-end gap-4">
+              <div className="space-y-5">
+                <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
                   <div>
+                    <h2 className="text-2xl font-bold">{t('Lag', 'Teams')}</h2>
+                    <p className="text-slate-400 text-sm mt-1">
+                      {t('Godkjenn, sjekk inn og administrer påmeldte lag', 'Approve, check in, and manage registered teams')}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={openCreateTeamModal}
+                    className="pro11-button flex items-center space-x-2 text-sm self-start"
+                  >
+                    <Plus className="w-4 h-4" />
+                    <span>{t('Opprett lag', 'Create team')}</span>
+                  </button>
+                </div>
+
+                <div className="flex flex-col lg:flex-row lg:items-end gap-4">
+                  <div className="flex-1">
                     <label className="block text-sm font-medium text-slate-300 mb-1">
-                      {t('Velg turnering', 'Select tournament')}
+                      {t('Turnering', 'Tournament')}
                     </label>
                     <select
                       value={selectedTournament}
                       onChange={(e) => setSelectedTournament(e.target.value)}
-                      className="pro11-input max-w-xs"
+                      className="pro11-input w-full max-w-md"
                     >
                       {tournaments.map(tournament => (
                         <option key={tournament.id} value={tournament.id}>
@@ -2059,123 +2175,160 @@ PRO11 Team`)
                       ))}
                     </select>
                   </div>
-                  <button
-                    type="button"
-                    onClick={openCreateTeamModal}
-                    className="pro11-button flex items-center space-x-2 text-sm"
-                  >
-                    <Plus className="w-3 h-3" />
-                    <span>{t('Opprett lag', 'Create team')}</span>
-                  </button>
                 </div>
 
-                {/* Loading State */}
+                {selectedTournamentData && (
+                  <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+                    {[
+                      { label: t('Totalt', 'Total'), value: tournamentTeamStats.total },
+                      { label: t('Venter', 'Pending'), value: tournamentTeamStats.pending, highlight: 'text-yellow-400' },
+                      { label: t('Godkjent', 'Approved'), value: tournamentTeamStats.approved, highlight: 'text-green-400' },
+                      { label: t('Betalt', 'Paid'), value: tournamentTeamStats.paid, highlight: 'text-blue-400' },
+                      { label: t('Innsjekket', 'Checked in'), value: tournamentTeamStats.checkedIn, highlight: 'text-purple-400' }
+                    ].map(stat => (
+                      <div key={stat.label} className="rounded-lg border border-slate-700 bg-slate-800/30 px-3 py-2 text-center">
+                        <p className="text-xs text-slate-400">{stat.label}</p>
+                        <p className={`text-lg font-bold ${stat.highlight || ''}`}>{stat.value}</p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                <div className="flex flex-wrap gap-2">
+                  {([
+                    ['all', t('Alle', 'All')],
+                    ['pending', t('Venter', 'Pending')],
+                    ['approved', t('Godkjent', 'Approved')],
+                    ['not_checked_in', t('Mangler innsjekk', 'Not checked in')]
+                  ] as const).map(([value, label]) => (
+                    <button
+                      key={value}
+                      type="button"
+                      onClick={() => setTeamFilter(value)}
+                      className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${
+                        teamFilter === value
+                          ? 'bg-blue-600 border-blue-500 text-white'
+                          : 'border-slate-600 text-slate-400 hover:text-white hover:border-slate-500'
+                      }`}
+                    >
+                      <Filter className="w-3 h-3 inline mr-1 -mt-0.5" />
+                      {label}
+                    </button>
+                  ))}
+                </div>
+
                 {isLoading ? (
-                  <div className="text-center py-8">
-                    <div className="w-8 h-8 border-2 border-blue-400 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+                  <div className="text-center py-12">
+                    <div className="w-8 h-8 border-2 border-blue-400 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
                     <p className="text-slate-300">{t('Laster lag...', 'Loading teams...')}</p>
+                  </div>
+                ) : filteredTeams.length === 0 ? (
+                  <div className="text-center py-12 rounded-lg border border-dashed border-slate-700">
+                    <Users className="w-10 h-10 text-slate-600 mx-auto mb-3" />
+                    <p className="text-slate-400">{t('Ingen lag i dette filteret.', 'No teams in this filter.')}</p>
                   </div>
                 ) : (
                   <>
-                    {/* Teams Table */}
-                    <div className="overflow-x-auto">
+                    <div className="overflow-x-auto rounded-lg border border-slate-700">
                   <table className="w-full">
                     <thead>
-                      <tr className="border-b border-slate-700">
-                        <th className="py-2 px-3 text-left text-sm">{t('Lag', 'Team')}</th>
-                        <th className="py-2 px-3 text-left text-sm">{t('Kaptein', 'Captain')}</th>
-                        <th className="py-2 px-3 text-left text-sm">{t('Forventet', 'Expected')}</th>
-                        <th className="py-2 px-3 text-left text-sm">{t('Status', 'Status')}</th>
-                        <th className="py-2 px-3 text-left text-sm">{t('Betaling', 'Payment')}</th>
-                        <th className="py-2 px-3 text-left text-sm">{t('Innsjekk', 'Check-in')}</th>
-                        <th className="py-2 px-3 text-left text-sm">{t('Registrert', 'Registered')}</th>
-                        <th className="py-2 px-3 text-left text-sm">{t('Handlinger', 'Actions')}</th>
+                      <tr className="border-b border-slate-700 bg-slate-800/50">
+                        <th className="py-3 px-3 text-left text-xs font-medium text-slate-400 uppercase">{t('Lag', 'Team')}</th>
+                        <th className="py-3 px-3 text-left text-xs font-medium text-slate-400 uppercase">{t('Kaptein', 'Captain')}</th>
+                        <th className="py-3 px-3 text-left text-xs font-medium text-slate-400 uppercase">{t('Spillere', 'Players')}</th>
+                        <th className="py-3 px-3 text-left text-xs font-medium text-slate-400 uppercase">{t('Status', 'Status')}</th>
+                        <th className="py-3 px-3 text-left text-xs font-medium text-slate-400 uppercase">{t('Betaling', 'Payment')}</th>
+                        <th className="py-3 px-3 text-left text-xs font-medium text-slate-400 uppercase">{t('Innsjekk', 'Check-in')}</th>
+                        <th className="py-3 px-3 text-right text-xs font-medium text-slate-400 uppercase">{t('Handlinger', 'Actions')}</th>
                       </tr>
                     </thead>
                     <tbody>
                       {filteredTeams.map(team => (
-                        <tr key={team.id} className="border-b border-slate-700">
-                          <td className="py-2 px-3">
+                        <tr key={team.id} className="border-b border-slate-700/70 hover:bg-slate-800/30">
+                          <td className="py-3 px-3">
                             <div>
                               <div className="font-medium text-sm">{team.teamName || team.team_name}</div>
-                              <div className="text-xs text-slate-400">{team.captainEmail || team.captain_email}</div>
+                              <div className="text-xs text-slate-500">{team.captainEmail || team.captain_email}</div>
                             </div>
                           </td>
-                          <td className="py-2 px-3 text-sm">{team.captainName || team.captain_name}</td>
-                          <td className="py-2 px-3 text-sm">
-                            {team.expectedPlayers || team.expected_players || team.players?.length || 0} {t('spillere', 'players')}
+                          <td className="py-3 px-3 text-sm">{team.captainName || team.captain_name}</td>
+                          <td className="py-3 px-3 text-sm text-slate-300">
+                            {team.expectedPlayers || team.expected_players || team.players?.length || 0}
                           </td>
-                          <td className="py-2 px-3">
-                            <span className={`inline-flex items-center px-4 py-2 rounded-full text-xs font-medium ${getStatusColor(team.status)}`}>
+                          <td className="py-3 px-3">
+                            <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${getStatusColor(team.status)}`}>
                               {getStatusText(team.status)}
                             </span>
                           </td>
-                          <td className="py-2 px-3">
-                            <span className={`text-xs ${getPaymentStatusColor(team.paymentStatus || team.payment_status)}`}>
+                          <td className="py-3 px-3">
+                            <span className={`text-xs font-medium ${getPaymentStatusColor(team.paymentStatus || team.payment_status)}`}>
                               {getPaymentStatusText(team.paymentStatus || team.payment_status)}
                             </span>
                           </td>
-                          <td className="py-2 px-3">
+                          <td className="py-3 px-3">
                             {isTeamCheckedIn(team) ? (
-                              <span className="text-xs text-green-400">{t('Sjekket inn', 'Checked in')}</span>
+                              <span className="text-xs text-green-400 font-medium">{t('Ja', 'Yes')}</span>
                             ) : (
-                              <span className="text-xs text-slate-400">{t('Ikke sjekket inn', 'Not checked in')}</span>
+                              <span className="text-xs text-slate-500">{t('Nei', 'No')}</span>
                             )}
                           </td>
-                          <td className="py-2 px-3 text-xs text-slate-400">{team.registeredAt || team.created_at}</td>
-                          <td className="py-2 px-3">
-                            <div className="flex space-x-1">
+                          <td className="py-3 px-3">
+                            <div className="flex justify-end flex-wrap gap-1">
                               <button
                                 onClick={() => openTeamModal(team)}
-                                className="text-blue-400 hover:text-blue-300"
-                                title="Se detaljer"
+                                className="p-1.5 rounded hover:bg-slate-700 text-blue-400"
+                                title={t('Se detaljer', 'View details')}
                               >
-                                <Eye className="w-3 h-3" />
+                                <Eye className="w-4 h-4" />
                               </button>
-                              <button
-                                onClick={() => updateTeamStatus(team.id, 'approved')}
-                                className="text-green-400 hover:text-green-300"
-                                title={t('Godkjenn', 'Approve')}
-                              >
-                                <CheckCircle className="w-3 h-3" />
-                              </button>
-                              <button
-                                onClick={() => updateTeamStatus(team.id, 'rejected')}
-                                className="text-red-400 hover:text-red-300"
-                                title={t('Avvis', 'Reject')}
-                              >
-                                <XCircle className="w-3 h-3" />
-                              </button>
+                              {team.status === 'pending' && (
+                                <>
+                                  <button
+                                    onClick={() => updateTeamStatus(team.id, 'approved')}
+                                    className="p-1.5 rounded hover:bg-green-900/30 text-green-400"
+                                    title={t('Godkjenn', 'Approve')}
+                                  >
+                                    <CheckCircle className="w-4 h-4" />
+                                  </button>
+                                  <button
+                                    onClick={() => updateTeamStatus(team.id, 'rejected')}
+                                    className="p-1.5 rounded hover:bg-red-900/30 text-red-400"
+                                    title={t('Avvis', 'Reject')}
+                                  >
+                                    <XCircle className="w-4 h-4" />
+                                  </button>
+                                </>
+                              )}
                               {isTeamCheckedIn(team) ? (
                                 <button
                                   onClick={() => updateTeamCheckIn(team.id, false)}
-                                  className="text-orange-400 hover:text-orange-300"
+                                  className="p-1.5 rounded hover:bg-orange-900/30 text-orange-400"
                                   title={t('Fjern innsjekk', 'Remove check-in')}
                                 >
-                                  <XCircle className="w-3 h-3" />
+                                  <XCircle className="w-4 h-4" />
                                 </button>
                               ) : (
                                 <button
                                   onClick={() => updateTeamCheckIn(team.id, true)}
-                                  className="text-blue-400 hover:text-blue-300"
+                                  className="p-1.5 rounded hover:bg-blue-900/30 text-blue-400"
                                   title={t('Sjekk inn', 'Check in')}
                                 >
-                                  <CheckCircle className="w-3 h-3" />
+                                  <CheckCircle className="w-4 h-4" />
                                 </button>
                               )}
                               <button
                                 onClick={() => sendEmailToTeam(team)}
-                                className="text-purple-400 hover:text-purple-300"
+                                className="p-1.5 rounded hover:bg-purple-900/30 text-purple-400"
                                 title={t('Send e-post', 'Send email')}
                               >
-                                <Mail className="w-3 h-3" />
+                                <Mail className="w-4 h-4" />
                               </button>
                               <button
                                 onClick={() => deleteTeam(team.id)}
-                                className="text-red-400 hover:text-red-300"
+                                className="p-1.5 rounded hover:bg-red-900/30 text-red-400"
                                 title={t('Slett lag', 'Delete team')}
                               >
-                                <Trash2 className="w-3 h-3" />
+                                <Trash2 className="w-4 h-4" />
                               </button>
                             </div>
                           </td>
@@ -2185,14 +2338,16 @@ PRO11 Team`)
                   </table>
                 </div>
 
-                    {/* Export Button */}
-                    <div className="mt-4">
+                    <div className="flex justify-between items-center pt-2">
+                      <p className="text-xs text-slate-500">
+                        {t(`Viser ${filteredTeams.length} av ${tournamentTeams.length} lag`, `Showing ${filteredTeams.length} of ${tournamentTeams.length} teams`)}
+                      </p>
                       <button
                         onClick={exportTeams}
                         className="pro11-button-secondary flex items-center space-x-2 text-sm"
                       >
-                        <Download className="w-3 h-3" />
-                        <span>{t('Eksporter til CSV', 'Export to CSV')}</span>
+                        <Download className="w-4 h-4" />
+                        <span>{t('Eksporter CSV', 'Export CSV')}</span>
                       </button>
                     </div>
                   </>
@@ -2318,115 +2473,202 @@ PRO11 Team`)
             )}
 
             {activeTab === 'tournaments' && (
-              <div>
-                <div className="flex justify-between items-center mb-4">
-                  <h3 className="text-lg font-semibold">{t('Turneringer', 'Tournaments')}</h3>
-                  <button 
+              <div className="space-y-5">
+                <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+                  <div>
+                    <h2 className="text-2xl font-bold">{t('Turneringer', 'Tournaments')}</h2>
+                    <p className="text-slate-400 text-sm mt-1">
+                      {t('Opprett turneringer, generer kamper og administrer innsjekk', 'Create tournaments, generate matches, and manage check-in')}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
                     onClick={() => openTournamentModal()}
-                    className="pro11-button flex items-center space-x-2 text-sm"
+                    className="pro11-button flex items-center space-x-2 text-sm self-start"
                   >
-                    <Plus className="w-3 h-3" />
-                    <span>{t('Legg til turnering', 'Add tournament')}</span>
+                    <Plus className="w-4 h-4" />
+                    <span>{t('Ny turnering', 'New tournament')}</span>
                   </button>
                 </div>
 
-                <div className="grid gap-3">
+                {tournaments.length === 0 ? (
+                  <div className="text-center py-12 rounded-lg border border-dashed border-slate-700">
+                    <Trophy className="w-10 h-10 text-slate-600 mx-auto mb-3" />
+                    <p className="text-slate-400 mb-4">{t('Ingen turneringer ennå.', 'No tournaments yet.')}</p>
+                    <button type="button" onClick={() => openTournamentModal()} className="pro11-button text-sm">
+                      {t('Opprett første turnering', 'Create first tournament')}
+                    </button>
+                  </div>
+                ) : (
+                <div className="space-y-3">
                   {tournaments.map(tournament => (
-                    <div key={tournament.id} className="pro11-card p-3">
-                      <div className="flex items-center justify-between">
-                        <div className="flex-1">
-                          <h4 className="font-semibold text-sm">{tournament.title}</h4>
-                          <p className="text-xs text-slate-400">{tournament.date} - {tournament.time}</p>
-                          <p className="text-xs text-slate-400">
-                            {t('Premie', 'Prize')}: {tournament.prize} | {t('Påmeldingsgebyr', 'Entry fee')}: {tournament.entryFee} NOK
-                          </p>
-                          <p className="text-xs text-slate-400 mt-1">{tournament.description}</p>
-                          {tournament.matches && tournament.matches.length > 0 && (
-                            <div className="mt-2 pt-2 border-t border-slate-700">
-                              <p className="text-xs text-slate-400 mb-1">{t('Kamper', 'Matches')}: {tournament.matches.length}</p>
-                              <div className="text-xs text-slate-500">
-                                {tournament.matches.filter((m: Match) => m.status === 'completed').length} {t('fullført', 'completed')},{' '}
-                                {tournament.matches.filter((m: Match) => m.status === 'scheduled').length} {t('planlagt', 'scheduled')}
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                        <div className="flex items-center space-x-3">
-                          <div className="text-right">
-                            <p className="text-xs text-slate-400">{t('Lag', 'Teams')}</p>
-                            <p className="font-medium text-sm">{tournament.registeredTeams}/{tournament.maxTeams}</p>
-                          </div>
-                          <div className="flex flex-col items-end gap-2">
-                            <div className="flex flex-wrap justify-end gap-2">
-                              <Link
-                                href={`/admin/matches/${tournament.id}`}
-                                className="pro11-button-secondary flex items-center space-x-1 text-xs"
-                                title={t('Se kamper', 'View matches')}
-                              >
-                                <Trophy className="w-3 h-3" />
-                                <span>{t('Se kamper', 'View matches')}</span>
-                              </Link>
-                              <button 
-                                onClick={() => openMatchConfigModal(tournament.id)}
-                                className="pro11-button-secondary flex items-center space-x-1 text-xs"
-                                title={t('Generer kamper', 'Generate matches')}
-                              >
-                                <Trophy className="w-3 h-3" />
-                                <span>{t('Generer kamper', 'Generate matches')}</span>
-                              </button>
-                              {tournament.format === 'mixed' && tournament.groups && (
-                                <button 
-                                  onClick={() => generateKnockoutFromGroups(tournament.id)}
-                                  className="pro11-button-secondary flex items-center space-x-1 text-xs"
-                                  title={t('Generer sluttspill', 'Generate knockout')}
-                                >
-                                  <BarChart3 className="w-3 h-3" />
-                                  <span>{t('Sluttspill', 'Knockout')}</span>
-                                </button>
+                    <div key={tournament.id} className="rounded-lg border border-slate-700 bg-slate-800/30 overflow-hidden">
+                      <div className="p-4">
+                        <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
+                          <div className="min-w-0 flex-1">
+                            <div className="flex flex-wrap items-center gap-2 mb-2">
+                              <h4 className="font-semibold text-lg">{tournament.title}</h4>
+                              <span className={`text-xs px-2 py-1 rounded-full border ${getTournamentStatusColor(tournament.status)}`}>
+                                {getTournamentStatusLabel(tournament.status)}
+                              </span>
+                              {tournament.checkInOpen && (
+                                <span className="text-xs px-2 py-1 rounded-full bg-purple-600/20 text-purple-400 border border-purple-600/30">
+                                  {t('Innsjekk åpen', 'Check-in open')}
+                                </span>
                               )}
                             </div>
-                            <div className="flex flex-wrap justify-end gap-2">
-                              {tournament.status !== 'archived' && (
-                                <button
-                                  onClick={() => updateTournamentCheckIn(tournament.id, !tournament.checkInOpen)}
-                                  className="pro11-button-secondary flex items-center space-x-1 text-xs"
-                                  title={t('Innsjekk', 'Check-in')}
-                                >
-                                  <Users className="w-3 h-3" />
-                                  <span>
-                                    {tournament.checkInOpen
-                                      ? t('Steng innsjekk', 'Close check-in')
-                                      : t('Åpne innsjekk', 'Open check-in')}
-                                  </span>
-                                </button>
-                              )}
-                              <button 
-                                onClick={() => openTournamentModal(tournament)}
-                                className="pro11-button-secondary flex items-center space-x-1 text-xs"
-                              >
-                                <Edit className="w-3 h-3" />
-                                <span>{t('Rediger', 'Edit')}</span>
-                              </button>
-                              <button
-                                onClick={() => deleteTournament(tournament.id)}
-                                className="text-red-400 hover:text-red-300"
-                                title={t('Slett turnering', 'Delete tournament')}
-                              >
-                                <Trash2 className="w-3 h-3" />
-                              </button>
+                            <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-slate-400">
+                              <span className="flex items-center gap-1">
+                                <Calendar className="w-3.5 h-3.5" />
+                                {tournament.date} {tournament.time}
+                              </span>
+                              <span className="flex items-center gap-1">
+                                <Users className="w-3.5 h-3.5" />
+                                {tournament.registeredTeams}/{tournament.maxTeams} {t('lag', 'teams')}
+                              </span>
+                              <span className="flex items-center gap-1">
+                                <Award className="w-3.5 h-3.5" />
+                                {tournament.prize}
+                              </span>
+                              <span>{tournament.entryFee} NOK {t('påmeldingsgebyr', 'entry fee')}</span>
                             </div>
+                            {tournament.matches && tournament.matches.length > 0 && (
+                              <p className="text-xs text-slate-500 mt-2">
+                                {tournament.matches.length} {t('kamper', 'matches')} ·{' '}
+                                {tournament.matches.filter((m: Match) => m.status === 'completed').length} {t('fullført', 'completed')}
+                              </p>
+                            )}
                           </div>
                         </div>
                       </div>
+
+                      <div className="px-4 py-3 bg-slate-900/40 border-t border-slate-700 flex flex-wrap gap-2">
+                        <Link
+                          href={`/admin/matches/${tournament.id}`}
+                          className="pro11-button-secondary flex items-center gap-1.5 text-xs"
+                        >
+                          <Eye className="w-3.5 h-3.5" />
+                          {t('Se kamper', 'View matches')}
+                        </Link>
+                        <button
+                          type="button"
+                          onClick={() => openMatchConfigModal(tournament.id)}
+                          className="pro11-button-secondary flex items-center gap-1.5 text-xs"
+                        >
+                          <Trophy className="w-3.5 h-3.5" />
+                          {t('Generer kamper', 'Generate matches')}
+                        </button>
+                        {tournament.format === 'mixed' && tournament.groups && (
+                          <button
+                            type="button"
+                            onClick={() => generateKnockoutFromGroups(tournament.id)}
+                            className="pro11-button-secondary flex items-center gap-1.5 text-xs"
+                          >
+                            <BarChart3 className="w-3.5 h-3.5" />
+                            {t('Sluttspill', 'Knockout')}
+                          </button>
+                        )}
+                        {tournament.status !== 'archived' && (
+                          <button
+                            type="button"
+                            onClick={() => updateTournamentCheckIn(tournament.id, !tournament.checkInOpen)}
+                            className="pro11-button-secondary flex items-center gap-1.5 text-xs"
+                          >
+                            <Users className="w-3.5 h-3.5" />
+                            {tournament.checkInOpen
+                              ? t('Steng innsjekk', 'Close check-in')
+                              : t('Åpne innsjekk', 'Open check-in')}
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => openTournamentModal(tournament)}
+                          className="pro11-button-secondary flex items-center gap-1.5 text-xs"
+                        >
+                          <Edit className="w-3.5 h-3.5" />
+                          {t('Rediger', 'Edit')}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => deleteTournament(tournament.id)}
+                          className="flex items-center gap-1.5 text-xs px-3 py-2 rounded-lg text-red-400 hover:bg-red-900/20 border border-transparent hover:border-red-900/30"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                          {t('Slett', 'Delete')}
+                        </button>
+                      </div>
                     </div>
                   ))}
+                </div>
+                )}
+              </div>
+            )}
+
+            {activeTab === 'prizes' && (
+              <div className="space-y-5">
+                <div>
+                  <h2 className="text-2xl font-bold">{t('Premier', 'Prizes')}</h2>
+                  <p className="text-slate-400 text-sm mt-1">
+                    {t('Premieinnstillinger og oversikt per turnering', 'Prize settings and overview per tournament')}
+                  </p>
+                </div>
+
+                <div className="grid md:grid-cols-2 gap-4">
+                  <div className="rounded-lg border border-slate-700 bg-slate-800/30 p-4">
+                    <h4 className="font-semibold mb-3">{t('Globale innstillinger', 'Global settings')}</h4>
+                    <div className="space-y-3">
+                      <div>
+                        <label className="block text-xs text-slate-400 mb-1">{t('Grunnpremie (NOK)', 'Base prize (NOK)')}</label>
+                        <input
+                          type="number"
+                          value={prizeSettings.basePrize}
+                          onChange={(e) => updatePrizeSettings({ ...prizeSettings, basePrize: Number(e.target.value) })}
+                          className="pro11-input w-full"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs text-slate-400 mb-1">{t('Bonus per godkjent lag (NOK)', 'Bonus per approved team (NOK)')}</label>
+                        <input
+                          type="number"
+                          value={prizeSettings.perTeamBonus}
+                          onChange={(e) => updatePrizeSettings({ ...prizeSettings, perTeamBonus: Number(e.target.value) })}
+                          className="pro11-input w-full"
+                        />
+                      </div>
+                      <div className="pt-2 border-t border-slate-700">
+                        <p className="text-sm text-slate-400">{t('Beregnet premiepott', 'Calculated prize pool')}</p>
+                        <p className="text-2xl font-bold text-green-400">{prizeSettings.currentPrize.toLocaleString('nb-NO')} NOK</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="rounded-lg border border-slate-700 bg-slate-800/30 p-4">
+                    <h4 className="font-semibold mb-3">{t('Premie per turnering', 'Prize per tournament')}</h4>
+                    <div className="space-y-2 max-h-80 overflow-y-auto">
+                      {tournaments.length === 0 ? (
+                        <p className="text-sm text-slate-400">{t('Ingen turneringer.', 'No tournaments.')}</p>
+                      ) : (
+                        tournaments.map(tournament => (
+                          <div key={tournament.id} className="flex justify-between items-center py-2 border-b border-slate-700/50 last:border-0">
+                            <span className="text-sm truncate pr-2">{tournament.title}</span>
+                            <span className="text-sm font-medium text-blue-400 shrink-0">{tournament.prize}</span>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </div>
                 </div>
               </div>
             )}
 
             {activeTab === 'statistics' && (
-              <div>
-                <h3 className="text-lg font-semibold mb-4">{t('Statistikk og rapporter', 'Statistics and reports')}</h3>
+              <div className="space-y-5">
+                <div>
+                  <h2 className="text-2xl font-bold">{t('Statistikk', 'Statistics')}</h2>
+                  <p className="text-slate-400 text-sm mt-1">
+                    {t('Rapporter og nøkkeltall', 'Reports and key metrics')}
+                  </p>
+                </div>
                 
                 <div className="grid md:grid-cols-2 gap-4">
                   <div className="pro11-card p-4">
@@ -2483,25 +2725,41 @@ PRO11 Team`)
             )}
 
             {activeTab === 'messages' && (
-              <div>
-                <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-semibold">{t('Meldinger fra lagledere', 'Messages from captains')}</h3>
+              <div className="space-y-5">
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <h2 className="text-2xl font-bold">{t('Meldinger', 'Messages')}</h2>
+                    <p className="text-slate-400 text-sm mt-1">
+                      {t('Meldinger fra lagledere', 'Messages from captains')}
+                    </p>
+                  </div>
                   <button
+                    type="button"
                     onClick={loadMessages}
-                    className="pro11-button-secondary text-sm"
+                    className="pro11-button-secondary text-sm shrink-0"
                   >
                     {t('Oppdater', 'Refresh')}
                   </button>
                 </div>
 
                 {isLoadingMessages ? (
-                  <div className="text-sm text-slate-400">Laster meldinger...</div>
+                  <div className="text-sm text-slate-400 py-8 text-center">{t('Laster meldinger...', 'Loading messages...')}</div>
                 ) : messages.length === 0 ? (
-                  <div className="text-sm text-slate-400">Ingen meldinger.</div>
+                  <div className="text-center py-12 rounded-lg border border-dashed border-slate-700">
+                    <MessageSquare className="w-10 h-10 text-slate-600 mx-auto mb-3" />
+                    <p className="text-sm text-slate-400">{t('Ingen meldinger.', 'No messages.')}</p>
+                  </div>
                 ) : (
                   <div className="space-y-3">
                     {messages.map(message => (
-                      <div key={message.id} className="pro11-card p-4">
+                      <div
+                        key={message.id}
+                        className={`rounded-lg border p-4 ${
+                          message.status === 'resolved'
+                            ? 'border-slate-700 bg-slate-800/20'
+                            : 'border-yellow-600/30 bg-yellow-600/5'
+                        }`}
+                      >
                         <div className="flex items-start justify-between gap-4">
                           <div>
                             <div className="font-semibold">{message.team_name}</div>
@@ -2537,8 +2795,13 @@ PRO11 Team`)
             )}
 
             {activeTab === 'settings' && (
-              <div>
-                <h3 className="text-lg font-semibold mb-4">{t('Innstillinger', 'Settings')}</h3>
+              <div className="space-y-5">
+                <div>
+                  <h2 className="text-2xl font-bold">{t('Innstillinger', 'Settings')}</h2>
+                  <p className="text-slate-400 text-sm mt-1">
+                    {t('System og admin-innstillinger', 'System and admin settings')}
+                  </p>
+                </div>
                 
                 <div className="grid md:grid-cols-2 gap-4">
                   <div className="pro11-card p-4">
@@ -2579,6 +2842,8 @@ PRO11 Team`)
                 </div>
               </div>
             )}
+              </div>
+            </div>
           </div>
         </div>
       </main>

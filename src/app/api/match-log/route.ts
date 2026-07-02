@@ -1,8 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabase'
+import { isUnauthorized, requireAdmin } from '@/lib/session'
 
 export async function GET(request: NextRequest) {
   try {
+    const admin = requireAdmin(request)
+    if (isUnauthorized(admin)) return admin
+
     const { searchParams } = new URL(request.url)
     const matchId = searchParams.get('match_id')
 

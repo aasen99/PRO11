@@ -1,10 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabase'
+import {
+  getAdminSession,
+  getCaptainSession,
+  unauthorizedResponse
+} from '@/lib/session'
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
     const { teamId, amount, currency = 'nok', paymentMethod = 'paypal' } = body
+
+    const admin = getAdminSession(request)
+    const captain = getCaptainSession(request)
+    if (!admin && (!captain || captain.teamId !== teamId)) {
+      return unauthorizedResponse()
+    }
 
     // Use admin client to bypass RLS
     const supabase = getSupabaseAdmin()
@@ -57,11 +68,27 @@ export async function PUT(request: NextRequest) {
     const body = await request.json()
     const { paymentId, status, paypalOrderId, stripePaymentIntentId } = body
 
-    // Use admin client to bypass RLS
+    const admin = getAdminSession(request)
+    const captain = getCaptainSession(request)
+
     const supabase = getSupabaseAdmin()
     if (!supabase) {
       return NextResponse.json({ error: 'Database connection failed' }, { status: 500 })
     }
+
+    if (!admin) {
+      if (!captain || !paymentId) return unauthorizedResponse()
+      const { data: paymentRow } = await supabase
+        .from('payments')
+        .select('team_id')
+        .eq('id', paymentId)
+        .single()
+      if (!paymentRow || paymentRow.team_id !== captain.teamId) {
+        return unauthorizedResponse()
+      }
+    }
+
+    // Use admin client to bypass RLS
 
     const updateData: any = { status }
     

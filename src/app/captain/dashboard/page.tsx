@@ -196,9 +196,26 @@ export default function CaptainDashboardPage() {
   }
 
   useEffect(() => {
-    // Hent lag-data fra localStorage
-    const teamData = localStorage.getItem('captainTeam')
-    if (teamData) {
+    let refreshInterval: ReturnType<typeof setInterval> | null = null
+
+    const init = async () => {
+      try {
+        const sessionRes = await fetch('/api/captain/session', { credentials: 'include' })
+        if (!sessionRes.ok) {
+          window.location.href = '/captain/login'
+          return
+        }
+      } catch {
+        window.location.href = '/captain/login'
+        return
+      }
+
+      const teamData = localStorage.getItem('captainTeam')
+      if (!teamData) {
+        window.location.href = '/captain/login'
+        return
+      }
+
       const parsedTeam = JSON.parse(teamData)
       setTeam(parsedTeam)
       setDiscordUsername(parsedTeam.discordUsername || '')
@@ -497,16 +514,16 @@ export default function CaptainDashboardPage() {
       
       loadTournaments()
       refreshPaymentStatus()
-      
-      // Auto-refresh every 10 seconds to see updated match results
-      const interval = setInterval(() => {
+
+      refreshInterval = setInterval(() => {
         loadTournaments()
       }, 10000)
-      
-      return () => clearInterval(interval)
-    } else {
-      // Ikke logget inn, redirect til login
-      window.location.href = '/captain/login'
+    }
+
+    init()
+
+    return () => {
+      if (refreshInterval) clearInterval(refreshInterval)
     }
   }, [])
 
@@ -713,7 +730,10 @@ export default function CaptainDashboardPage() {
     })
   }
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    try {
+      await fetch('/api/captain/logout', { method: 'POST', credentials: 'include' })
+    } catch {}
     localStorage.removeItem('captainTeam')
     window.location.href = '/captain/login'
   }

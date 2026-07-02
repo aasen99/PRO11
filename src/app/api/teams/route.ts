@@ -2,6 +2,11 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getSupabase, getSupabaseAdmin } from '@/lib/supabase'
 import { generatePassword } from '@/lib/utils'
 import { validatePassword, hashPassword, comparePassword } from '@/lib/password'
+import {
+  getAdminSession,
+  getCaptainSession,
+  unauthorizedResponse
+} from '@/lib/session'
 
 export async function POST(request: NextRequest) {
   try {
@@ -333,6 +338,27 @@ export async function PUT(request: NextRequest) {
 
     if (!id) {
       return NextResponse.json({ error: 'Team ID is required' }, { status: 400 })
+    }
+
+    const admin = getAdminSession(request)
+    const captain = getCaptainSession(request)
+
+    if (status) {
+      if (!admin) return unauthorizedResponse()
+    } else if (checkedIn !== undefined) {
+      if (checkedIn === true) {
+        if (!captain || captain.teamId !== id) {
+          if (!admin) return unauthorizedResponse()
+        }
+      } else if (!admin) {
+        return unauthorizedResponse()
+      }
+    } else if (discordUsername !== undefined || (currentPassword && newPassword)) {
+      if (!captain || captain.teamId !== id) {
+        if (!admin) return unauthorizedResponse()
+      }
+    } else if (!admin) {
+      return unauthorizedResponse()
     }
 
     const supabase = getSupabaseAdmin()

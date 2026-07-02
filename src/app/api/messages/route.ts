@@ -1,8 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabase'
+import {
+  forbiddenResponse,
+  getCaptainSession,
+  isUnauthorized,
+  requireAdmin,
+  requireCaptain,
+  unauthorizedResponse
+} from '@/lib/session'
 
 export async function GET(request: NextRequest) {
   try {
+    const admin = requireAdmin(request)
+    if (isUnauthorized(admin)) return admin
+
     const { searchParams } = new URL(request.url)
     const tournamentId = searchParams.get('tournament_id')
     const status = searchParams.get('status')
@@ -37,11 +48,18 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    const captain = requireCaptain(request)
+    if (isUnauthorized(captain)) return captain
+
     const body = await request.json()
     const { tournamentId, teamId, teamName, captainName, captainEmail, message } = body
 
     if (!teamId || !teamName || !captainName || !captainEmail || !message) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
+    }
+
+    if (captain.teamId !== teamId || captain.teamName !== teamName) {
+      return forbiddenResponse()
     }
 
     const supabase = getSupabaseAdmin()
@@ -75,6 +93,9 @@ export async function POST(request: NextRequest) {
 
 export async function PUT(request: NextRequest) {
   try {
+    const admin = requireAdmin(request)
+    if (isUnauthorized(admin)) return admin
+
     const body = await request.json()
     const { id, status, readAt } = body
 
