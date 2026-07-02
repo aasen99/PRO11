@@ -29,13 +29,38 @@ function sign(value: string, secret: string): string {
   return crypto.createHmac('sha256', secret).update(value).digest('base64url')
 }
 
+function getCookieDomain(): string | undefined {
+  const explicit = process.env.COOKIE_DOMAIN?.trim()
+  if (explicit) return explicit
+
+  if (process.env.NODE_ENV !== 'production') return undefined
+
+  const raw = process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXTAUTH_URL || ''
+  if (!raw.trim()) return undefined
+
+  try {
+    const hostname = new URL(raw.includes('://') ? raw : `https://${raw}`).hostname.toLowerCase()
+    if (!hostname || hostname === 'localhost' || hostname.endsWith('.vercel.app')) return undefined
+    const parts = hostname.split('.').filter(Boolean)
+    if (parts.length >= 2) {
+      return `.${parts.slice(-2).join('.')}`
+    }
+  } catch {
+    return undefined
+  }
+
+  return undefined
+}
+
 function cookieOptions(maxAge: number) {
+  const domain = getCookieDomain()
   return {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
     sameSite: 'lax' as const,
     path: '/',
-    maxAge
+    maxAge,
+    ...(domain ? { domain } : {})
   }
 }
 
