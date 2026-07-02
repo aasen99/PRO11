@@ -8,6 +8,11 @@ import type { ToastType } from '@/components/Toast'
 import { useLanguage } from '@/components/LanguageProvider'
 import { validatePasswordClient } from '@/lib/utils'
 import { apiFetch } from '@/lib/client-fetch'
+import {
+  canClaimWalkover,
+  canSubmitMatchResult,
+  getSubmissionBlockReason
+} from '@/lib/match-submission'
 
 interface Team {
   id: string
@@ -44,6 +49,7 @@ interface Match {
   canConfirmResult: boolean
   canSubmitAlternativeResult?: boolean
   opponentDiscordUsername?: string | null
+  resultSubmissionBlockedReason?: string
 }
 
 interface Tournament {
@@ -367,18 +373,31 @@ export default function CaptainDashboardPage() {
                   // Can confirm if opponent has submitted but this team hasn't
                   const opponentHasSubmitted = (isTeam1 && hasTeam2Submitted) || (isTeam2 && hasTeam1Submitted)
                   
-                  const canSubmit = (m.status === 'scheduled' || m.status === 'live' || m.status === 'pending_result' || m.status === 'pending_confirmation') && 
-                                    !thisTeamHasSubmitted &&
-                                    !opponentHasSubmitted &&
-                                    m.status !== 'completed'
-                  
-                  const scheduledMs = m.scheduled_time ? new Date(m.scheduled_time).getTime() : null
-                  const canClaimWalkover =
-                    m.status === 'scheduled' &&
-                    scheduledMs !== null &&
-                    Date.now() >= scheduledMs + 10 * 60 * 1000 &&
-                    !hasTeam1Submitted &&
-                    !hasTeam2Submitted
+                  const tournamentCtx = { status: tournament?.status ?? 'upcoming' }
+                  const wantsFirstSubmission =
+                    !thisTeamHasSubmitted &&
+                    !opponentHasSubmitted &&
+                    m.status !== 'completed'
+                  const submitEligibility = canSubmitMatchResult(
+                    { status: m.status, scheduled_time: m.scheduled_time },
+                    tournamentCtx
+                  )
+                  const canSubmit = wantsFirstSubmission && submitEligibility.allowed
+                  const resultSubmissionBlockedReason =
+                    wantsFirstSubmission && !submitEligibility.allowed
+                      ? getSubmissionBlockReason(submitEligibility, isEnglish)
+                      : undefined
+
+                  const walkoverEligibility = canClaimWalkover(
+                    {
+                      status: m.status,
+                      scheduled_time: m.scheduled_time,
+                      team1_submitted_score1: m.team1_submitted_score1,
+                      team2_submitted_score1: m.team2_submitted_score1
+                    },
+                    tournamentCtx
+                  )
+                  const canClaimWalkoverMatch = walkoverEligibility.allowed
                   
                   // Can confirm if:
                   // 1. Opponent has submitted their result (checked via team1/team2_submitted_score1)
@@ -409,7 +428,8 @@ export default function CaptainDashboardPage() {
                     groupRound: m.group_round ?? undefined,
                     tournamentId: m.tournament_id,
                     canSubmitResult: canSubmit,
-                    canClaimWalkover,
+                    canClaimWalkover: canClaimWalkoverMatch,
+                    resultSubmissionBlockedReason,
                     submittedBy: m.submitted_by || null,
                     submittedScore1: isTeam1 ? (m.team1_submitted_score1 ?? m.submitted_score1 ?? null) : (m.team2_submitted_score1 ?? m.submitted_score1 ?? null),
                     submittedScore2: isTeam1 ? (m.team1_submitted_score2 ?? m.submitted_score2 ?? null) : (m.team2_submitted_score2 ?? m.submitted_score2 ?? null),
@@ -1564,6 +1584,11 @@ export default function CaptainDashboardPage() {
                                       <>{t('Innsendt', 'Submitted')}: {nextMatch.opponentSubmittedScore1} - {nextMatch.opponentSubmittedScore2}</>
                                     )}
                                 </div>
+                                {nextMatch.resultSubmissionBlockedReason && (
+                                  <p className="text-xs text-amber-400/90 text-center mb-2">
+                                    {nextMatch.resultSubmissionBlockedReason}
+                                  </p>
+                                )}
                                 <div className="flex flex-wrap gap-2 justify-center">
                                   {nextMatch.canSubmitResult && (
                                     <button
@@ -1979,6 +2004,11 @@ export default function CaptainDashboardPage() {
                           </div>
                         )}
                         
+                        {match.resultSubmissionBlockedReason && (
+                          <p className="text-xs text-amber-400/90 mb-2 md:text-right">
+                            {match.resultSubmissionBlockedReason}
+                          </p>
+                        )}
                         <div className="flex flex-row flex-wrap items-center gap-2 max-sm:flex-col md:justify-end">
                           {match.canSubmitResult && (
                             <button

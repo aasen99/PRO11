@@ -13,6 +13,21 @@ import {
   unauthorizedResponse
 } from '@/lib/session'
 import { logMatchUpdateEvents } from '@/lib/tournament-events'
+import { canClaimWalkover, canSubmitMatchResult } from '@/lib/match-submission'
+
+async function getTournamentSubmissionContext(
+  supabase: NonNullable<ReturnType<typeof getSupabaseAdmin>>,
+  tournamentId: string
+) {
+  const { data, error } = await supabase
+    .from('tournaments')
+    .select('status')
+    .eq('id', tournamentId)
+    .single()
+
+  if (error || !data) return null
+  return { status: data.status as string }
+}
 
 export async function GET(request: NextRequest) {
   try {
@@ -257,7 +272,7 @@ export async function PUT(request: NextRequest) {
       if (!captain) return unauthorizedResponse()
       if (captain.teamName !== body.team_name) return forbiddenResponse()
       if (!captainInMatch(captain, currentMatch)) return forbiddenResponse()
-    } else if (isCaptainRejectSubmission(body) || isCaptainWalkoverSubmission(body)) {
+    } else if (!admin && (isCaptainRejectSubmission(body) || isCaptainWalkoverSubmission(body))) {
       if (!captain || !captainInMatch(captain, currentMatch)) {
         return unauthorizedResponse()
       }
@@ -291,6 +306,27 @@ export async function PUT(request: NextRequest) {
       
       if (alreadySubmitted) {
         return NextResponse.json({ error: 'Du har allerede sendt inn resultat for denne kampen' }, { status: 400 })
+      }
+
+      const team1HasPrior =
+        currentMatch.team1_submitted_score1 !== null && currentMatch.team1_submitted_score1 !== undefined
+      const team2HasPrior =
+        currentMatch.team2_submitted_score1 !== null && currentMatch.team2_submitted_score1 !== undefined
+      const isFirstSubmission = !team1HasPrior && !team2HasPrior
+
+      if (isFirstSubmission) {
+        const tournament = await getTournamentSubmissionContext(supabase, currentMatch.tournament_id)
+        if (!tournament) {
+          return NextResponse.json({ error: 'Turnering ikke funnet' }, { status: 404 })
+        }
+
+        const eligibility = canSubmitMatchResult(
+          { status: currentMatch.status, scheduled_time: currentMatch.scheduled_time },
+          tournament
+        )
+        if (!eligibility.allowed) {
+          return NextResponse.json({ error: eligibility.reasonNo }, { status: 400 })
+        }
       }
 
       // Store the team's submitted result
@@ -354,6 +390,26 @@ export async function PUT(request: NextRequest) {
       }
     } else {
       // Admin or direct update (not team submission)
+      if (isCaptainWalkoverSubmission(body) && !admin) {
+        const tournament = await getTournamentSubmissionContext(supabase, currentMatch.tournament_id)
+        if (!tournament) {
+          return NextResponse.json({ error: 'Turnering ikke funnet' }, { status: 404 })
+        }
+
+        const walkoverEligibility = canClaimWalkover(
+          {
+            status: currentMatch.status,
+            scheduled_time: currentMatch.scheduled_time,
+            team1_submitted_score1: currentMatch.team1_submitted_score1,
+            team2_submitted_score1: currentMatch.team2_submitted_score1
+          },
+          tournament
+        )
+        if (!walkoverEligibility.allowed) {
+          return NextResponse.json({ error: walkoverEligibility.reasonNo }, { status: 400 })
+        }
+      }
+
       if (isCaptainRejectSubmission(body)) {
         if (!body.proof_url) {
           return NextResponse.json({
