@@ -65,6 +65,18 @@ interface MatchRow {
   team1_submitted_score2?: number | null
   team2_submitted_score1?: number | null
   team2_submitted_score2?: number | null
+  updated_at?: string | null
+}
+
+function minutesSince(iso: string | null | undefined, now: number): number {
+  if (!iso) return 0
+  const ms = new Date(iso).getTime()
+  if (Number.isNaN(ms)) return 0
+  return Math.max(0, Math.floor((now - ms) / 60000))
+}
+
+function attentionSinceAt(match: MatchRow, fallbackMs: number): string {
+  return match.updated_at || new Date(fallbackMs).toISOString()
 }
 
 export async function logMatchUpdateEvents(params: {
@@ -200,6 +212,10 @@ export interface AttentionItem {
   description: string
   matchId: string
   tournamentId: string
+  /** When the situation started (ISO) — e.g. first result submitted or scheduled kickoff */
+  sinceAt: string
+  /** Minutes elapsed since sinceAt (waiting time or delay) */
+  ageMinutes: number
 }
 
 export function buildAttentionItems(matches: MatchRow[]): AttentionItem[] {
@@ -221,6 +237,7 @@ export function buildAttentionItems(matches: MatchRow[]): AttentionItem[] {
     if (match.status === 'pending_confirmation' && team1Submitted && team2Submitted) {
       const mismatch = !(t1s === t2s2 && t1s2 === t2s)
       if (mismatch) {
+        const sinceAt = attentionSinceAt(match, now)
         items.push({
           id: `conflict-${matchId}`,
           type: 'conflict',
@@ -228,7 +245,9 @@ export function buildAttentionItems(matches: MatchRow[]): AttentionItem[] {
           title: label,
           description: 'Uenige resultater — krever admin',
           matchId,
-          tournamentId
+          tournamentId,
+          sinceAt,
+          ageMinutes: minutesSince(sinceAt, now)
         })
         continue
       }
@@ -236,14 +255,18 @@ export function buildAttentionItems(matches: MatchRow[]): AttentionItem[] {
 
     if (team1Submitted !== team2Submitted && match.status !== 'completed') {
       const waitingTeam = team1Submitted ? match.team2_name : match.team1_name
+      const sinceAt = attentionSinceAt(match, now)
+      const ageMinutes = minutesSince(sinceAt, now)
       items.push({
         id: `pending-${matchId}`,
         type: 'pending_result',
         priority: 3,
         title: label,
-        description: `Venter på ${waitingTeam}`,
+        description: `Venter på ${waitingTeam}${ageMinutes > 0 ? ` (${ageMinutes} min)` : ''}`,
         matchId,
-        tournamentId
+        tournamentId,
+        sinceAt,
+        ageMinutes
       })
     }
 
@@ -260,9 +283,12 @@ export function buildAttentionItems(matches: MatchRow[]): AttentionItem[] {
             title: label,
             description: `${mins} min bak planlagt tid`,
             matchId,
-            tournamentId
+            tournamentId,
+            sinceAt: match.scheduled_time,
+            ageMinutes: mins
           })
           if (overdueMs >= WO_GRACE_MS) {
+            const woSinceMs = scheduledMs + WO_GRACE_MS
             items.push({
               id: `wo-${matchId}`,
               type: 'walkover_eligible',
@@ -270,7 +296,9 @@ export function buildAttentionItems(matches: MatchRow[]): AttentionItem[] {
               title: label,
               description: 'WO kan kreves (10+ min forsinket, ingen resultat)',
               matchId,
-              tournamentId
+              tournamentId,
+              sinceAt: new Date(woSinceMs).toISOString(),
+              ageMinutes: minutesSince(new Date(woSinceMs).toISOString(), now)
             })
           }
         }
@@ -278,5 +306,5 @@ export function buildAttentionItems(matches: MatchRow[]): AttentionItem[] {
     }
   }
 
-  return items.sort((a, b) => a.priority - b.priority)
+  return items.sort((a, b) => a.priority - b.priority || b.ageMinutes - a.ageMinutes)
 }

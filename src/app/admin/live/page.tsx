@@ -39,6 +39,8 @@ interface AttentionItem {
   description: string
   matchId: string
   tournamentId: string
+  sinceAt: string
+  ageMinutes: number
 }
 
 interface LiveStats {
@@ -148,6 +150,19 @@ export default function LiveTournamentPage() {
     } catch {
       return ''
     }
+  }
+
+  const formatAttentionAge = (item: AttentionItem) => {
+    if (item.ageMinutes <= 0) {
+      return t('nå nettopp', 'just now')
+    }
+    if (item.type === 'schedule_delay' || item.type === 'walkover_eligible') {
+      return t(`${item.ageMinutes} min forsinket`, `${item.ageMinutes} min delayed`)
+    }
+    if (item.type === 'pending_result') {
+      return t(`${item.ageMinutes} min venter`, `${item.ageMinutes} min waiting`)
+    }
+    return t(`${item.ageMinutes} min siden`, `${item.ageMinutes} min ago`)
   }
 
   if (isLoading) {
@@ -320,6 +335,11 @@ export default function LiveTournamentPage() {
                       <div className="min-w-0">
                         <p className="text-sm font-medium break-words">{item.title}</p>
                         <p className="text-xs text-slate-300 mt-1">{item.description}</p>
+                        <p className="text-xs text-slate-500 mt-1 flex flex-wrap items-center gap-x-1.5">
+                          <span>{formatTime(item.sinceAt)}</span>
+                          <span className="text-slate-600">·</span>
+                          <span>{formatAttentionAge(item)}</span>
+                        </p>
                       </div>
                       <ChevronRight className="w-4 h-4 text-slate-400 shrink-0 mt-0.5" />
                     </div>
