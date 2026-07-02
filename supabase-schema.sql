@@ -6,6 +6,7 @@ CREATE TABLE tournaments (
   id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
   title VARCHAR(255) NOT NULL,
   description TEXT,
+  description_en TEXT,
   start_date TIMESTAMP WITH TIME ZONE NOT NULL,
   end_date TIMESTAMP WITH TIME ZONE NOT NULL,
   max_teams INTEGER NOT NULL DEFAULT 16,
@@ -75,6 +76,12 @@ CREATE TABLE matches (
   submitted_by VARCHAR(255),
   submitted_score1 INTEGER,
   submitted_score2 INTEGER,
+  team1_submitted_score1 INTEGER,
+  team1_submitted_score2 INTEGER,
+  team2_submitted_score1 INTEGER,
+  team2_submitted_score2 INTEGER,
+  team1_proof_url TEXT,
+  team2_proof_url TEXT,
   scheduled_time TIMESTAMP WITH TIME ZONE,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
@@ -94,6 +101,21 @@ CREATE TABLE match_result_log (
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 CREATE INDEX idx_match_result_log_match_id ON match_result_log(match_id);
+
+-- Live center activity log
+CREATE TABLE tournament_events (
+  id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  tournament_id UUID REFERENCES tournaments(id) ON DELETE CASCADE NOT NULL,
+  match_id UUID REFERENCES matches(id) ON DELETE SET NULL,
+  event_type VARCHAR(50) NOT NULL,
+  title VARCHAR(255) NOT NULL,
+  detail TEXT,
+  actor_name VARCHAR(255),
+  actor_type VARCHAR(50),
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+CREATE INDEX idx_tournament_events_tournament_id ON tournament_events(tournament_id);
+CREATE INDEX idx_tournament_events_created_at ON tournament_events(created_at DESC);
 
 -- Captain messages table (messages from captains to admin)
 CREATE TABLE captain_messages (

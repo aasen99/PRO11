@@ -12,6 +12,7 @@ import {
   requireAdmin,
   unauthorizedResponse
 } from '@/lib/session'
+import { logMatchUpdateEvents } from '@/lib/tournament-events'
 
 export async function GET(request: NextRequest) {
   try {
@@ -221,7 +222,7 @@ export async function PUT(request: NextRequest) {
       team_name, // The team submitting the result
       team_score1, // Score for team_name
       team_score2, // Score for opponent
-      proof_url, // Photo proof URL (required for team submissions)
+      proof_url, // Optional unless results disagree or captain rejects
       group_round,
       group_name,
       scheduled_time
@@ -292,22 +293,18 @@ export async function PUT(request: NextRequest) {
         return NextResponse.json({ error: 'Du har allerede sendt inn resultat for denne kampen' }, { status: 400 })
       }
 
-      const existingProof = isTeam1 ? currentMatch.team1_proof_url : currentMatch.team2_proof_url
-      if (!proof_url && !existingProof) {
-        return NextResponse.json({
-          error: 'Bildebevis er påkrevd. Last opp skjermbilde av resultatet.'
-        }, { status: 400 })
-      }
-
       // Store the team's submitted result
       if (isTeam1) {
         updateData.team1_submitted_score1 = team_score1
         updateData.team1_submitted_score2 = team_score2
-        if (proof_url) updateData.team1_proof_url = proof_url
       } else {
         updateData.team2_submitted_score1 = team_score1
         updateData.team2_submitted_score2 = team_score2
-        if (proof_url) updateData.team2_proof_url = proof_url
+      }
+
+      if (proof_url) {
+        if (isTeam1) updateData.team1_proof_url = proof_url
+        else updateData.team2_proof_url = proof_url
       }
 
       // Also update legacy fields for backward compatibility
@@ -343,12 +340,31 @@ export async function PUT(request: NextRequest) {
           updateData.submitted_score1 = null
           updateData.submitted_score2 = null
         } else {
-          // Results don't match - wait for admin review
+          // Results don't match - proof required from the team that just submitted
+          const existingProof = isTeam1
+            ? (currentMatch.team1_proof_url || updateData.team1_proof_url)
+            : (currentMatch.team2_proof_url || updateData.team2_proof_url)
+          if (!proof_url && !existingProof) {
+            return NextResponse.json({
+              error: 'Bildebevis er påkrevd når resultatene ikke er enige. Last opp skjermbilde av resultatet.'
+            }, { status: 400 })
+          }
           updateData.status = 'pending_confirmation'
         }
       }
     } else {
       // Admin or direct update (not team submission)
+      if (isCaptainRejectSubmission(body)) {
+        if (!body.proof_url) {
+          return NextResponse.json({
+            error: 'Bildebevis er påkrevd ved avvisning av resultat.'
+          }, { status: 400 })
+        }
+        const isTeam1 = currentMatch.team1_name === captain!.teamName
+        if (isTeam1) updateData.team1_proof_url = body.proof_url
+        else updateData.team2_proof_url = body.proof_url
+      }
+
       // Set final scores; keep team1/team2_submitted_* as documentation (do not clear)
       if (status) updateData.status = status
       if (score1 !== undefined) {
@@ -435,6 +451,17 @@ export async function PUT(request: NextRequest) {
     if (error) {
       console.error('Database error:', error)
       return NextResponse.json({ error: 'Failed to update match: ' + error.message }, { status: 400 })
+    }
+
+    if (match) {
+      await logMatchUpdateEvents({
+        currentMatch,
+        updatedMatch: match as any,
+        body,
+        updateData,
+        captainTeamName: captain?.teamName ?? null,
+        isAdmin: Boolean(admin)
+      })
     }
 
     if (match && !body.team_name && (body.score1 !== undefined || body.score2 !== undefined)) {

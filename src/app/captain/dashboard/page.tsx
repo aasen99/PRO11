@@ -42,6 +42,7 @@ interface Match {
   opponentSubmittedScore1: number | null
   opponentSubmittedScore2: number | null
   canConfirmResult: boolean
+  canSubmitAlternativeResult?: boolean
   opponentDiscordUsername?: string | null
 }
 
@@ -97,11 +98,13 @@ export default function CaptainDashboardPage() {
   const [resultScore1, setResultScore1] = useState(0)
   const [resultScore2, setResultScore2] = useState(0)
   const [resultProofFile, setResultProofFile] = useState<File | null>(null)
+  const [resultProofRequired, setResultProofRequired] = useState(false)
   const [isSubmittingResult, setIsSubmittingResult] = useState(false)
-  const [showConfirmProofModal, setShowConfirmProofModal] = useState(false)
-  const [matchToConfirm, setMatchToConfirm] = useState<Match | null>(null)
-  const [confirmProofFile, setConfirmProofFile] = useState<File | null>(null)
-  const [isConfirmingResult, setIsConfirmingResult] = useState(false)
+  const [showRejectProofModal, setShowRejectProofModal] = useState(false)
+  const [matchToReject, setMatchToReject] = useState<Match | null>(null)
+  const [rejectProofFile, setRejectProofFile] = useState<File | null>(null)
+  const [isRejectingResult, setIsRejectingResult] = useState(false)
+  const [confirmingMatchId, setConfirmingMatchId] = useState<string | null>(null)
   const [discordUsername, setDiscordUsername] = useState('')
   const [isSavingDiscord, setIsSavingDiscord] = useState(false)
   const [showDiscordEditor, setShowDiscordEditor] = useState(false)
@@ -413,6 +416,7 @@ export default function CaptainDashboardPage() {
                     opponentSubmittedScore1,
                     opponentSubmittedScore2,
                     canConfirmResult: canConfirm,
+                    canSubmitAlternativeResult: opponentHasSubmitted && !thisTeamHasSubmitted && m.status !== 'completed',
                     opponentDiscordUsername
                   }
                 }).filter((match: Match | null): match is Match => match !== null)
@@ -794,13 +798,19 @@ export default function CaptainDashboardPage() {
     window.location.href = '/payment'
   }
 
-  const openResultModal = (match: Match) => {
+  const openResultModal = (match: Match, options?: { requireProof?: boolean; prefillOpponent?: boolean }) => {
     setSelectedMatch(match)
-    setResultScore1(match.score1)
-    setResultScore2(match.score2)
+    setResultProofRequired(Boolean(options?.requireProof))
+    if (options?.prefillOpponent && team && match.opponentSubmittedScore1 !== null && match.opponentSubmittedScore2 !== null) {
+      const isTeam1 = match.team1 === team.teamName
+      setResultScore1(isTeam1 ? match.opponentSubmittedScore1 : match.opponentSubmittedScore2)
+      setResultScore2(isTeam1 ? match.opponentSubmittedScore2 : match.opponentSubmittedScore1)
+    } else {
+      setResultScore1(match.score1)
+      setResultScore2(match.score2)
+    }
     setResultProofFile(null)
     setShowResultModal(true)
-    // Scroll to top when modal opens
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
@@ -827,8 +837,25 @@ export default function CaptainDashboardPage() {
   const submitResult = async () => {
     if (!selectedMatch || !team) return
 
-    if (!resultProofFile) {
-      alert(t('Du må laste opp bildebevis (skjermbilde av resultatet).', 'You must upload photo proof (screenshot of the result).'))
+    const opponentHasSubmitted =
+      selectedMatch.opponentSubmittedScore1 !== null &&
+      selectedMatch.opponentSubmittedScore2 !== null
+
+    let needsProof = resultProofRequired
+    if (!needsProof && opponentHasSubmitted) {
+      const isTeam1 = selectedMatch.team1 === team.teamName
+      const myGoals = isTeam1 ? resultScore1 : resultScore2
+      const theirGoals = isTeam1 ? resultScore2 : resultScore1
+      needsProof =
+        myGoals !== selectedMatch.opponentSubmittedScore1 ||
+        theirGoals !== selectedMatch.opponentSubmittedScore2
+    }
+
+    if (needsProof && !resultProofFile) {
+      alert(t(
+        'Du må laste opp bildebevis når resultatene ikke er enige.',
+        'You must upload photo proof when the results do not match.'
+      ))
       return
     }
 
@@ -843,10 +870,11 @@ export default function CaptainDashboardPage() {
 
     setIsSubmittingResult(true)
     try {
-      const proofUrl = await uploadMatchProof(selectedMatch.id, team.teamName, resultProofFile)
+      let proofUrl: string | undefined
+      if (resultProofFile) {
+        proofUrl = await uploadMatchProof(selectedMatch.id, team.teamName, resultProofFile)
+      }
 
-      // Send resultat til API fra riktig perspektiv
-      // UI viser alltid team1/team2, så vi må mappe til "mitt lag" før vi sender
       const teamScore1 = isTeam1 ? resultScore1 : resultScore2
       const teamScore2 = isTeam1 ? resultScore2 : resultScore1
 
@@ -856,9 +884,9 @@ export default function CaptainDashboardPage() {
         body: JSON.stringify({
           id: selectedMatch.id,
           team_name: team.teamName,
-          team_score1: teamScore1, // This team's score
-          team_score2: teamScore2,  // Opponent's score
-          proof_url: proofUrl
+          team_score1: teamScore1,
+          team_score2: teamScore2,
+          ...(proofUrl ? { proof_url: proofUrl } : {})
         })
       })
 
@@ -877,11 +905,16 @@ export default function CaptainDashboardPage() {
           `Resultat bekreftet og fullført: ${selectedMatch.team1} ${updatedMatch.score1} - ${updatedMatch.score2} ${selectedMatch.team2}\n\nBegge lag har bekreftet samme resultat.`,
           `Result confirmed and completed: ${selectedMatch.team1} ${updatedMatch.score1} - ${updatedMatch.score2} ${selectedMatch.team2}\n\nBoth teams confirmed the same result.`
         ))
+      } else if (updatedMatch.status === 'pending_confirmation') {
+        alert(t(
+          `Resultatene er uenige. Admin vil se på bildebevis og avgjøre: ${selectedMatch.team1} ${resultScore1} - ${resultScore2} ${selectedMatch.team2}`,
+          `Results do not match. An admin will review the proof and decide: ${selectedMatch.team1} ${resultScore1} - ${resultScore2} ${selectedMatch.team2}`
+        ))
       } else {
-    alert(t(
-      `Resultat innsendt: ${selectedMatch.team1} ${resultScore1} - ${resultScore2} ${selectedMatch.team2}\n\nVenter på bekreftelse fra motstanderlaget.`,
-      `Result submitted: ${selectedMatch.team1} ${resultScore1} - ${resultScore2} ${selectedMatch.team2}\n\nWaiting for opponent confirmation.`
-    ))
+        alert(t(
+          `Resultat innsendt: ${selectedMatch.team1} ${resultScore1} - ${resultScore2} ${selectedMatch.team2}\n\nVenter på bekreftelse fra motstanderlaget.`,
+          `Result submitted: ${selectedMatch.team1} ${resultScore1} - ${resultScore2} ${selectedMatch.team2}\n\nWaiting for opponent confirmation.`
+        ))
       }
       
     setShowResultModal(false)
@@ -979,60 +1012,33 @@ export default function CaptainDashboardPage() {
     }
   }
 
-  const openConfirmProofModal = (match: Match) => {
-    setMatchToConfirm(match)
-    setConfirmProofFile(null)
-    setShowConfirmProofModal(true)
-  }
-
   const confirmResult = async (match: Match) => {
-    openConfirmProofModal(match)
-  }
+    if (!team) return
 
-  const submitConfirmedResult = async () => {
-    const match = matchToConfirm
-    if (!match || !team) return
-
-    if (!confirmProofFile) {
-      alert(t('Du må laste opp bildebevis (skjermbilde av resultatet).', 'You must upload photo proof (screenshot of the result).'))
-      return
-    }
-
-    const isTeam1 = match.team1 === team.teamName
-    const isTeam2 = match.team2 === team.teamName
-    
-    if (!isTeam1 && !isTeam2) {
-      alert(t('Du er ikke del av denne kampen.', 'You are not part of this match.'))
-      return
-    }
-
-    setIsConfirmingResult(true)
+    setConfirmingMatchId(match.id)
     try {
       const matchResponse = await apiFetch(`/api/matches?tournament_id=${match.tournamentId}`)
       if (!matchResponse.ok) {
         alert(t('Kunne ikke hente kampdata. Prøv igjen.', 'Could not fetch match data. Please try again.'))
         return
       }
-      
+
       const matchesData = await matchResponse.json()
       const currentMatch = matchesData.matches?.find((m: any) => m.id === match.id)
-      
       if (!currentMatch) {
         alert(t('Kamp ikke funnet.', 'Match not found.'))
         return
       }
 
-      let opponentScore1: number | null = null
-      let opponentScore2: number | null = null
-      
-      if (isTeam1) {
-        opponentScore1 = currentMatch.team2_submitted_score1
-        opponentScore2 = currentMatch.team2_submitted_score2
-      } else {
-        opponentScore1 = currentMatch.team1_submitted_score1
-        opponentScore2 = currentMatch.team1_submitted_score2
+      const isTeam1 = match.team1 === team.teamName
+      const isTeam2 = match.team2 === team.teamName
+      if (!isTeam1 && !isTeam2) {
+        alert(t('Du er ikke del av denne kampen.', 'You are not part of this match.'))
+        return
       }
 
+      const opponentScore1 = isTeam1 ? currentMatch.team2_submitted_score1 : currentMatch.team1_submitted_score1
+      const opponentScore2 = isTeam1 ? currentMatch.team2_submitted_score2 : currentMatch.team1_submitted_score2
       if (opponentScore1 === null || opponentScore2 === null) {
         alert(t('Motstanderens resultat ikke funnet. Prøv å oppdatere siden.', 'Opponent result not found. Try refreshing the page.'))
         return
@@ -1040,7 +1046,6 @@ export default function CaptainDashboardPage() {
 
       const myScore = opponentScore2
       const opponentScore = opponentScore1
-      const proofUrl = await uploadMatchProof(match.id, team.teamName, confirmProofFile)
 
       const response = await apiFetch('/api/matches', {
         method: 'PUT',
@@ -1049,8 +1054,7 @@ export default function CaptainDashboardPage() {
           id: match.id,
           team_name: team.teamName,
           team_score1: myScore,
-          team_score2: opponentScore,
-          proof_url: proofUrl
+          team_score2: opponentScore
         })
       })
 
@@ -1062,53 +1066,51 @@ export default function CaptainDashboardPage() {
 
       const result = await response.json()
       const updatedMatch = result.match
-
-      // Check if match was automatically completed (both teams submitted matching results)
-      if (updatedMatch.status === 'completed') {
-        alert(t(
-          `Resultat bekreftet og fullført: ${match.team1} ${updatedMatch.score1} - ${updatedMatch.score2} ${match.team2}\n\nBegge lag har bekreftet samme resultat.`,
-          `Result confirmed and completed: ${match.team1} ${updatedMatch.score1} - ${updatedMatch.score2} ${match.team2}\n\nBoth teams confirmed the same result.`
-        ))
-      } else {
-        alert(t(
-          `Resultat sendt inn: ${match.team1} ${myScore} - ${opponentScore} ${match.team2}\n\nHvis resultatene ikke matcher, vil admin se på det.`,
-          `Result submitted: ${match.team1} ${myScore} - ${opponentScore} ${match.team2}\n\nIf results do not match, admin will review it.`
-        ))
-      }
-      
-      setShowConfirmProofModal(false)
+      alert(t(
+        `Resultat bekreftet og fullført: ${match.team1} ${updatedMatch.score1} - ${updatedMatch.score2} ${match.team2}`,
+        `Result confirmed and completed: ${match.team1} ${updatedMatch.score1} - ${updatedMatch.score2} ${match.team2}`
+      ))
       window.location.reload()
     } catch (error) {
       console.error('Error confirming result:', error)
-      const message = error instanceof Error ? error.message : t('Noe gikk galt ved bekreftelse av resultat. Prøv igjen.', 'Something went wrong confirming the result. Please try again.')
-      alert(message)
+      alert(t('Noe gikk galt ved bekreftelse av resultat. Prøv igjen.', 'Something went wrong confirming the result. Please try again.'))
     } finally {
-      setIsConfirmingResult(false)
+      setConfirmingMatchId(null)
     }
   }
 
-  const rejectResult = async (match: Match) => {
-    if (!team) return
+  const openRejectProofModal = (match: Match) => {
+    setMatchToReject(match)
+    setRejectProofFile(null)
+    setShowRejectProofModal(true)
+  }
 
-    if (!confirm(t('Er du sikker på at du vil avvise dette resultatet? Begge lag må legge inn resultatet på nytt.', 'Are you sure you want to reject this result? Both teams must submit the result again.'))) {
+  const submitRejectedResult = async () => {
+    const match = matchToReject
+    if (!match || !team) return
+
+    if (!rejectProofFile) {
+      alert(t(
+        'Du må laste opp bildebevis når du avviser et resultat.',
+        'You must upload photo proof when rejecting a result.'
+      ))
       return
     }
 
+    setIsRejectingResult(true)
     try {
-      // Reset the match to pending_result by clearing submitted fields
+      const proofUrl = await uploadMatchProof(match.id, team.teamName, rejectProofFile)
       const response = await apiFetch('/api/matches', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           id: match.id,
           status: 'pending_result',
-          // Clear all submitted fields
+          proof_url: proofUrl,
           team1_submitted_score1: null,
           team1_submitted_score2: null,
           team2_submitted_score1: null,
           team2_submitted_score2: null,
-          team1_proof_url: null,
-          team2_proof_url: null,
           submitted_by: null,
           submitted_score1: null,
           submitted_score2: null
@@ -1117,22 +1119,27 @@ export default function CaptainDashboardPage() {
 
       if (!response.ok) {
         const error = await response.json()
-        console.error('Reject result error:', error)
         alert(t(`Feil ved avvisning av resultat: ${error.error || 'Ukjent feil'}`, `Error rejecting result: ${error.error || 'Unknown error'}`))
         return
       }
 
-      const result = await response.json()
-      console.log('Reject result success:', result)
-
-    alert(t('Resultat avvist. Begge lag må legge inn resultatet på nytt.', 'Result rejected. Both teams must submit the result again.'))
-      
-      // Reload page to get updated match status
+      setShowRejectProofModal(false)
+      alert(t('Resultat avvist. Begge lag må legge inn resultatet på nytt.', 'Result rejected. Both teams must submit the result again.'))
       window.location.reload()
     } catch (error) {
       console.error('Error rejecting result:', error)
       alert(t('Noe gikk galt ved avvisning av resultat. Prøv igjen.', 'Something went wrong rejecting the result. Please try again.'))
+    } finally {
+      setIsRejectingResult(false)
     }
+  }
+
+  const rejectResult = (match: Match) => {
+    if (!team) return
+    if (!confirm(t('Er du sikker på at du vil avvise dette resultatet? Begge lag må legge inn resultatet på nytt.', 'Are you sure you want to reject this result? Both teams must submit the result again.'))) {
+      return
+    }
+    openRejectProofModal(match)
   }
 
   const getMatchStatusColor = (status: string) => {
@@ -1579,10 +1586,19 @@ export default function CaptainDashboardPage() {
                                     <>
                                       <button
                                         onClick={() => confirmResult(nextMatch)}
-                                        className="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded text-xs font-medium transition-colors"
+                                        disabled={confirmingMatchId === nextMatch.id}
+                                        className="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded text-xs font-medium transition-colors disabled:opacity-50"
                                       >
-                                        {t('Bekreft', 'Confirm')}
+                                        {confirmingMatchId === nextMatch.id ? t('Bekrefter...', 'Confirming...') : t('Bekreft', 'Confirm')}
                                       </button>
+                                      {nextMatch.canSubmitAlternativeResult && (
+                                        <button
+                                          onClick={() => openResultModal(nextMatch, { requireProof: true, prefillOpponent: true })}
+                                          className="bg-orange-600 hover:bg-orange-700 text-white px-3 py-1 rounded text-xs font-medium transition-colors"
+                                        >
+                                          {t('Annet resultat', 'Different result')}
+                                        </button>
+                                      )}
                                       {nextMatch.submittedBy && nextMatch.submittedBy !== team.teamName && (
                                         <button
                                           onClick={() => rejectResult(nextMatch)}
@@ -1986,10 +2002,19 @@ export default function CaptainDashboardPage() {
                             <>
                               <button
                                 onClick={() => confirmResult(match)}
-                                className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded text-sm font-medium transition-colors max-sm:w-full"
+                                disabled={confirmingMatchId === match.id}
+                                className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded text-sm font-medium transition-colors max-sm:w-full disabled:opacity-50"
                               >
-                                {t('Bekreft', 'Confirm')}
+                                {confirmingMatchId === match.id ? t('Bekrefter...', 'Confirming...') : t('Bekreft', 'Confirm')}
                               </button>
+                              {match.canSubmitAlternativeResult && (
+                                <button
+                                  onClick={() => openResultModal(match, { requireProof: true, prefillOpponent: true })}
+                                  className="bg-orange-600 hover:bg-orange-700 text-white px-4 py-2 rounded text-sm font-medium transition-colors max-sm:w-full"
+                                >
+                                  {t('Annet resultat', 'Different result')}
+                                </button>
+                              )}
                               <button
                                 onClick={() => rejectResult(match)}
                                 className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded text-sm font-medium transition-colors max-sm:w-full"
@@ -2117,19 +2142,20 @@ export default function CaptainDashboardPage() {
                 </div>
               </div>
 
+              {resultProofRequired && (
               <div>
                 <label className="block text-sm font-medium text-slate-300 mb-2">
-                  {t('Bildebevis (påkrevd)', 'Photo proof (required)')}
+                  {t('Bildebevis (påkrevd ved uenighet)', 'Photo proof (required for disputes)')}
                 </label>
                 <p className="text-xs text-slate-400 mb-2">
                   {t(
-                    'Last opp skjermbilde av sluttresultatet fra kampen (JPG, PNG eller WEBP, maks 5 MB).',
-                    'Upload a screenshot of the final match result (JPG, PNG or WEBP, max 5 MB).'
+                    'Last opp skjermbilde av sluttresultatet fra kampen (JPG, PNG eller WEBP, maks 4 MB).',
+                    'Upload a screenshot of the final match result (JPG, PNG or WEBP, max 4 MB).'
                   )}
                 </p>
                 <input
                   type="file"
-                  accept="image/jpeg,image/png,image/webp,image/gif"
+                  accept="image/jpeg,image/png,image/webp,image/gif,image/*,.jpg,.jpeg,.png,.webp,.gif"
                   onChange={(e) => setResultProofFile(e.target.files?.[0] || null)}
                   className="pro11-input text-sm"
                 />
@@ -2139,11 +2165,12 @@ export default function CaptainDashboardPage() {
                   </p>
                 )}
               </div>
+              )}
 
               <div className="flex flex-col sm:flex-row gap-3">
                 <button
                   onClick={submitResult}
-                  disabled={isSubmittingResult || !resultProofFile}
+                  disabled={isSubmittingResult || (resultProofRequired && !resultProofFile)}
                   className="pro11-button flex items-center space-x-2 flex-1 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <CheckCircle className="w-4 h-4" />
@@ -2170,20 +2197,20 @@ export default function CaptainDashboardPage() {
         </div>
       )}
 
-      {/* Confirm result with proof */}
-      {showConfirmProofModal && matchToConfirm && (
+      {/* Reject result with proof */}
+      {showRejectProofModal && matchToReject && (
         <div
           className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
-          onClick={() => setShowConfirmProofModal(false)}
+          onClick={() => setShowRejectProofModal(false)}
         >
           <div
             className="pro11-card p-6 max-w-md w-full max-h-[90vh] overflow-y-auto"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl font-bold">{t('Bekreft resultat', 'Confirm result')}</h2>
+              <h2 className="text-xl font-bold">{t('Avvis resultat', 'Reject result')}</h2>
               <button
-                onClick={() => setShowConfirmProofModal(false)}
+                onClick={() => setShowRejectProofModal(false)}
                 className="text-slate-400 hover:text-white"
               >
                 ✕
@@ -2193,11 +2220,11 @@ export default function CaptainDashboardPage() {
             <div className="space-y-4">
               <p className="text-slate-300 text-sm">
                 {t(
-                  'For å bekrefte motstanderens resultat må du laste opp bildebevis fra kampen.',
-                  'To confirm the opponent\'s result you must upload photo proof from the match.'
+                  'For å avvise motstanderens resultat må du laste opp bildebevis fra kampen.',
+                  'To reject the opponent\'s result you must upload photo proof from the match.'
                 )}
               </p>
-              <p className="text-slate-400 text-sm">{matchToConfirm.team1} vs {matchToConfirm.team2}</p>
+              <p className="text-slate-400 text-sm">{matchToReject.team1} vs {matchToReject.team2}</p>
 
               <div>
                 <label className="block text-sm font-medium text-slate-300 mb-2">
@@ -2205,25 +2232,25 @@ export default function CaptainDashboardPage() {
                 </label>
                 <input
                   type="file"
-                  accept="image/jpeg,image/png,image/webp,image/gif"
-                  onChange={(e) => setConfirmProofFile(e.target.files?.[0] || null)}
+                  accept="image/jpeg,image/png,image/webp,image/gif,image/*,.jpg,.jpeg,.png,.webp,.gif"
+                  onChange={(e) => setRejectProofFile(e.target.files?.[0] || null)}
                   className="pro11-input text-sm"
                 />
-                {confirmProofFile && (
-                  <p className="text-xs text-green-400 mt-2">✓ {confirmProofFile.name}</p>
+                {rejectProofFile && (
+                  <p className="text-xs text-green-400 mt-2">✓ {rejectProofFile.name}</p>
                 )}
               </div>
 
               <div className="flex flex-col sm:flex-row gap-3">
                 <button
-                  onClick={submitConfirmedResult}
-                  disabled={isConfirmingResult || !confirmProofFile}
+                  onClick={submitRejectedResult}
+                  disabled={isRejectingResult || !rejectProofFile}
                   className="pro11-button flex-1 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {isConfirmingResult ? t('Bekrefter...', 'Confirming...') : t('Bekreft', 'Confirm')}
+                  {isRejectingResult ? t('Avviser...', 'Rejecting...') : t('Avvis resultat', 'Reject result')}
                 </button>
                 <button
-                  onClick={() => setShowConfirmProofModal(false)}
+                  onClick={() => setShowRejectProofModal(false)}
                   className="pro11-button-secondary flex-1"
                 >
                   {t('Avbryt', 'Cancel')}

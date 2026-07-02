@@ -1,449 +1,350 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useCallback, useEffect, useState } from 'react'
 import Link from 'next/link'
-import { Shield, Trophy, Users, Calendar, Play, Pause, Square, RefreshCw, Award, Clock, Target, BarChart3, Settings } from 'lucide-react'
-import { getTournamentById } from '../../../lib/tournaments'
+import {
+  Radio,
+  RefreshCw,
+  AlertTriangle,
+  Clock,
+  Trophy,
+  ChevronRight,
+  Activity,
+  CheckCircle2,
+  Swords
+} from 'lucide-react'
 import { useLanguage } from '@/components/LanguageProvider'
+import { apiFetch } from '@/lib/client-fetch'
 
-interface Match {
-  id: string
-  team1: string
-  team2: string
-  score1: number
-  score2: number
-  status: 'scheduled' | 'live' | 'completed'
-  time: string
-  round: string
-}
-
-interface Tournament {
+interface TournamentOption {
   id: string
   title: string
-  status: 'preparing' | 'live' | 'paused' | 'completed'
-  currentRound: string
-  totalRounds: number
-  matches: Match[]
-  participants: number
-  startTime: string
-  estimatedEnd: string
+  status: string
 }
 
+interface LiveEvent {
+  id: string
+  event_type: string
+  title: string
+  detail?: string | null
+  actor_name?: string | null
+  created_at: string
+  match_id?: string | null
+}
+
+interface AttentionItem {
+  id: string
+  type: string
+  title: string
+  description: string
+  matchId: string
+  tournamentId: string
+}
+
+interface LiveStats {
+  totalMatches: number
+  completedMatches: number
+  liveMatches: number
+  pendingConfirmation: number
+  conflicts: number
+  progress: number
+}
+
+const REFRESH_MS = 12_000
+
 export default function LiveTournamentPage() {
-  const [activeTournament, setActiveTournament] = useState<Tournament | null>(null)
   const { language } = useLanguage()
   const isEnglish = language === 'en'
   const t = (noText: string, enText: string) => (isEnglish ? enText : noText)
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'preparing':
-        return 'bg-yellow-600'
-      case 'live':
-        return 'bg-green-600'
-      case 'paused':
-        return 'bg-orange-600'
-      case 'completed':
-        return 'bg-blue-600'
-      default:
-        return 'bg-slate-600'
-    }
-  }
+  const [tournaments, setTournaments] = useState<TournamentOption[]>([])
+  const [selectedId, setSelectedId] = useState('')
+  const [tournamentTitle, setTournamentTitle] = useState('')
+  const [tournamentStatus, setTournamentStatus] = useState('')
+  const [events, setEvents] = useState<LiveEvent[]>([])
+  const [attention, setAttention] = useState<AttentionItem[]>([])
+  const [stats, setStats] = useState<LiveStats | null>(null)
+  const [eventsAvailable, setEventsAvailable] = useState(true)
+  const [isLoading, setIsLoading] = useState(true)
+  const [isRefreshing, setIsRefreshing] = useState(false)
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null)
 
-  const getStatusText = (status: string) => {
-    switch (status) {
-      case 'preparing':
-        return t('Forbereder', 'Preparing')
-      case 'live':
-        return 'Live'
-      case 'paused':
-        return t('Pauset', 'Paused')
-      case 'completed':
-        return t('Fullført', 'Completed')
-      default:
-        return t('Ukjent', 'Unknown')
-    }
-  }
-
-  const getMatchStatusColor = (status: string) => {
-    switch (status) {
-      case 'scheduled':
-        return 'bg-slate-600'
-      case 'live':
-        return 'bg-green-600'
-      case 'completed':
-        return 'bg-blue-600'
-      default:
-        return 'bg-slate-600'
-    }
-  }
-
-  const getMatchStatusText = (status: string) => {
-    switch (status) {
-      case 'scheduled':
-        return t('Planlagt', 'Scheduled')
-      case 'live':
-        return 'Live'
-      case 'completed':
-        return t('Ferdig', 'Finished')
-      default:
-        return t('Ukjent', 'Unknown')
-    }
-  }
-
-  const updateMatchScore = (matchId: string, team: 'team1' | 'team2', newScore: number) => {
-    if (!activeTournament) return
-    
-    setActiveTournament(prev => {
-      if (!prev) return prev
-      return {
-        ...prev,
-        matches: prev.matches.map(match =>
-          match.id === matchId
-            ? { ...match, [team === 'team1' ? 'score1' : 'score2']: newScore }
-            : match
-        )
+  const loadLiveData = useCallback(async (tournamentId?: string, silent = false) => {
+    if (!silent) setIsRefreshing(true)
+    try {
+      const query = tournamentId ? `?tournament_id=${tournamentId}` : ''
+      const response = await apiFetch(`/api/admin/live${query}`, { credentials: 'include' })
+      const data = await response.json()
+      if (!response.ok) {
+        console.error('Live data error:', data.error)
+        return
       }
-    })
-  }
 
-  const updateMatchStatus = (matchId: string, newStatus: string) => {
-    if (!activeTournament) return
-    
-    setActiveTournament(prev => {
-      if (!prev) return prev
-      return {
-        ...prev,
-        matches: prev.matches.map(match =>
-          match.id === matchId
-            ? { ...match, status: newStatus as 'scheduled' | 'live' | 'completed' }
-            : match
-        )
+      setTournaments(data.tournaments || [])
+      setEventsAvailable(data.eventsAvailable !== false)
+      setEvents(data.events || [])
+      setAttention(data.attention || [])
+      setStats(data.stats || null)
+      setLastUpdated(new Date())
+
+      if (data.tournament) {
+        setSelectedId(data.tournament.id)
+        setTournamentTitle(data.tournament.title)
+        setTournamentStatus(data.tournament.status)
       }
-    })
-  }
+    } catch (error) {
+      console.error('Failed to load live data:', error)
+    } finally {
+      setIsLoading(false)
+      setIsRefreshing(false)
+    }
+  }, [])
 
-  const updateTournamentStatus = (newStatus: string) => {
-    if (!activeTournament) return
-    
-    setActiveTournament(prev => {
-      if (!prev) return prev
-      return {
-        ...prev,
-        status: newStatus as 'preparing' | 'live' | 'paused' | 'completed'
-      }
-    })
-  }
+  useEffect(() => {
+    loadLiveData()
+  }, [loadLiveData])
 
-  const updateAllMatches = () => {
-    if (!activeTournament) return
-    
-    // Simulerer oppdatering av alle kamper
-    alert(t('Alle kamper er oppdatert!', 'All matches have been updated!'))
-  }
+  useEffect(() => {
+    const timer = setInterval(() => loadLiveData(selectedId || undefined, true), REFRESH_MS)
+    return () => clearInterval(timer)
+  }, [loadLiveData, selectedId])
 
-  const showResults = () => {
-    if (!activeTournament) return
-    
-    const results = activeTournament.matches
-      .filter(match => match.status === 'completed')
-      .map(match => `${match.team1} ${match.score1} - ${match.score2} ${match.team2}`)
-      .join('\n')
-    
-    if (results) {
-      alert(t(`Resultater:\n\n${results}`, `Results:\n\n${results}`))
-    } else {
-      alert(t('Ingen ferdige kamper ennå.', 'No completed matches yet.'))
+  const eventIcon = (type: string) => {
+    switch (type) {
+      case 'result_conflict':
+        return <AlertTriangle className="w-4 h-4 text-red-400 shrink-0" />
+      case 'walkover_claimed':
+        return <Swords className="w-4 h-4 text-orange-400 shrink-0" />
+      case 'match_completed':
+      case 'result_confirmed':
+        return <CheckCircle2 className="w-4 h-4 text-green-400 shrink-0" />
+      case 'match_live':
+        return <Radio className="w-4 h-4 text-green-400 shrink-0" />
+      default:
+        return <Activity className="w-4 h-4 text-blue-400 shrink-0" />
     }
   }
 
-  const showStatistics = () => {
-    if (!activeTournament) return
-    
-    const totalMatches = activeTournament.matches.length
-    const completedMatches = activeTournament.matches.filter(m => m.status === 'completed').length
-    const liveMatches = activeTournament.matches.filter(m => m.status === 'live').length
-    const scheduledMatches = activeTournament.matches.filter(m => m.status === 'scheduled').length
-    
-    const stats = t(
-      `
-Statistikk for ${activeTournament.title}:
+  const attentionStyle = (type: string) => {
+    switch (type) {
+      case 'conflict':
+        return 'border-red-500/40 bg-red-900/20'
+      case 'walkover_eligible':
+        return 'border-orange-500/40 bg-orange-900/20'
+      case 'schedule_delay':
+        return 'border-yellow-500/40 bg-yellow-900/20'
+      default:
+        return 'border-slate-600 bg-slate-800/40'
+    }
+  }
 
-Totalt antall kamper: ${totalMatches}
-Ferdige kamper: ${completedMatches}
-Live kamper: ${liveMatches}
-Planlagte kamper: ${scheduledMatches}
+  const formatTime = (iso: string) => {
+    try {
+      return new Date(iso).toLocaleTimeString(isEnglish ? 'en-GB' : 'nb-NO', {
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit'
+      })
+    } catch {
+      return ''
+    }
+  }
 
-Fremgang: ${Math.round((completedMatches / totalMatches) * 100)}%
-    `.trim(),
-      `
-Statistics for ${activeTournament.title}:
-
-Total matches: ${totalMatches}
-Completed matches: ${completedMatches}
-Live matches: ${liveMatches}
-Scheduled matches: ${scheduledMatches}
-
-Progress: ${Math.round((completedMatches / totalMatches) * 100)}%
-    `.trim()
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="w-10 h-10 border-2 border-red-400 border-t-transparent rounded-full animate-spin" />
+      </div>
     )
-    
-    alert(stats)
   }
 
-  const openSettings = () => {
-    if (!activeTournament) return
-    
-    const settings = prompt(
-      t(
-        'Innstillinger (kommaseparert):\nTid per kamp (min), Pause mellom kamper (min), Auto-oppdatering (on/off)',
-        'Settings (comma-separated):\nTime per match (min), Break between matches (min), Auto-refresh (on/off)'
-      ),
-      '90, 15, on'
-    )
-    
-    if (settings) {
-      alert(t(`Innstillinger oppdatert: ${settings}`, `Settings updated: ${settings}`))
-    }
-  }
-
-  if (!activeTournament) {
+  if (!selectedId && tournaments.length === 0) {
     return (
       <div className="min-h-screen">
-        <header className="pro11-card mx-4 mt-4 h-24">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center">
-              <div className="w-24 h-full flex items-center justify-center">
-                <img src="/logo.png" alt="PRO11 Logo" className="w-full h-full object-contain" />
-              </div>
-              <div className="ml-4">
-                <p className="text-slate-400 text-sm">
-                  {t('Pro Clubs Turneringer', 'Pro Clubs Tournaments')}
-                </p>
-              </div>
-            </div>
-            <Link href="/admin" className="pro11-button-secondary flex items-center space-x-2">
-              <span>{t('Tilbake til Admin', 'Back to Admin')}</span>
-            </Link>
-          </div>
+        <header className="pro11-card mx-4 mt-4 p-4 flex items-center justify-between">
+          <h1 className="text-xl font-bold flex items-center gap-2">
+            <Radio className="w-5 h-5 text-red-400" />
+            {t('Livesenter', 'Live center')}
+          </h1>
+          <Link href="/admin" className="pro11-button-secondary text-sm">
+            {t('Tilbake til admin', 'Back to admin')}
+          </Link>
         </header>
-
-        <main className="container mx-auto px-4 py-8 flex flex-col items-center">
-          <div className="text-center">
-            <h1 className="text-3xl font-bold mb-4">{t('Ingen aktiv turnering', 'No active tournament')}</h1>
-            <p className="text-slate-300 mb-6">
-              {t('Det er ingen live turneringer for øyeblikket.', 'There are no live tournaments at the moment.')}
-            </p>
-            <Link href="/admin" className="pro11-button flex items-center space-x-2">
-              <span>{t('Gå til Admin Dashboard', 'Go to Admin Dashboard')}</span>
-            </Link>
-          </div>
+        <main className="container mx-auto px-4 py-12 text-center">
+          <p className="text-slate-300 mb-4">{t('Ingen aktiv turnering akkurat nå.', 'No active tournament right now.')}</p>
+          <p className="text-slate-500 text-sm mb-6">
+            {t('Opprett en demo-turnering under Innstillinger for å teste.', 'Create a demo tournament under Settings to test.')}
+          </p>
+          <Link href="/admin" className="pro11-button">{t('Gå til admin', 'Go to admin')}</Link>
         </main>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen">
-      {/* Header */}
-      <header className="pro11-card mx-4 mt-4 h-24">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center">
-            <Link href="/" className="w-24 h-full flex items-center justify-center hover:opacity-80 transition-opacity">
-              <img src="/logo.png" alt="PRO11 Logo" className="w-full h-full object-contain" />
-            </Link>
-            <div className="ml-4">
-              <p className="text-slate-400 text-sm">{t('Live Turnering', 'Live Tournament')}</p>
-            </div>
+    <div className="min-h-screen pb-8">
+      <header className="pro11-card mx-4 mt-4 p-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <h1 className="text-xl font-bold flex items-center gap-2">
+              <Radio className="w-5 h-5 text-red-400 animate-pulse" />
+              {t('Livesenter', 'Live center')}
+            </h1>
+            <p className="text-slate-400 text-sm mt-1">{tournamentTitle}</p>
           </div>
-          <div className="flex items-center space-x-4">
-            <span className={`inline-flex items-center px-4 py-2 rounded-full text-xs font-medium ${getStatusColor(activeTournament.status)}`}>
-              {getStatusText(activeTournament.status)}
-            </span>
-            <Link href="/admin" className="pro11-button-secondary flex items-center space-x-2">
-              <span>{t('Tilbake til Admin', 'Back to Admin')}</span>
+          <div className="flex flex-wrap items-center gap-2">
+            {tournaments.length > 1 && (
+              <select
+                value={selectedId}
+                onChange={(e) => {
+                  setSelectedId(e.target.value)
+                  loadLiveData(e.target.value)
+                }}
+                className="pro11-input text-sm py-2"
+              >
+                {tournaments.map(tr => (
+                  <option key={tr.id} value={tr.id}>{tr.title}</option>
+                ))}
+              </select>
+            )}
+            <button
+              type="button"
+              onClick={() => loadLiveData(selectedId)}
+              disabled={isRefreshing}
+              className="pro11-button-secondary text-sm flex items-center gap-2 disabled:opacity-50"
+            >
+              <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+              {t('Oppdater', 'Refresh')}
+            </button>
+            <Link href={`/admin/matches/${selectedId}`} className="pro11-button text-sm flex items-center gap-2">
+              <Trophy className="w-4 h-4" />
+              {t('Kamper', 'Matches')}
+            </Link>
+            <Link href="/admin" className="pro11-button-secondary text-sm">
+              {t('Admin', 'Admin')}
             </Link>
           </div>
         </div>
+        {lastUpdated && (
+          <p className="text-xs text-slate-500 mt-3">
+            {t('Sist oppdatert', 'Last updated')}: {formatTime(lastUpdated.toISOString())}
+            {' · '}
+            {t('Auto hvert 12. sek', 'Auto every 12s')}
+          </p>
+        )}
       </header>
 
-      <main className="container mx-auto px-4 py-6 flex flex-col items-center">
-        <div className="max-w-6xl w-full">
-          {/* Tournament Header */}
-          <div className="pro11-card p-6 mb-6">
-            <div className="flex items-center justify-between mb-4">
-              <div>
-                <h1 className="text-3xl font-bold mb-2">{activeTournament.title}</h1>
-                <p className="text-slate-300">
-                  {t('Runde', 'Round')} {activeTournament.currentRound} • {activeTournament.participants} {t('lag', 'teams')}
+      <main className="container mx-auto px-4 py-6 max-w-7xl">
+        {stats && (
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-6">
+            <div className="pro11-card p-4 text-center">
+              <p className="text-xs text-slate-400 uppercase">{t('Fremgang', 'Progress')}</p>
+              <p className="text-2xl font-bold text-green-400">{stats.progress}%</p>
+            </div>
+            <div className="pro11-card p-4 text-center">
+              <p className="text-xs text-slate-400 uppercase">{t('Ferdig', 'Done')}</p>
+              <p className="text-2xl font-bold">{stats.completedMatches}/{stats.totalMatches}</p>
+            </div>
+            <div className="pro11-card p-4 text-center">
+              <p className="text-xs text-slate-400 uppercase">Live</p>
+              <p className="text-2xl font-bold text-green-400">{stats.liveMatches}</p>
+            </div>
+            <div className="pro11-card p-4 text-center">
+              <p className="text-xs text-slate-400 uppercase">{t('Konflikter', 'Conflicts')}</p>
+              <p className="text-2xl font-bold text-red-400">{stats.conflicts}</p>
+            </div>
+            <div className="pro11-card p-4 text-center col-span-2 md:col-span-1">
+              <p className="text-xs text-slate-400 uppercase">{t('Trenger handling', 'Needs action')}</p>
+              <p className="text-2xl font-bold text-yellow-400">{attention.length}</p>
+            </div>
+          </div>
+        )}
+
+        {!eventsAvailable && (
+          <div className="pro11-card p-4 mb-6 border border-yellow-500/30 bg-yellow-900/10 text-sm text-yellow-200">
+            {t(
+              'Kjør SETUP_TOURNAMENT_EVENTS.sql i Supabase for full aktivitetslogg. «Trenger handling» fungerer uansett.',
+              'Run SETUP_TOURNAMENT_EVENTS.sql in Supabase for the full activity log. «Needs action» still works.'
+            )}
+          </div>
+        )}
+
+        <div className="grid lg:grid-cols-2 gap-6">
+          <div className="pro11-card p-4">
+            <h2 className="font-semibold mb-4 flex items-center gap-2">
+              <Activity className="w-4 h-4 text-blue-400" />
+              {t('Aktivitetslogg', 'Activity log')}
+            </h2>
+            <div className="space-y-2 max-h-[520px] overflow-y-auto pr-1">
+              {events.length === 0 ? (
+                <p className="text-slate-500 text-sm py-8 text-center">
+                  {t('Ingen hendelser ennå. Resultater og WO vises her.', 'No events yet. Results and walkovers will appear here.')}
                 </p>
-              </div>
-              <div className="flex items-center space-x-3">
-                <div className="text-right">
-                  <p className="text-sm text-slate-400">{t('Startet', 'Started')}</p>
-                  <p className="font-medium">{activeTournament.startTime}</p>
-                </div>
-                <div className="text-right">
-                  <p className="text-sm text-slate-400">{t('Estimert slutt', 'Estimated end')}</p>
-                  <p className="font-medium">{activeTournament.estimatedEnd}</p>
-                </div>
-              </div>
-            </div>
-
-            {/* Tournament Controls */}
-            <div className="flex space-x-3">
-              <button
-                onClick={() => updateTournamentStatus('live')}
-                className={`flex items-center space-x-2 px-4 py-2 rounded-lg font-medium transition-colors ${
-                  activeTournament.status === 'live'
-                    ? 'bg-green-600 text-white'
-                    : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
-                }`}
-              >
-                <Play className="w-4 h-4" />
-                <span>{t('Start', 'Start')}</span>
-              </button>
-              <button
-                onClick={() => updateTournamentStatus('paused')}
-                className={`flex items-center space-x-2 px-4 py-2 rounded-lg font-medium transition-colors ${
-                  activeTournament.status === 'paused'
-                    ? 'bg-orange-600 text-white'
-                    : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
-                }`}
-              >
-                <Pause className="w-4 h-4" />
-                <span>{t('Pause', 'Pause')}</span>
-              </button>
-              <button
-                onClick={() => updateTournamentStatus('completed')}
-                className={`flex items-center space-x-2 px-4 py-2 rounded-lg font-medium transition-colors ${
-                  activeTournament.status === 'completed'
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
-                }`}
-              >
-                <Square className="w-4 h-4" />
-                <span>{t('Avslutt', 'End')}</span>
-              </button>
-            </div>
-          </div>
-
-          {/* Matches Grid */}
-          <div className="grid md:grid-cols-2 gap-4">
-            {activeTournament.matches.map(match => (
-              <div key={match.id} className="pro11-card p-4">
-                <div className="flex items-center justify-between mb-3">
-                  <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getMatchStatusColor(match.status)}`}>
-                    {getMatchStatusText(match.status)}
-                  </span>
-                  <div className="text-sm text-slate-400">
-                    {match.time} • {match.round}
-                  </div>
-                </div>
-
-                <div className="space-y-3">
-                  {/* Team 1 */}
-                  <div className="flex items-center justify-between p-2 bg-slate-800/50 rounded">
-                    <span className="font-medium">{match.team1}</span>
-                    <div className="flex items-center space-x-2">
-                      <input
-                        type="number"
-                        value={match.score1}
-                        onChange={(e) => updateMatchScore(match.id, 'team1', parseInt(e.target.value) || 0)}
-                        className="w-12 text-center bg-slate-700 border border-slate-600 rounded px-2 py-1 text-sm"
-                        min="0"
-                      />
+              ) : (
+                events.map(event => (
+                  <div key={event.id} className="flex gap-3 p-3 rounded-lg bg-slate-800/50 border border-slate-700/50">
+                    {eventIcon(event.event_type)}
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-medium break-words">{event.title}</p>
+                      {event.detail && <p className="text-xs text-slate-400 mt-0.5 break-words">{event.detail}</p>}
+                      <p className="text-xs text-slate-500 mt-1">{formatTime(event.created_at)}</p>
                     </div>
                   </div>
-
-                  {/* Team 2 */}
-                  <div className="flex items-center justify-between p-2 bg-slate-800/50 rounded">
-                    <span className="font-medium">{match.team2}</span>
-                    <div className="flex items-center space-x-2">
-                      <input
-                        type="number"
-                        value={match.score2}
-                        onChange={(e) => updateMatchScore(match.id, 'team2', parseInt(e.target.value) || 0)}
-                        className="w-12 text-center bg-slate-700 border border-slate-600 rounded px-2 py-1 text-sm"
-                        min="0"
-                      />
-                    </div>
-                  </div>
-
-                  {/* Match Controls */}
-                  <div className="flex space-x-2">
-                    <button
-                      onClick={() => updateMatchStatus(match.id, 'scheduled')}
-                      className={`flex-1 px-3 py-1.5 rounded text-xs font-medium transition-colors ${
-                        match.status === 'scheduled'
-                          ? 'bg-slate-600 text-white'
-                          : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
-                      }`}
-                    >
-                      {t('Planlagt', 'Scheduled')}
-                    </button>
-                    <button
-                      onClick={() => updateMatchStatus(match.id, 'live')}
-                      className={`flex-1 px-3 py-1.5 rounded text-xs font-medium transition-colors ${
-                        match.status === 'live'
-                          ? 'bg-green-600 text-white'
-                          : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
-                      }`}
-                    >
-                      Live
-                    </button>
-                    <button
-                      onClick={() => updateMatchStatus(match.id, 'completed')}
-                      className={`flex-1 px-3 py-1.5 rounded text-xs font-medium transition-colors ${
-                        match.status === 'completed'
-                          ? 'bg-blue-600 text-white'
-                          : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
-                      }`}
-                    >
-                      {t('Ferdig', 'Finished')}
-                    </button>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-
-          {/* Quick Actions */}
-          <div className="pro11-card p-4 mt-6">
-            <h3 className="font-semibold mb-3">{t('Hurtig-handlinger', 'Quick actions')}</h3>
-            <div className="flex space-x-3">
-              <button 
-                onClick={updateAllMatches}
-                className="pro11-button-secondary flex items-center space-x-2"
-              >
-                <RefreshCw className="w-4 h-4" />
-                <span>{t('Oppdater alle kamper', 'Update all matches')}</span>
-              </button>
-              <button 
-                onClick={showResults}
-                className="pro11-button-secondary flex items-center space-x-2"
-              >
-                <Award className="w-4 h-4" />
-                <span>{t('Vis resultater', 'Show results')}</span>
-              </button>
-              <button 
-                onClick={showStatistics}
-                className="pro11-button-secondary flex items-center space-x-2"
-              >
-                <BarChart3 className="w-4 h-4" />
-                <span>{t('Statistikk', 'Statistics')}</span>
-              </button>
-              <button 
-                onClick={openSettings}
-                className="pro11-button-secondary flex items-center space-x-2"
-              >
-                <Settings className="w-4 h-4" />
-                <span>{t('Innstillinger', 'Settings')}</span>
-              </button>
+                ))
+              )}
             </div>
           </div>
+
+          <div className="pro11-card p-4">
+            <h2 className="font-semibold mb-4 flex items-center gap-2">
+              <AlertTriangle className="w-4 h-4 text-yellow-400" />
+              {t('Trenger handling', 'Needs action')}
+              {attention.length > 0 && (
+                <span className="text-xs bg-yellow-600/30 text-yellow-200 px-2 py-0.5 rounded-full">{attention.length}</span>
+              )}
+            </h2>
+            <div className="space-y-2 max-h-[520px] overflow-y-auto pr-1">
+              {attention.length === 0 ? (
+                <p className="text-slate-500 text-sm py-8 text-center flex flex-col items-center gap-2">
+                  <CheckCircle2 className="w-8 h-8 text-green-500/50" />
+                  {t('Alt ser bra ut akkurat nå.', 'Everything looks good right now.')}
+                </p>
+              ) : (
+                attention.map(item => (
+                  <Link
+                    key={item.id}
+                    href={`/admin/matches/${item.tournamentId}`}
+                    className={`block p-3 rounded-lg border transition-colors hover:brightness-110 ${attentionStyle(item.type)}`}
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium break-words">{item.title}</p>
+                        <p className="text-xs text-slate-300 mt-1">{item.description}</p>
+                      </div>
+                      <ChevronRight className="w-4 h-4 text-slate-400 shrink-0 mt-0.5" />
+                    </div>
+                  </Link>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
+
+        <div className="pro11-card p-4 mt-6">
+          <h3 className="font-semibold mb-2 flex items-center gap-2 text-sm">
+            <Clock className="w-4 h-4" />
+            {t('Hva overvåkes', 'What is monitored')}
+          </h3>
+          <ul className="text-xs text-slate-400 space-y-1 grid sm:grid-cols-2 gap-x-4">
+            <li>• {t('Nye resultater og bekreftelser', 'New results and confirmations')}</li>
+            <li>• {t('Uenighet mellom lag', 'Disagreements between teams')}</li>
+            <li>• {t('Avviste resultater', 'Rejected results')}</li>
+            <li>• {t('WO-registrering', 'Walkover claims')}</li>
+            <li>• {t('Kamper 10+ min bak plan', 'Matches 10+ min behind schedule')}</li>
+            <li>• {t('Venter på motstander', 'Waiting for opponent')}</li>
+          </ul>
         </div>
       </main>
     </div>
   )
-} 
+}
