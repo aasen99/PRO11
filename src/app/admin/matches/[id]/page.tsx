@@ -82,7 +82,8 @@ function MatchProofLinks({ match }: { match: Match }) {
           href={match.team1_proof_url}
           target="_blank"
           rel="noopener noreferrer"
-          className="text-xs text-blue-400 hover:text-blue-300 underline"
+          className="text-xs text-blue-400 hover:text-blue-300 underline truncate max-w-[10rem] inline-block"
+          title={match.team1_name}
         >
           📷 {match.team1_name}
         </a>
@@ -92,7 +93,8 @@ function MatchProofLinks({ match }: { match: Match }) {
           href={match.team2_proof_url}
           target="_blank"
           rel="noopener noreferrer"
-          className="text-xs text-blue-400 hover:text-blue-300 underline"
+          className="text-xs text-blue-400 hover:text-blue-300 underline truncate max-w-[10rem] inline-block"
+          title={match.team2_name}
         >
           📷 {match.team2_name}
         </a>
@@ -1296,14 +1298,14 @@ export default function TournamentMatchesPage() {
       <ToastContainer toasts={toasts} onRemove={removeToast} />
       {/* Header */}
       <header className="pro11-card mx-4 mt-4 p-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-4">
-            <Link href="/admin" className="pro11-button-secondary flex items-center space-x-2">
+        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+          <div className="flex items-center gap-3 min-w-0 flex-1">
+            <Link href="/admin" className="pro11-button-secondary text-sm flex items-center space-x-2 shrink-0">
               <ArrowLeft className="w-4 h-4" />
               <span>{t('Tilbake', 'Back')}</span>
             </Link>
-            <div>
-              <h1 className="text-2xl font-bold">{tournament.title}</h1>
+            <div className="min-w-0">
+              <h1 className="text-xl lg:text-2xl font-bold truncate" title={tournament.title}>{tournament.title}</h1>
               <p className="text-slate-400 text-sm">
                 {new Date(tournament.start_date).toLocaleDateString(locale, { 
                   day: 'numeric', 
@@ -1313,14 +1315,14 @@ export default function TournamentMatchesPage() {
               </p>
             </div>
           </div>
-          <div className="flex items-center space-x-2">
-            <button onClick={loadData} className="pro11-button-secondary flex items-center space-x-2">
+          <div className="flex flex-wrap sm:flex-nowrap items-center gap-2 shrink-0">
+            <button onClick={loadData} className="pro11-button-secondary text-sm flex items-center space-x-2">
               <RefreshCw className="w-4 h-4" />
               <span>{t('Oppdater', 'Refresh')}</span>
             </button>
             <button
               onClick={runGroupRoundBackfill}
-              className="pro11-button-secondary flex items-center space-x-2"
+              className="pro11-button-secondary text-sm flex items-center space-x-2"
               title={t('Oppdater manglende runder for gruppespill', 'Update missing rounds for group stage')}
             >
               <Wrench className="w-4 h-4" />

@@ -101,8 +101,8 @@ export default function CaptainDashboardPage() {
   const [teamStats, setTeamStats] = useState<TeamStats | null>(null)
   const [selectedMatch, setSelectedMatch] = useState<Match | null>(null)
   const [showResultModal, setShowResultModal] = useState(false)
-  const [resultScore1, setResultScore1] = useState(0)
-  const [resultScore2, setResultScore2] = useState(0)
+  const [resultScore1, setResultScore1] = useState('')
+  const [resultScore2, setResultScore2] = useState('')
   const [resultProofFile, setResultProofFile] = useState<File | null>(null)
   const [resultProofRequired, setResultProofRequired] = useState(false)
   const [isSubmittingResult, setIsSubmittingResult] = useState(false)
@@ -823,15 +823,25 @@ export default function CaptainDashboardPage() {
     setResultProofRequired(Boolean(options?.requireProof))
     if (options?.prefillOpponent && team && match.opponentSubmittedScore1 !== null && match.opponentSubmittedScore2 !== null) {
       const isTeam1 = match.team1 === team.teamName
-      setResultScore1(isTeam1 ? match.opponentSubmittedScore1 : match.opponentSubmittedScore2)
-      setResultScore2(isTeam1 ? match.opponentSubmittedScore2 : match.opponentSubmittedScore1)
+      setResultScore1(String(isTeam1 ? match.opponentSubmittedScore1 : match.opponentSubmittedScore2))
+      setResultScore2(String(isTeam1 ? match.opponentSubmittedScore2 : match.opponentSubmittedScore1))
     } else {
-      setResultScore1(match.score1)
-      setResultScore2(match.score2)
+      setResultScore1('')
+      setResultScore2('')
     }
     setResultProofFile(null)
     setShowResultModal(true)
     window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+
+  const sanitizeScoreInput = (raw: string) => raw.replace(/\D/g, '').slice(0, 2)
+
+  const parseScoreInput = (raw: string): number | null => {
+    const trimmed = raw.trim()
+    if (trimmed === '') return null
+    const value = parseInt(trimmed, 10)
+    if (!Number.isFinite(value) || value < 0) return null
+    return value
   }
 
   const uploadMatchProof = async (matchId: string, teamName: string, file: File): Promise<string> => {
@@ -857,6 +867,13 @@ export default function CaptainDashboardPage() {
   const submitResult = async () => {
     if (!selectedMatch || !team) return
 
+    const parsedScore1 = parseScoreInput(resultScore1)
+    const parsedScore2 = parseScoreInput(resultScore2)
+    if (parsedScore1 === null || parsedScore2 === null) {
+      alert(t('Fyll inn resultat for begge lag.', 'Enter the score for both teams.'))
+      return
+    }
+
     const opponentHasSubmitted =
       selectedMatch.opponentSubmittedScore1 !== null &&
       selectedMatch.opponentSubmittedScore2 !== null
@@ -864,8 +881,8 @@ export default function CaptainDashboardPage() {
     let needsProof = resultProofRequired
     if (!needsProof && opponentHasSubmitted) {
       const isTeam1 = selectedMatch.team1 === team.teamName
-      const myGoals = isTeam1 ? resultScore1 : resultScore2
-      const theirGoals = isTeam1 ? resultScore2 : resultScore1
+      const myGoals = isTeam1 ? parsedScore1 : parsedScore2
+      const theirGoals = isTeam1 ? parsedScore2 : parsedScore1
       needsProof =
         myGoals !== selectedMatch.opponentSubmittedScore1 ||
         theirGoals !== selectedMatch.opponentSubmittedScore2
@@ -895,8 +912,8 @@ export default function CaptainDashboardPage() {
         proofUrl = await uploadMatchProof(selectedMatch.id, team.teamName, resultProofFile)
       }
 
-      const teamScore1 = isTeam1 ? resultScore1 : resultScore2
-      const teamScore2 = isTeam1 ? resultScore2 : resultScore1
+      const teamScore1 = isTeam1 ? parsedScore1 : parsedScore2
+      const teamScore2 = isTeam1 ? parsedScore2 : parsedScore1
 
       const response = await apiFetch('/api/matches', {
         method: 'PUT',
@@ -927,13 +944,13 @@ export default function CaptainDashboardPage() {
         ))
       } else if (updatedMatch.status === 'pending_confirmation') {
         alert(t(
-          `Resultatene er uenige. Admin vil se på bildebevis og avgjøre: ${selectedMatch.team1} ${resultScore1} - ${resultScore2} ${selectedMatch.team2}`,
-          `Results do not match. An admin will review the proof and decide: ${selectedMatch.team1} ${resultScore1} - ${resultScore2} ${selectedMatch.team2}`
+          `Resultatene er uenige. Admin vil se på bildebevis og avgjøre: ${selectedMatch.team1} ${parsedScore1} - ${parsedScore2} ${selectedMatch.team2}`,
+          `Results do not match. An admin will review the proof and decide: ${selectedMatch.team1} ${parsedScore1} - ${parsedScore2} ${selectedMatch.team2}`
         ))
       } else {
         alert(t(
-          `Resultat innsendt: ${selectedMatch.team1} ${resultScore1} - ${resultScore2} ${selectedMatch.team2}\n\nVenter på bekreftelse fra motstanderlaget.`,
-          `Result submitted: ${selectedMatch.team1} ${resultScore1} - ${resultScore2} ${selectedMatch.team2}\n\nWaiting for opponent confirmation.`
+          `Resultat innsendt: ${selectedMatch.team1} ${parsedScore1} - ${parsedScore2} ${selectedMatch.team2}\n\nVenter på bekreftelse fra motstanderlaget.`,
+          `Result submitted: ${selectedMatch.team1} ${parsedScore1} - ${parsedScore2} ${selectedMatch.team2}\n\nWaiting for opponent confirmation.`
         ))
       }
       
@@ -1301,21 +1318,21 @@ export default function CaptainDashboardPage() {
   return (
     <div className="min-h-screen">
       {/* Header */}
-      <header className="pro11-card mx-4 mt-4 h-24">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center">
-            <Link href="/" className="w-24 h-full flex items-center justify-center hover:opacity-80 transition-opacity">
+      <header className="pro11-card mx-4 mt-4 min-h-24 p-4">
+        <div className="flex items-center justify-between gap-4">
+          <div className="flex items-center min-w-0 shrink">
+            <Link href="/" className="w-20 h-16 sm:w-24 sm:h-20 flex items-center justify-center shrink-0 hover:opacity-80 transition-opacity">
               <img src="/logo.png" alt="PRO11 Logo" className="w-full h-full object-contain" />
             </Link>
-            <div className="ml-4">
-              <p className="text-slate-400 text-sm">{t('Lagleder Dashboard', 'Captain Dashboard')}</p>
+            <div className="ml-3 sm:ml-4 min-w-0">
+              <p className="text-slate-400 text-sm truncate">{t('Lagleder Dashboard', 'Captain Dashboard')}</p>
             </div>
           </div>
-          <div className="flex items-center space-x-4">
-            <span className="text-blue-400 text-sm">{team.teamName}</span>
+          <div className="flex items-center gap-2 sm:gap-4 shrink-0">
+            <span className="text-blue-400 text-sm truncate max-w-[8rem] sm:max-w-[12rem]" title={team.teamName}>{team.teamName}</span>
             <button
               onClick={handleLogout}
-              className="pro11-button-secondary flex items-center space-x-2"
+              className="pro11-button-secondary text-sm flex items-center space-x-2"
             >
               <LogOut className="w-4 h-4" />
               <span>{t('Logg ut', 'Log out')}</span>
@@ -1329,24 +1346,24 @@ export default function CaptainDashboardPage() {
         <div className="max-w-6xl w-full">
           {/* Welcome Section */}
           <div className="pro11-card p-6 mb-6">
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <h1 className="text-2xl font-bold mb-2">
+            <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
+              <div className="min-w-0 flex-1">
+                <h1 className="text-2xl font-bold mb-2 truncate">
                   {t('Velkommen', 'Welcome')}, {team.captainName}!
                 </h1>
-                <p className="text-slate-300">
+                <p className="text-slate-300 line-clamp-2">
                   {t(
                     `Her kan du administrere ${team.teamName} og legge inn resultater for dine kamper.`,
                     `Here you can manage ${team.teamName} and submit results for your matches.`
                   )}
                 </p>
               </div>
-              <div className="flex flex-wrap items-center gap-3">
+              <div className="flex flex-wrap lg:flex-nowrap items-center gap-3 shrink-0">
                 {team.discordUsername && (
                   <button
                     type="button"
                     onClick={() => setShowDiscordEditor(true)}
-                    className="flex items-center space-x-2 text-slate-400 text-sm hover:text-slate-200 transition-colors"
+                    className="flex items-center space-x-2 text-slate-400 text-sm hover:text-slate-200 transition-colors max-w-full min-w-0"
                     style={{ background: 'transparent', border: 'none', padding: 0 }}
                     title={t('Rediger Discord-brukernavn', 'Edit Discord username')}
                   >
@@ -1356,7 +1373,7 @@ export default function CaptainDashboardPage() {
                         d="M107.7,8.07A105.15,105.15,0,0,0,81.47,0a72.06,72.06,0,0,0-3.36,6.83A97.68,97.68,0,0,0,49,6.83,72.37,72.37,0,0,0,45.64,0,105.89,105.89,0,0,0,19.39,8.09C2.79,32.65-1.71,56.6,.54,80.21a105.73,105.73,0,0,0,32.1,16.15,77.7,77.7,0,0,0,6.89-11.13,68.42,68.42,0,0,1-10.85-5.18c.91-.66,1.8-1.35,2.66-2.07a75.57,75.57,0,0,0,64.32,0c.87.72,1.76,1.41,2.66,2.07a68.68,68.68,0,0,1-10.87,5.19,77,77,0,0,0,6.89,11.12,105.25,105.25,0,0,0,32.12-16.16C130.49,56.9,126.18,32.94,107.7,8.07ZM42.45,65.69C36.18,65.69,31,60,31,52.91S36,40.13,42.45,40.13c6.48,0,11.66,5.8,11.56,12.78C54,60,48.93,65.69,42.45,65.69Zm42.24,0C78.41,65.69,73.27,60,73.27,52.91S78.41,40.13,84.69,40.13c6.49,0,11.67,5.8,11.56,12.78C96.25,60,91.18,65.69,84.69,65.69Z"
                       />
                     </svg>
-                    <span className="text-blue-400">{team.discordUsername}</span>
+                    <span className="text-blue-400 truncate max-w-[10rem]">{team.discordUsername}</span>
                   </button>
                 )}
                 <button
@@ -1384,13 +1401,13 @@ export default function CaptainDashboardPage() {
               ) : (
                 <ul className="space-y-2">
                   {availableTournamentsForRegistration.map((tr) => (
-                    <li key={tr.id} className="flex items-center justify-between gap-4 py-2 border-b border-slate-700/50 last:border-0">
-                      <span className="font-medium">{tr.title}</span>
+                    <li key={tr.id} className="flex items-center justify-between gap-4 py-2 border-b border-slate-700/50 last:border-0 min-w-0">
+                      <span className="font-medium truncate min-w-0 flex-1" title={tr.title}>{tr.title}</span>
                       <button
                         type="button"
                         onClick={() => handleRegisterForTournament(tr.id)}
                         disabled={registeringForTournamentId !== null}
-                        className="pro11-button text-sm"
+                        className="pro11-button text-sm shrink-0"
                       >
                         {registeringForTournamentId === tr.id ? t('Melder på...', 'Registering...') : t('Meld på', 'Register')}
                       </button>
@@ -1555,13 +1572,13 @@ export default function CaptainDashboardPage() {
                     )
                     const nextMatch = pendingMatches[0] || null
                     return (
-                      <div key={tournament.id} className="p-4 md:p-5 bg-slate-800/50 rounded-lg w-full">
-                        <h3 className="font-semibold mb-3 text-center">{tournament.title}</h3>
+                      <div key={tournament.id} className="p-4 md:p-5 bg-slate-800/50 rounded-lg w-full min-w-0">
+                        <h3 className="font-semibold mb-3 text-center truncate px-2" title={tournament.title}>{tournament.title}</h3>
                         <div className="space-y-2">
                           {nextMatch ? (
-                            <div key={nextMatch.id} className="p-3 md:p-4 bg-slate-700/30 rounded w-full">
+                            <div key={nextMatch.id} className="p-3 md:p-4 bg-slate-700/30 rounded w-full min-w-0">
                               <div className="flex flex-col gap-2 items-center">
-                                <div className="text-sm font-medium">
+                                <div className="text-sm font-medium truncate max-w-full text-center" title={`${nextMatch.team1} vs ${nextMatch.team2}`}>
                                   {nextMatch.team1} vs {nextMatch.team2}
                                 </div>
                                 <div className="text-xs text-slate-400 md:text-sm">
@@ -1589,11 +1606,11 @@ export default function CaptainDashboardPage() {
                                     {nextMatch.resultSubmissionBlockedReason}
                                   </p>
                                 )}
-                                <div className="flex flex-wrap gap-2 justify-center">
+                                <div className="grid grid-cols-2 gap-2 w-full sm:flex sm:flex-nowrap sm:justify-center">
                                   {nextMatch.canSubmitResult && (
                                     <button
                                       onClick={() => openResultModal(nextMatch)}
-                                      className="pro11-button-secondary text-xs px-3 py-1"
+                                      className="pro11-button-secondary text-xs px-3 py-2 justify-center"
                                     >
                                       <Edit className="w-3 h-3 mr-1" />
                                       {t('Legg inn', 'Submit')}
@@ -1602,7 +1619,7 @@ export default function CaptainDashboardPage() {
                                   {nextMatch.canClaimWalkover && (
                                     <button
                                       onClick={() => claimWalkover(nextMatch)}
-                                      className="bg-slate-700 hover:bg-slate-600 text-white px-3 py-1 rounded text-xs font-medium transition-colors"
+                                      className="bg-slate-700 hover:bg-slate-600 text-white px-3 py-2 rounded text-xs font-medium transition-colors justify-center"
                                     >
                                       {t('Krev WO', 'Claim walkover')}
                                     </button>
@@ -1612,14 +1629,14 @@ export default function CaptainDashboardPage() {
                                       <button
                                         onClick={() => confirmResult(nextMatch)}
                                         disabled={confirmingMatchId === nextMatch.id}
-                                        className="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded text-xs font-medium transition-colors disabled:opacity-50"
+                                        className="bg-green-600 hover:bg-green-700 text-white px-3 py-2 rounded text-xs font-medium transition-colors disabled:opacity-50 justify-center"
                                       >
                                         {confirmingMatchId === nextMatch.id ? t('Bekrefter...', 'Confirming...') : t('Bekreft', 'Confirm')}
                                       </button>
                                       {nextMatch.canSubmitAlternativeResult && (
                                         <button
                                           onClick={() => openResultModal(nextMatch, { requireProof: true, prefillOpponent: true })}
-                                          className="bg-orange-600 hover:bg-orange-700 text-white px-3 py-1 rounded text-xs font-medium transition-colors"
+                                          className="bg-orange-600 hover:bg-orange-700 text-white px-3 py-2 rounded text-xs font-medium transition-colors justify-center"
                                         >
                                           {t('Annet resultat', 'Different result')}
                                         </button>
@@ -1716,7 +1733,7 @@ export default function CaptainDashboardPage() {
           {teamStats && (
             <div className="pro11-card p-6 mb-6">
               <h2 className="text-xl font-bold mb-4">{t('Lagstatistikk', 'Team statistics')}</h2>
-              <div className="flex items-center justify-center space-x-8 mb-6">
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 mb-6">
                 <div className="text-center p-4 bg-slate-800/50 rounded-lg">
                   <div className="text-2xl font-bold text-green-400">{teamStats.wins}</div>
                   <div className="text-sm text-slate-400">{t('Seiere', 'Wins')}</div>
@@ -1969,51 +1986,54 @@ export default function CaptainDashboardPage() {
                 )}
                 <div className="grid gap-3 md:grid-cols-2 md:gap-4 md:items-start">
                   {sortedMatches.map(match => (
-                    <div key={match.id} className="min-w-0 flex flex-col gap-3 md:flex-row md:items-center md:justify-between p-4 md:p-3 bg-slate-800/50 rounded-lg">
-                      <div className="flex-1 min-w-0">
-                        <div className="flex flex-wrap items-center">
-                          <span className="font-medium break-words">{match.team1}</span>
-                          <span className="text-slate-400 mx-2">{'\u00a0vs\u00a0'}</span>
-                          <span className="font-medium break-words">{match.team2}</span>
-                        </div>
-                        <div className="text-sm text-slate-400 mt-1">
+                    <div key={match.id} className="min-w-0 flex flex-col gap-3 p-4 md:p-3 bg-slate-800/50 rounded-lg">
+                      <div className="min-w-0 flex-1">
+                        <p
+                          className="font-medium truncate"
+                          title={`${match.team1} vs ${match.team2}`}
+                        >
+                          {match.team1} vs {match.team2}
+                        </p>
+                        <div className="text-sm text-slate-400 mt-1 truncate">
                           {match.time} • {translateRoundName(match.round)}
                           {match.round === 'Gruppespill' && (match.groupRound || groupRoundMap[buildKey(match.team1, match.team2)]) && (
                             <> • {t('Runde', 'Round')} {match.groupRound || groupRoundMap[buildKey(match.team1, match.team2)]}</>
                           )}
                         </div>
-                        <div className="text-xs text-slate-400 mt-1">
+                        <div className="text-xs text-slate-400 mt-1 truncate">
                           {match.opponentDiscordUsername || t('Motstanders discord ikke registrert', 'Opponent Discord not registered')}
                         </div>
-                      </div>
-                      
-                      <div className="flex flex-row flex-wrap items-center gap-3 max-sm:flex-col max-sm:items-stretch md:flex-wrap md:justify-end md:gap-4">
-                        <span className={`inline-flex items-center px-4 py-2 rounded-full text-xs font-medium ${getMatchStatusColor(match.status)}`}>
-                          {getMatchStatusText(match.status)}
-                        </span>
-                        
-                        {match.status === 'completed' && (
-                          <div className="text-sm font-medium px-4 py-2 bg-slate-700/50 rounded">
-                            {match.score1} - {match.score2}
-                          </div>
-                        )}
-                        
-                        {match.status === 'pending_confirmation' && match.opponentSubmittedScore1 !== null && match.opponentSubmittedScore2 !== null && (
-                          <div className="text-sm font-medium px-4 py-2 bg-orange-700/50 rounded">
-                            {match.opponentSubmittedScore1} - {match.opponentSubmittedScore2}
-                          </div>
-                        )}
-                        
                         {match.resultSubmissionBlockedReason && (
-                          <p className="text-xs text-amber-400/90 mb-2 md:text-right">
+                          <p className="text-xs text-amber-400/90 mt-2 line-clamp-2">
                             {match.resultSubmissionBlockedReason}
                           </p>
                         )}
-                        <div className="flex flex-row flex-wrap items-center gap-2 max-sm:flex-col md:justify-end">
+                      </div>
+
+                      <div className="flex flex-col gap-3">
+                        <div className="flex items-center gap-2 overflow-x-auto pb-0.5">
+                          <span className={`inline-flex items-center px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap shrink-0 ${getMatchStatusColor(match.status)}`}>
+                            {getMatchStatusText(match.status)}
+                          </span>
+
+                          {match.status === 'completed' && (
+                            <div className="text-sm font-medium px-3 py-1.5 bg-slate-700/50 rounded whitespace-nowrap shrink-0">
+                              {match.score1} - {match.score2}
+                            </div>
+                          )}
+
+                          {match.status === 'pending_confirmation' && match.opponentSubmittedScore1 !== null && match.opponentSubmittedScore2 !== null && (
+                            <div className="text-sm font-medium px-3 py-1.5 bg-orange-700/50 rounded whitespace-nowrap shrink-0">
+                              {match.opponentSubmittedScore1} - {match.opponentSubmittedScore2}
+                            </div>
+                          )}
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-nowrap sm:justify-end">
                           {match.canSubmitResult && (
                             <button
                               onClick={() => openResultModal(match)}
-                              className="pro11-button-secondary flex items-center space-x-1 text-xs px-3 py-1.5 max-sm:w-full justify-center"
+                              className="pro11-button-secondary flex items-center justify-center gap-1 text-xs px-3 py-2 col-span-2 sm:col-span-1"
                             >
                               <Edit className="w-3 h-3" />
                               <span>{t('Legg inn resultat', 'Submit result')}</span>
@@ -2022,7 +2042,7 @@ export default function CaptainDashboardPage() {
                           {match.canClaimWalkover && (
                             <button
                               onClick={() => claimWalkover(match)}
-                              className="bg-slate-700 hover:bg-slate-600 text-white px-3 py-1.5 rounded text-xs font-medium transition-colors max-sm:w-full"
+                              className="bg-slate-700 hover:bg-slate-600 text-white px-3 py-2 rounded text-xs font-medium transition-colors justify-center"
                             >
                               {t('Krev WO', 'Claim walkover')}
                             </button>
@@ -2033,21 +2053,21 @@ export default function CaptainDashboardPage() {
                               <button
                                 onClick={() => confirmResult(match)}
                                 disabled={confirmingMatchId === match.id}
-                                className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded text-sm font-medium transition-colors max-sm:w-full disabled:opacity-50"
+                                className="bg-green-600 hover:bg-green-700 text-white px-3 py-2 rounded text-xs font-medium transition-colors disabled:opacity-50 justify-center"
                               >
                                 {confirmingMatchId === match.id ? t('Bekrefter...', 'Confirming...') : t('Bekreft', 'Confirm')}
                               </button>
                               {match.canSubmitAlternativeResult && (
                                 <button
                                   onClick={() => openResultModal(match, { requireProof: true, prefillOpponent: true })}
-                                  className="bg-orange-600 hover:bg-orange-700 text-white px-4 py-2 rounded text-sm font-medium transition-colors max-sm:w-full"
+                                  className="bg-orange-600 hover:bg-orange-700 text-white px-3 py-2 rounded text-xs font-medium transition-colors justify-center"
                                 >
                                   {t('Annet resultat', 'Different result')}
                                 </button>
                               )}
                               <button
                                 onClick={() => rejectResult(match)}
-                                className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded text-sm font-medium transition-colors max-sm:w-full"
+                                className="bg-red-600 hover:bg-red-700 text-white px-3 py-2 rounded text-xs font-medium transition-colors justify-center"
                               >
                                 {t('Avvis', 'Reject')}
                               </button>
@@ -2083,7 +2103,7 @@ export default function CaptainDashboardPage() {
                           {activeStandings.map((row, index) => (
                             <tr key={row.team} className="border-t border-slate-700/50">
                               <td className="py-2 text-center text-slate-400">{index + 1}</td>
-                              <td className="py-2 text-slate-200">{row.team}</td>
+                              <td className="py-2 text-slate-200 max-w-0 truncate" title={row.team}>{row.team}</td>
                               <td className="py-2 text-center text-slate-300">{row.played}</td>
                               <td className="py-2 text-center text-green-400">{row.wins}</td>
                               <td className="py-2 text-center text-yellow-400">{row.draws}</td>
@@ -2140,34 +2160,40 @@ export default function CaptainDashboardPage() {
             </div>
 
             <div className="space-y-4">
-              <div className="text-center mb-4">
-                <p className="text-slate-300 mb-2">{selectedMatch.team1} vs {selectedMatch.team2}</p>
+              <div className="text-center mb-4 min-w-0">
+                <p className="text-slate-300 mb-2 truncate" title={`${selectedMatch.team1} vs ${selectedMatch.team2}`}>{selectedMatch.team1} vs {selectedMatch.team2}</p>
                 <p className="text-sm text-slate-400">{translateRoundName(selectedMatch.round)} • {selectedMatch.time}</p>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-slate-300 mb-2">
-                    {selectedMatch.team1} {t('mål', 'goals')}
+              <div className="grid grid-cols-2 gap-3">
+                <div className="min-w-0">
+                  <label className="block text-sm font-medium text-slate-300 mb-2 truncate" title={selectedMatch.team1}>
+                    {selectedMatch.team1}
                   </label>
                   <input
-                    type="number"
+                    type="text"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
+                    autoComplete="off"
+                    placeholder="–"
                     value={resultScore1}
-                    onChange={(e) => setResultScore1(parseInt(e.target.value) || 0)}
-                    className="pro11-input text-center"
-                    min="0"
+                    onChange={(e) => setResultScore1(sanitizeScoreInput(e.target.value))}
+                    className="pro11-input pro11-score-input text-center"
                   />
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-300 mb-2">
-                    {selectedMatch.team2} {t('mål', 'goals')}
+                <div className="min-w-0">
+                  <label className="block text-sm font-medium text-slate-300 mb-2 truncate" title={selectedMatch.team2}>
+                    {selectedMatch.team2}
                   </label>
                   <input
-                    type="number"
+                    type="text"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
+                    autoComplete="off"
+                    placeholder="–"
                     value={resultScore2}
-                    onChange={(e) => setResultScore2(parseInt(e.target.value) || 0)}
-                    className="pro11-input text-center"
-                    min="0"
+                    onChange={(e) => setResultScore2(sanitizeScoreInput(e.target.value))}
+                    className="pro11-input pro11-score-input text-center"
                   />
                 </div>
               </div>
@@ -2197,19 +2223,19 @@ export default function CaptainDashboardPage() {
               </div>
               )}
 
-              <div className="flex flex-col sm:flex-row gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <button
                   onClick={submitResult}
                   disabled={isSubmittingResult || (resultProofRequired && !resultProofFile)}
-                  className="pro11-button flex items-center space-x-2 flex-1 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="pro11-button text-sm flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  <CheckCircle className="w-4 h-4" />
+                  <CheckCircle className="w-4 h-4 shrink-0" />
                   <span>{isSubmittingResult ? t('Sender...', 'Submitting...') : t('Send inn', 'Submit')}</span>
                 </button>
                 {canShowWalkoverInModal(selectedMatch) && (
                   <button
                     onClick={() => claimWalkover(selectedMatch)}
-                    className="pro11-button-secondary flex items-center justify-center flex-1 rounded text-base py-4 text-center"
+                    className="pro11-button-secondary text-sm flex items-center justify-center"
                   >
                     <span>{t('Krev WO (3-0)', 'Claim walkover (3-0)')}</span>
                   </button>

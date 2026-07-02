@@ -2064,27 +2064,27 @@ PRO11 Team`)
   return (
     <div className="min-h-screen">
       {/* Header */}
-      <header className="pro11-card mx-4 mt-4 h-24">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center">
-            <Link href="/" className="w-24 h-full flex items-center justify-center hover:opacity-80 transition-opacity">
+      <header className="pro11-card mx-4 mt-4 min-h-24 p-4">
+        <div className="flex items-center justify-between gap-4">
+          <div className="flex items-center min-w-0 shrink">
+            <Link href="/" className="w-20 h-16 sm:w-24 sm:h-20 flex items-center justify-center shrink-0 hover:opacity-80 transition-opacity">
               <img src="/logo.png" alt="PRO11 Logo" className="w-full h-full object-contain" />
             </Link>
-            <div className="ml-4">
-              <p className="text-slate-400 text-sm">{t('Pro Clubs Turneringer', 'Pro Clubs Tournaments')}</p>
+            <div className="ml-3 sm:ml-4 min-w-0">
+              <p className="text-slate-400 text-sm truncate">{t('Pro Clubs Turneringer', 'Pro Clubs Tournaments')}</p>
             </div>
           </div>
-          <div className="flex items-center space-x-4">
-            <span className="text-green-400 text-sm">{t('Admin tilgang', 'Admin access')}</span>
+          <div className="flex flex-wrap items-center justify-end gap-2 shrink-0">
+            <span className="text-green-400 text-sm whitespace-nowrap">{t('Admin tilgang', 'Admin access')}</span>
             <button
               type="button"
               onClick={handleLogout}
-              className="pro11-button-secondary flex items-center space-x-2"
+              className="pro11-button-secondary text-sm flex items-center space-x-2"
             >
               <LogOut className="w-4 h-4" />
               <span>{t('Logg ut', 'Log out')}</span>
             </button>
-            <Link href="/" className="pro11-button-secondary flex items-center space-x-2">
+            <Link href="/" className="pro11-button-secondary text-sm flex items-center space-x-2">
               <span>{t('Tilbake', 'Back')}</span>
             </Link>
           </div>
@@ -2368,28 +2368,28 @@ PRO11 Team`)
                     <tbody>
                       {filteredTeams.map(team => (
                         <tr key={team.id} className="border-b border-slate-700/70 hover:bg-slate-800/30">
-                          <td className="py-3 px-3">
-                            <div>
-                              <div className="font-medium text-sm">{team.teamName || team.team_name}</div>
-                              <div className="text-xs text-slate-500">{team.captainEmail || team.captain_email}</div>
+                          <td className="py-3 px-3 max-w-0">
+                            <div className="min-w-0">
+                              <div className="font-medium text-sm truncate" title={team.teamName || team.team_name}>{team.teamName || team.team_name}</div>
+                              <div className="text-xs text-slate-500 truncate">{team.captainEmail || team.captain_email}</div>
                             </div>
                           </td>
                           {showAllTeams && (
-                            <td className="py-3 px-3 text-sm text-slate-300">
+                            <td className="py-3 px-3 text-sm text-slate-300 max-w-0 truncate" title={getTournamentTitleById(team.tournamentId || team.tournament_id)}>
                               {getTournamentTitleById(team.tournamentId || team.tournament_id)}
                             </td>
                           )}
-                          <td className="py-3 px-3 text-sm">{team.captainName || team.captain_name}</td>
+                          <td className="py-3 px-3 text-sm max-w-0 truncate">{team.captainName || team.captain_name}</td>
                           <td className="py-3 px-3 text-sm text-slate-300">
                             {team.expectedPlayers || team.expected_players || team.players?.length || 0}
                           </td>
                           <td className="py-3 px-3">
-                            <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${getStatusColor(team.status)}`}>
+                            <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium whitespace-nowrap ${getStatusColor(team.status)}`}>
                               {getStatusText(team.status)}
                             </span>
                           </td>
                           <td className="py-3 px-3">
-                            <span className={`text-xs font-medium ${getPaymentStatusColor(team.paymentStatus || team.payment_status)}`}>
+                            <span className={`text-xs font-medium whitespace-nowrap ${getPaymentStatusColor(team.paymentStatus || team.payment_status)}`}>
                               {getPaymentStatusText(team.paymentStatus || team.payment_status)}
                             </span>
                           </td>
@@ -2401,7 +2401,7 @@ PRO11 Team`)
                             )}
                           </td>
                           <td className="py-3 px-3">
-                            <div className="flex justify-end flex-wrap gap-1">
+                            <div className="flex justify-end flex-nowrap gap-1">
                               <button
                                 onClick={() => openTeamModal(team)}
                                 className="p-1.5 rounded hover:bg-slate-700 text-blue-400"
@@ -2634,9 +2634,9 @@ PRO11 Team`)
                       <div className="p-4">
                         <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
                           <div className="min-w-0 flex-1">
-                            <div className="flex flex-wrap items-center gap-2 mb-2">
-                              <h4 className="font-semibold text-lg">{tournament.title}</h4>
-                              <span className={`text-xs px-2 py-1 rounded-full border ${getTournamentStatusColor(tournament.status)}`}>
+                            <div className="flex flex-wrap items-center gap-2 mb-2 min-w-0">
+                              <h4 className="font-semibold text-lg truncate min-w-0 flex-1" title={tournament.title}>{tournament.title}</h4>
+                              <span className={`text-xs px-2 py-1 rounded-full border shrink-0 whitespace-nowrap ${getTournamentStatusColor(tournament.status)}`}>
                                 {getTournamentStatusLabel(tournament.status)}
                               </span>
                               {tournament.checkInOpen && (
@@ -2673,7 +2673,7 @@ PRO11 Team`)
                       <div className="px-4 py-3 bg-slate-900/40 border-t border-slate-700 flex flex-wrap gap-2">
                         <Link
                           href={`/admin/matches/${tournament.id}`}
-                          className="pro11-button-secondary flex items-center gap-1.5 text-xs"
+                          className="pro11-button-secondary flex items-center gap-1.5 text-xs shrink-0"
                         >
                           <Eye className="w-3.5 h-3.5" />
                           {t('Se kamper', 'View matches')}

@@ -30,8 +30,6 @@ body {
   background-color: #121826;
   border-radius: 12px;
   box-shadow: 0 0 20px rgba(0, 0, 0, 0.3);
-  overflow-wrap: anywhere;
-  word-break: break-word;
 }
 
 .pro11-card p,
@@ -59,8 +57,22 @@ body {
   max-width: 100%;
   min-width: 0;
   text-align: center;
-  white-space: normal;
+  white-space: nowrap;
   gap: 8px;
+}
+
+.pro11-button svg {
+  flex-shrink: 0;
+}
+
+.pro11-button.text-sm {
+  padding: 10px 20px;
+  font-size: 14px;
+}
+
+.pro11-button.text-xs {
+  padding: 8px 14px;
+  font-size: 12px;
 }
 
 .pro11-button:hover {
@@ -91,8 +103,22 @@ body {
   max-width: 100%;
   min-width: 0;
   text-align: center;
-  white-space: normal;
+  white-space: nowrap;
   gap: 8px;
+}
+
+.pro11-button-secondary svg {
+  flex-shrink: 0;
+}
+
+.pro11-button-secondary.text-sm {
+  padding: 10px 16px;
+  font-size: 14px;
+}
+
+.pro11-button-secondary.text-xs {
+  padding: 8px 12px;
+  font-size: 12px;
 }
 
 .pro11-button-secondary:hover {
@@ -114,6 +140,20 @@ body {
   outline: none;
   border-color: #2979ff;
   box-shadow: 0 0 0 3px rgba(41, 121, 255, 0.1);
+}
+
+.pro11-score-input {
+  font-size: 1.75rem;
+  font-weight: 700;
+  padding: 14px 12px;
+  min-height: 3.25rem;
+  -moz-appearance: textfield;
+}
+
+.pro11-score-input::-webkit-outer-spin-button,
+.pro11-score-input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
 }
 
 nav a:hover {

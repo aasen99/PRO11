@@ -200,14 +200,14 @@ export default function LiveTournamentPage() {
     <div className="min-h-screen pb-8">
       <header className="pro11-card mx-4 mt-4 p-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div>
+          <div className="min-w-0 flex-1">
             <h1 className="text-xl font-bold flex items-center gap-2">
-              <Radio className="w-5 h-5 text-red-400 animate-pulse" />
+              <Radio className="w-5 h-5 text-red-400 animate-pulse shrink-0" />
               {t('Livesenter', 'Live center')}
             </h1>
-            <p className="text-slate-400 text-sm mt-1">{tournamentTitle}</p>
+            <p className="text-slate-400 text-sm mt-1 truncate" title={tournamentTitle}>{tournamentTitle}</p>
           </div>
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex flex-nowrap items-center gap-2 overflow-x-auto pb-1 sm:pb-0 shrink-0">
             {tournaments.length > 1 && (
               <select
                 value={selectedId}
@@ -269,7 +269,7 @@ export default function LiveTournamentPage() {
               <p className="text-2xl font-bold text-red-400">{stats.conflicts}</p>
             </div>
             <div className="pro11-card p-4 text-center col-span-2 md:col-span-1">
-              <p className="text-xs text-slate-400 uppercase">{t('Trenger handling', 'Needs action')}</p>
+              <p className="text-xs text-slate-400 uppercase leading-tight">{t('Trenger handling', 'Needs action')}</p>
               <p className="text-2xl font-bold text-yellow-400">{attention.length}</p>
             </div>
           </div>
@@ -300,8 +300,8 @@ export default function LiveTournamentPage() {
                   <div key={event.id} className="flex gap-3 p-3 rounded-lg bg-slate-800/50 border border-slate-700/50">
                     {eventIcon(event.event_type)}
                     <div className="min-w-0 flex-1">
-                      <p className="text-sm font-medium break-words">{event.title}</p>
-                      {event.detail && <p className="text-xs text-slate-400 mt-0.5 break-words">{event.detail}</p>}
+                      <p className="text-sm font-medium truncate" title={event.title}>{event.title}</p>
+                      {event.detail && <p className="text-xs text-slate-400 mt-0.5 line-clamp-2" title={event.detail}>{event.detail}</p>}
                       <p className="text-xs text-slate-500 mt-1">{formatTime(event.created_at)}</p>
                     </div>
                   </div>
@@ -332,13 +332,13 @@ export default function LiveTournamentPage() {
                     className={`block p-3 rounded-lg border transition-colors hover:brightness-110 ${attentionStyle(item.type)}`}
                   >
                     <div className="flex items-start justify-between gap-2">
-                      <div className="min-w-0">
-                        <p className="text-sm font-medium break-words">{item.title}</p>
-                        <p className="text-xs text-slate-300 mt-1">{item.description}</p>
-                        <p className="text-xs text-slate-500 mt-1 flex flex-wrap items-center gap-x-1.5">
-                          <span>{formatTime(item.sinceAt)}</span>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-medium truncate" title={item.title}>{item.title}</p>
+                        <p className="text-xs text-slate-300 mt-1 line-clamp-2">{item.description}</p>
+                        <p className="text-xs text-slate-500 mt-1 flex flex-nowrap items-center gap-x-1.5">
+                          <span className="shrink-0">{formatTime(item.sinceAt)}</span>
                           <span className="text-slate-600">·</span>
-                          <span>{formatAttentionAge(item)}</span>
+                          <span className="truncate">{formatAttentionAge(item)}</span>
                         </p>
                       </div>
                       <ChevronRight className="w-4 h-4 text-slate-400 shrink-0 mt-0.5" />
