@@ -14,6 +14,7 @@ import {
   getSubmissionBlockReason
 } from '@/lib/match-submission'
 import GroupStandingsTable from '@/components/GroupStandingsTable'
+import { calculateGroupStandings, toStandingsMatchInputs } from '@/lib/group-standings'
 
 interface Team {
   id: string
@@ -66,17 +67,6 @@ interface Tournament {
   checkInOpen?: boolean
   captainCheckedIn?: boolean
   captainTeamId?: string
-}
-
-interface GroupStandingRow {
-  team: string
-  played: number
-  wins: number
-  draws: number
-  losses: number
-  goalsFor: number
-  goalsAgainst: number
-  points: number
 }
 
 interface TeamStats {
@@ -606,135 +596,6 @@ export default function CaptainDashboardPage() {
       bestFinish,
       currentRanking
     }
-  }
-
-  const calculateGroupStandings = (matches: Match[]): Record<string, GroupStandingRow[]> => {
-    const standings: Record<string, Record<string, GroupStandingRow>> = {}
-    const defaultGroup = 'Gruppe'
-
-    const getHeadToHeadComparison = (teamA: string, teamB: string, groupMatches: Match[]) => {
-      let aPoints = 0
-      let bPoints = 0
-      let aGoalsFor = 0
-      let aGoalsAgainst = 0
-      let bGoalsFor = 0
-      let bGoalsAgainst = 0
-      let hasMatch = false
-
-      groupMatches.forEach(match => {
-        if (match.status !== 'completed') return
-        const isAHome = match.team1 === teamA && match.team2 === teamB
-        const isBHome = match.team1 === teamB && match.team2 === teamA
-        if (!isAHome && !isBHome) return
-
-        hasMatch = true
-        const score1 = match.score1 ?? 0
-        const score2 = match.score2 ?? 0
-
-        if (isAHome) {
-          aGoalsFor += score1
-          aGoalsAgainst += score2
-          bGoalsFor += score2
-          bGoalsAgainst += score1
-          if (score1 > score2) aPoints += 3
-          else if (score1 < score2) bPoints += 3
-          else {
-            aPoints += 1
-            bPoints += 1
-          }
-        } else {
-          bGoalsFor += score1
-          bGoalsAgainst += score2
-          aGoalsFor += score2
-          aGoalsAgainst += score1
-          if (score1 > score2) bPoints += 3
-          else if (score1 < score2) aPoints += 3
-          else {
-            aPoints += 1
-            bPoints += 1
-          }
-        }
-      })
-
-      if (!hasMatch) return 0
-
-      if (bPoints !== aPoints) return bPoints - aPoints
-      const aDiff = aGoalsFor - aGoalsAgainst
-      const bDiff = bGoalsFor - bGoalsAgainst
-      if (bDiff !== aDiff) return bDiff - aDiff
-      if (bGoalsFor !== aGoalsFor) return bGoalsFor - aGoalsFor
-      return 0
-    }
-
-    matches.forEach(match => {
-      if (match.round !== 'Gruppespill') return
-      const group = match.group?.trim() || defaultGroup
-      if (!standings[group]) standings[group] = {}
-
-      const ensureTeam = (name: string) => {
-        if (!standings[group][name]) {
-          standings[group][name] = {
-            team: name,
-            played: 0,
-            wins: 0,
-            draws: 0,
-            losses: 0,
-            goalsFor: 0,
-            goalsAgainst: 0,
-            points: 0
-          }
-        }
-      }
-
-      ensureTeam(match.team1)
-      ensureTeam(match.team2)
-
-      if (match.status === 'completed') {
-        const team1 = standings[group][match.team1]
-        const team2 = standings[group][match.team2]
-        const score1 = match.score1 ?? 0
-        const score2 = match.score2 ?? 0
-
-        team1.played += 1
-        team2.played += 1
-        team1.goalsFor += score1
-        team1.goalsAgainst += score2
-        team2.goalsFor += score2
-        team2.goalsAgainst += score1
-
-        if (score1 > score2) {
-          team1.wins += 1
-          team1.points += 3
-          team2.losses += 1
-        } else if (score2 > score1) {
-          team2.wins += 1
-          team2.points += 3
-          team1.losses += 1
-        } else {
-          team1.draws += 1
-          team2.draws += 1
-          team1.points += 1
-          team2.points += 1
-        }
-      }
-    })
-
-    return Object.fromEntries(
-      Object.entries(standings).map(([group, rows]) => {
-        const groupMatches = matches.filter(
-          match => match.round === 'Gruppespill' && (match.group?.trim() || defaultGroup) === group
-        )
-        const sorted = Object.values(rows).sort((a, b) => {
-          if (b.points !== a.points) return b.points - a.points
-          const diffA = a.goalsFor - a.goalsAgainst
-          const diffB = b.goalsFor - b.goalsAgainst
-          if (diffB !== diffA) return diffB - diffA
-          if (b.goalsFor !== a.goalsFor) return b.goalsFor - a.goalsFor
-          return getHeadToHeadComparison(a.team, b.team, groupMatches)
-        })
-        return [group, sorted]
-      })
-    )
   }
 
   const getFormSummary = (matches: Match[], teamName: string, limit = 5) => {
@@ -1900,21 +1761,18 @@ export default function CaptainDashboardPage() {
               ? tournament.matches 
               : tournament.matches.filter(m => m.round === 'Gruppespill')
 
-            const standingsSource = (tournament.allMatches && tournament.allMatches.length > 0)
-              ? tournament.allMatches
-              : tournament.matches
-            const groupedMatches = standingsSource.filter(m => m.round === 'Gruppespill')
-            const standingsByGroup = calculateGroupStandings(groupedMatches)
-            const teamGroup = groupedMatches.find(
-              m => m.team1 === team.teamName || m.team2 === team.teamName
-            )?.group?.trim() || 'Gruppe'
-            const activeGroup =
-              standingsByGroup[teamGroup]?.length
-                ? teamGroup
-                : Object.keys(standingsByGroup).sort()[0]
-            const activeStandings = activeGroup ? (standingsByGroup[activeGroup] || []) : []
+            const allGroupMatches = (tournament.allMatches ?? []).filter(m => m.round === 'Gruppespill')
+            const standingsByGroup = calculateGroupStandings(toStandingsMatchInputs(allGroupMatches))
+            const teamGroup =
+              allGroupMatches
+                .filter(m => m.team1 === team.teamName || m.team2 === team.teamName)
+                .map(m => m.group?.trim())
+                .find(Boolean) ||
+              Object.keys(standingsByGroup).sort()[0] ||
+              null
+            const activeStandings = teamGroup ? standingsByGroup[teamGroup] ?? [] : []
             
-            const groupRoundMap = buildGroupRoundMap(groupMatches)
+            const groupRoundMap = buildGroupRoundMap(allGroupMatches.length > 0 ? allGroupMatches : groupMatches)
             const buildKey = (teamA: string, teamB: string) => [teamA, teamB].sort().join('|')
             const sortedMatches = [...visibleMatches].sort((a, b) => {
               const aIsGroup = a.round === 'Gruppespill'
@@ -2089,15 +1947,19 @@ export default function CaptainDashboardPage() {
                     </div>
                   ))}
                 </div>
-                {groupedMatches.length > 0 && (
+                {teamGroup && activeStandings.length > 0 && (
                   <div className="w-full rounded-lg border border-slate-700/60 bg-slate-900/50 p-3 sm:p-4">
                     <h3 className="text-base font-semibold text-slate-200 mb-3">
-                      {activeGroup ? (isEnglish ? activeGroup.replace('Gruppe', 'Group') : activeGroup) : t('Tabell', 'Standings')}
+                      {isEnglish ? teamGroup.replace('Gruppe', 'Group') : teamGroup}
                     </h3>
                     <GroupStandingsTable
                       rows={activeStandings}
                       highlightTeam={team.teamName}
                       isEnglish={isEnglish}
+                      emptyMessage={t(
+                        'Tabellen vises når gruppespillkamper er opprettet.',
+                        'Standings appear when group stage matches are created.'
+                      )}
                     />
                   </div>
                 )}

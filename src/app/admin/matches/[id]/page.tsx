@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import Link from 'next/link'
 import { useParams } from 'next/navigation'
-import { ArrowLeft, Trophy, RefreshCw, Wrench, Radio } from 'lucide-react'
+import { ArrowLeft, Trophy, RefreshCw, Radio } from 'lucide-react'
 import { ToastContainer } from '@/components/Toast'
 import type { ToastType } from '@/components/Toast'
 import { useLanguage } from '@/components/LanguageProvider'
@@ -128,6 +128,8 @@ export default function TournamentMatchesPage() {
   const [toasts, setToasts] = useState<ToastMessage[]>([])
   const [selectedMatchIds, setSelectedMatchIds] = useState<Set<string>>(new Set())
   const [bulkScheduledTime, setBulkScheduledTime] = useState('')
+  const [roundScheduleStart, setRoundScheduleStart] = useState('')
+  const [roundScheduleInterval, setRoundScheduleInterval] = useState('20')
   const [isBulkSaving, setIsBulkSaving] = useState(false)
   const [showBulkTool, setShowBulkTool] = useState(false)
   const [matchFilter, setMatchFilter] = useState<'all' | 'attention' | 'live' | 'pending'>('all')
@@ -321,12 +323,6 @@ export default function TournamentMatchesPage() {
       groupRoundBackfillRef.current = false
       console.error('Error backfilling group rounds:', error)
     }
-  }
-
-  const runGroupRoundBackfill = async () => {
-    groupRoundBackfillRef.current = false
-    await backfillGroupRounds(matches)
-    await loadData()
   }
 
   const loadData = useCallback(async () => {
@@ -1229,8 +1225,172 @@ export default function TournamentMatchesPage() {
     clearSelectedMatches()
   }
 
+  const buildMatchPairKey = (teamA: string, teamB: string) => [teamA, teamB].sort().join('|')
+
+  const buildGroupRoundSchedule = (groupList: Match[]) => {
+    const roundMap = buildGroupRoundMap(groupList)
+    const byRound: Record<number, Match[]> = {}
+    let skipped = 0
+
+    groupList.forEach(match => {
+      const round =
+        match.group_round ?? roundMap[buildMatchPairKey(match.team1_name, match.team2_name)] ?? null
+      if (!round) {
+        skipped += 1
+        return
+      }
+      if (!byRound[round]) byRound[round] = []
+      byRound[round].push(match)
+    })
+
+    return { byRound, skipped, roundMap }
+  }
+
+  const applyRoundBasedSchedule = async () => {
+    if (!roundScheduleStart) {
+      addToast({ message: t('Velg starttid for runde 1.', 'Select start time for round 1.'), type: 'warning' })
+      return
+    }
+
+    const intervalMin = parseInt(roundScheduleInterval, 10)
+    if (!Number.isFinite(intervalMin) || intervalMin < 1) {
+      addToast({
+        message: t('Angi minutter mellom runder (minst 1).', 'Set minutes between rounds (at least 1).'),
+        type: 'warning'
+      })
+      return
+    }
+
+    const groupList = matches.filter(m => m.round === 'Gruppespill')
+    if (groupList.length === 0) {
+      addToast({ message: t('Ingen gruppespillkamper å planlegge.', 'No group stage matches to schedule.'), type: 'warning' })
+      return
+    }
+
+    const groupedByName = groupList.reduce((acc: Record<string, Match[]>, match) => {
+      const group = match.group_name || t('Ukjent gruppe', 'Unknown group')
+      if (!acc[group]) acc[group] = []
+      acc[group].push(match)
+      return acc
+    }, {})
+
+    const startMs = new Date(roundScheduleStart).getTime()
+    if (Number.isNaN(startMs)) {
+      addToast({ message: t('Ugyldig starttid.', 'Invalid start time.'), type: 'warning' })
+      return
+    }
+
+    const updates: Array<{ id: string; scheduled_time: string }> = []
+    let skipped = 0
+    const roundCounts: Record<number, number> = {}
+
+    Object.values(groupedByName).forEach(groupMatchesList => {
+      const { byRound, skipped: groupSkipped } = buildGroupRoundSchedule(groupMatchesList)
+      skipped += groupSkipped
+      Object.entries(byRound).forEach(([roundStr, roundMatches]) => {
+        const round = Number(roundStr)
+        const scheduledTime = new Date(startMs + (round - 1) * intervalMin * 60_000).toISOString()
+        roundCounts[round] = (roundCounts[round] || 0) + roundMatches.length
+        roundMatches.forEach(match => {
+          updates.push({ id: match.id, scheduled_time: scheduledTime })
+        })
+      })
+    })
+
+    if (updates.length === 0) {
+      addToast({
+        message: t(
+          'Fant ingen kamper med runde. Kjør «Oppdater» eller sjekk feilsøking.',
+          'No matches with a round found. Try Refresh or check diagnostics.'
+        ),
+        type: 'warning'
+      })
+      return
+    }
+
+    setIsBulkSaving(true)
+    const results = await Promise.all(
+      updates.map(async update => {
+        try {
+          const response = await apiFetch('/api/matches', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(update)
+          })
+          return response.ok
+        } catch {
+          return false
+        }
+      })
+    )
+
+    const failed = results.filter(ok => !ok).length
+    await loadData()
+    setIsBulkSaving(false)
+
+    if (failed > 0) {
+      addToast({
+        message: t(`Kunne ikke oppdatere ${failed} av ${updates.length} kamper.`, `Could not update ${failed} of ${updates.length} matches.`),
+        type: 'error'
+      })
+      return
+    }
+
+    const roundSummary = Object.keys(roundCounts)
+      .map(Number)
+      .sort((a, b) => a - b)
+      .map(round => `R${round}: ${roundCounts[round]}`)
+      .join(', ')
+
+    addToast({
+      message: t(
+        `Planla ${updates.length} gruppespillkamper (${roundSummary})${skipped > 0 ? ` · ${skipped} uten runde` : ''}.`,
+        `Scheduled ${updates.length} group matches (${roundSummary})${skipped > 0 ? ` · ${skipped} without round` : ''}.`
+      ),
+      type: 'success'
+    })
+  }
+
   const groupMatches = matches.filter(m => m.round === 'Gruppespill')
   const knockoutMatches = matches.filter(m => m.round !== 'Gruppespill')
+
+  const roundSchedulePreview = useMemo(() => {
+    if (!roundScheduleStart || groupMatches.length === 0) return null
+
+    const intervalMin = parseInt(roundScheduleInterval, 10)
+    if (!Number.isFinite(intervalMin) || intervalMin < 1) return null
+
+    const startMs = new Date(roundScheduleStart).getTime()
+    if (Number.isNaN(startMs)) return null
+
+    const groupedByName = groupMatches.reduce((acc: Record<string, Match[]>, match) => {
+      const group = match.group_name || 'Ukjent'
+      if (!acc[group]) acc[group] = []
+      acc[group].push(match)
+      return acc
+    }, {})
+
+    const roundCounts: Record<number, number> = {}
+    let skipped = 0
+
+    Object.values(groupedByName).forEach(groupMatchesList => {
+      const { byRound, skipped: groupSkipped } = buildGroupRoundSchedule(groupMatchesList)
+      skipped += groupSkipped
+      Object.entries(byRound).forEach(([roundStr, roundMatches]) => {
+        const round = Number(roundStr)
+        roundCounts[round] = (roundCounts[round] || 0) + roundMatches.length
+      })
+    })
+
+    const rounds = Object.keys(roundCounts).map(Number).sort((a, b) => a - b)
+    if (rounds.length === 0) return null
+
+    const maxRound = rounds[rounds.length - 1]
+    const total = Object.values(roundCounts).reduce((sum, n) => sum + n, 0)
+    const lastStart = new Date(startMs + (maxRound - 1) * intervalMin * 60_000)
+
+    return { rounds, roundCounts, total, skipped, maxRound, lastStart, intervalMin }
+  }, [groupMatches, roundScheduleStart, roundScheduleInterval])
 
   const scheduleDiagnostics = (() => {
     const missingGroupRound = groupMatches.filter(m => m.group_round === null || m.group_round === undefined)
@@ -1406,14 +1566,6 @@ export default function TournamentMatchesPage() {
               <RefreshCw className="w-4 h-4" />
               <span>{t('Oppdater', 'Refresh')}</span>
             </button>
-            <button
-              onClick={runGroupRoundBackfill}
-              className="pro11-button-secondary text-sm flex items-center space-x-2"
-              title={t('Oppdater manglende runder for gruppespill', 'Update missing rounds for group stage')}
-            >
-              <Wrench className="w-4 h-4" />
-              <span>{t('Fiks runder', 'Fix rounds')}</span>
-            </button>
           </div>
         </div>
       </header>
@@ -1463,44 +1615,102 @@ export default function TournamentMatchesPage() {
             </select>
             {!showBulkTool && (
               <button onClick={() => setShowBulkTool(true)} className="pro11-button-secondary text-xs px-2 py-1">
-                {t('Bulk tid', 'Bulk time')}
+                {t('Planlegg', 'Schedule')}
               </button>
             )}
           </div>
         )}
 
         {showBulkTool && (
-          <div className="pro11-card p-3 mb-4">
-            <div className="flex flex-wrap items-center gap-2">
-              <input
-                type="datetime-local"
-                lang={isEnglish ? 'en' : 'no'}
-                value={bulkScheduledTime}
-                onChange={(e) => setBulkScheduledTime(e.target.value)}
-                className="px-2 py-1 bg-slate-700 rounded text-xs"
-              />
-              <button
-                onClick={applyBulkSchedule}
-                disabled={isBulkSaving}
-                className="pro11-button-secondary text-xs px-2 py-1"
-              >
-                {isBulkSaving
-                  ? t('Oppdaterer...', 'Updating...')
-                  : t(`Oppdater (${selectedMatchIds.size})`, `Update (${selectedMatchIds.size})`)}
-              </button>
-              <button onClick={() => selectMatches(groupMatches.map(match => match.id))} className="pro11-button-secondary text-xs px-2 py-1">
-                {t('Alle grupper', 'All groups')}
-              </button>
-              <button onClick={() => selectMatches(knockoutMatches.map(match => match.id))} className="pro11-button-secondary text-xs px-2 py-1">
-                {t('Alle sluttspill', 'All KO')}
-              </button>
-              <button onClick={clearSelectedMatches} className="pro11-button-secondary text-xs px-2 py-1">
-                {t('Tøm', 'Clear')}
-              </button>
-              <button onClick={() => setShowBulkTool(false)} className="text-xs text-slate-400 hover:text-slate-200 ml-auto">
-                {t('Lukk', 'Close')}
-              </button>
+          <div className="pro11-card p-3 mb-4 space-y-3">
+            <div>
+              <p className="text-xs font-semibold text-slate-300 mb-2">
+                {t('Planlegg gruppespill etter runde', 'Schedule group stage by round')}
+              </p>
+              <div className="flex flex-wrap items-end gap-2">
+                <label className="flex flex-col gap-0.5 text-[10px] text-slate-400">
+                  {t('Start runde 1', 'Round 1 start')}
+                  <input
+                    type="datetime-local"
+                    lang={isEnglish ? 'en' : 'no'}
+                    value={roundScheduleStart}
+                    onChange={e => setRoundScheduleStart(e.target.value)}
+                    className="px-2 py-1 bg-slate-700 rounded text-xs"
+                  />
+                </label>
+                <label className="flex flex-col gap-0.5 text-[10px] text-slate-400">
+                  {t('Min mellom runder', 'Min between rounds')}
+                  <input
+                    type="number"
+                    min={1}
+                    max={240}
+                    value={roundScheduleInterval}
+                    onChange={e => setRoundScheduleInterval(e.target.value)}
+                    className="w-16 px-2 py-1 bg-slate-700 rounded text-xs text-center"
+                  />
+                </label>
+                <button
+                  onClick={applyRoundBasedSchedule}
+                  disabled={isBulkSaving || groupMatches.length === 0}
+                  className="pro11-button text-xs px-3 py-1.5"
+                >
+                  {isBulkSaving
+                    ? t('Planlegger...', 'Scheduling...')
+                    : t(`Generer (${groupMatches.length})`, `Generate (${groupMatches.length})`)}
+                </button>
+              </div>
+              {roundSchedulePreview && (
+                <p className="text-[10px] text-slate-500 mt-2 leading-relaxed">
+                  {roundSchedulePreview.rounds.map(round => {
+                    const start = new Date(
+                      new Date(roundScheduleStart).getTime() +
+                        (round - 1) * roundSchedulePreview.intervalMin * 60_000
+                    )
+                    return `R${round}: ${roundSchedulePreview.roundCounts[round]} ${t('kamper', 'matches')} ${start.toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' })}`
+                  }).join(' · ')}
+                  {roundSchedulePreview.skipped > 0 && (
+                    <span className="text-orange-400">
+                      {' '}
+                      · {roundSchedulePreview.skipped} {t('uten runde', 'without round')}
+                    </span>
+                  )}
+                </p>
+              )}
             </div>
+
+            <details className="text-xs text-slate-400">
+              <summary className="cursor-pointer hover:text-slate-300 select-none">
+                {t('Manuell tid på valgte kamper', 'Manual time for selected matches')}
+              </summary>
+              <div className="flex flex-wrap items-center gap-2 mt-2 pt-2 border-t border-slate-700/50">
+                <input
+                  type="datetime-local"
+                  lang={isEnglish ? 'en' : 'no'}
+                  value={bulkScheduledTime}
+                  onChange={(e) => setBulkScheduledTime(e.target.value)}
+                  className="px-2 py-1 bg-slate-700 rounded text-xs"
+                />
+                <button
+                  onClick={applyBulkSchedule}
+                  disabled={isBulkSaving}
+                  className="pro11-button-secondary text-xs px-2 py-1"
+                >
+                  {isBulkSaving
+                    ? t('Oppdaterer...', 'Updating...')
+                    : t(`Oppdater valgte (${selectedMatchIds.size})`, `Update selected (${selectedMatchIds.size})`)}
+                </button>
+                <button onClick={() => selectMatches(groupMatches.map(match => match.id))} className="pro11-button-secondary text-xs px-2 py-1">
+                  {t('Velg gruppespill', 'Select groups')}
+                </button>
+                <button onClick={clearSelectedMatches} className="pro11-button-secondary text-xs px-2 py-1">
+                  {t('Tøm', 'Clear')}
+                </button>
+              </div>
+            </details>
+
+            <button onClick={() => setShowBulkTool(false)} className="text-xs text-slate-400 hover:text-slate-200">
+              {t('Lukk', 'Close')}
+            </button>
           </div>
         )}
 

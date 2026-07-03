@@ -35,8 +35,8 @@ export default function GroupStandingsTable({
       <p className="text-sm text-slate-400">
         {emptyMessage ||
           t(
-            'Tabellen oppdateres når gruppespillkamper er fullført.',
-            'Standings update when group stage matches are completed.'
+            'Tabellen vises når gruppespillkamper er opprettet.',
+            'Standings appear when group stage matches are created.'
           )}
       </p>
     )

@@ -7,19 +7,9 @@ import { Trophy, Users, Calendar, Clock, CheckCircle, XCircle, ExternalLink, Plu
 import { fetchTournamentById } from '../../../lib/tournaments'
 import { useLanguage } from '@/components/LanguageProvider'
 import Header from '@/components/Header'
-import GroupStandingsTable from '@/components/GroupStandingsTable'
-
-interface Team {
-  id: string
-  name: string
-  played: number
-  won: number
-  drawn: number
-  lost: number
-  goalsFor: number
-  goalsAgainst: number
-  points: number
-}
+import GroupStandingsTable, { type StandingsRow } from '@/components/GroupStandingsTable'
+import { calculateGroupStandings, toStandingsMatchInputs } from '@/lib/group-standings'
+import { buildKnockoutBracketPreview, type BracketPreviewRound } from '@/lib/knockout-bracket'
 
 interface Match {
   id: string
@@ -29,7 +19,7 @@ interface Match {
   awayScore: number | null
   date: string
   time: string
-  status: 'scheduled' | 'live' | 'completed'
+  status: 'scheduled' | 'live' | 'completed' | 'pending_result' | 'pending_confirmation'
   group?: string
   round?: string
   groupRound?: number
@@ -75,8 +65,9 @@ export default function TournamentDetailPage() {
   const [tournament, setTournament] = useState<any>(null)
   const [registeredTeams, setRegisteredTeams] = useState<any[]>([])
   const [matches, setMatches] = useState<any[]>([])
-  const [groupStandings, setGroupStandings] = useState<Record<string, Team[]>>({})
+  const [groupStandings, setGroupStandings] = useState<Record<string, StandingsRow[]>>({})
   const [isLoading, setIsLoading] = useState(true)
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null)
   const matchesSignatureRef = useRef<string | null>(null)
 
   useEffect(() => {
@@ -126,10 +117,8 @@ export default function TournamentDetailPage() {
         if (signature !== matchesSignatureRef.current) {
           matchesSignatureRef.current = signature
           setMatches(loadedMatches)
-          
-          // Calculate group standings from actual match results
-          const standings = calculateGroupStandings(loadedMatches)
-          setGroupStandings(standings)
+          setGroupStandings(calculateGroupStandings(toStandingsMatchInputs(loadedMatches)))
+          setLastUpdated(new Date())
         }
       }
     } catch (error) {
@@ -141,156 +130,14 @@ export default function TournamentDetailPage() {
     if (!tournamentId) return
     loadTeams()
     loadMatches()
-    const interval = setInterval(loadMatches, 30000)
-    return () => clearInterval(interval)
   }, [tournamentId, loadTeams, loadMatches])
 
-  // Calculate group standings from actual match results (same logic as admin)
-  const calculateGroupStandings = (allMatches: any[]): Record<string, Team[]> => {
-    const standings: Record<string, Record<string, Team>> = {}
-
-    const getHeadToHeadComparison = (teamA: string, teamB: string, groupMatches: any[]) => {
-      let aPoints = 0
-      let bPoints = 0
-      let aGoalsFor = 0
-      let aGoalsAgainst = 0
-      let bGoalsFor = 0
-      let bGoalsAgainst = 0
-      let hasMatch = false
-
-      groupMatches.forEach(match => {
-        if (match.status !== 'completed') return
-        const isAHome = match.team1_name === teamA && match.team2_name === teamB
-        const isBHome = match.team1_name === teamB && match.team2_name === teamA
-        if (!isAHome && !isBHome) return
-
-        hasMatch = true
-        const score1 = match.score1 ?? 0
-        const score2 = match.score2 ?? 0
-
-        if (isAHome) {
-          aGoalsFor += score1
-          aGoalsAgainst += score2
-          bGoalsFor += score2
-          bGoalsAgainst += score1
-          if (score1 > score2) aPoints += 3
-          else if (score1 < score2) bPoints += 3
-          else {
-            aPoints += 1
-            bPoints += 1
-          }
-        } else {
-          bGoalsFor += score1
-          bGoalsAgainst += score2
-          aGoalsFor += score2
-          aGoalsAgainst += score1
-          if (score1 > score2) bPoints += 3
-          else if (score1 < score2) aPoints += 3
-          else {
-            aPoints += 1
-            bPoints += 1
-          }
-        }
-      })
-
-      if (!hasMatch) return 0
-
-      if (bPoints !== aPoints) return bPoints - aPoints
-      const aDiff = aGoalsFor - aGoalsAgainst
-      const bDiff = bGoalsFor - bGoalsAgainst
-      if (bDiff !== aDiff) return bDiff - aDiff
-      if (bGoalsFor !== aGoalsFor) return bGoalsFor - aGoalsFor
-      return 0
-    }
-    
-    // Initialize standings for all teams from matches
-    allMatches.forEach(match => {
-      if (match.group_name && match.round === 'Gruppespill') {
-        if (!standings[match.group_name]) {
-          standings[match.group_name] = {}
-        }
-        
-        if (!standings[match.group_name][match.team1_name]) {
-          standings[match.group_name][match.team1_name] = {
-            id: match.team1_name,
-            name: match.team1_name,
-            played: 0,
-            won: 0,
-            drawn: 0,
-            lost: 0,
-            goalsFor: 0,
-            goalsAgainst: 0,
-            points: 0
-          }
-        }
-        
-        if (!standings[match.group_name][match.team2_name]) {
-          standings[match.group_name][match.team2_name] = {
-            id: match.team2_name,
-            name: match.team2_name,
-            played: 0,
-            won: 0,
-            drawn: 0,
-            lost: 0,
-            goalsFor: 0,
-            goalsAgainst: 0,
-            points: 0
-          }
-        }
-      }
-    })
-
-    // Calculate standings from completed matches
-    allMatches.forEach(match => {
-      if (match.group_name && match.round === 'Gruppespill' && match.status === 'completed' && match.score1 !== undefined && match.score2 !== undefined) {
-        const group = standings[match.group_name]
-        const team1 = group[match.team1_name]
-        const team2 = group[match.team2_name]
-
-        if (team1 && team2) {
-          team1.played++
-          team2.played++
-          team1.goalsFor += match.score1
-          team1.goalsAgainst += match.score2
-          team2.goalsFor += match.score2
-          team2.goalsAgainst += match.score1
-
-          if (match.score1 > match.score2) {
-            team1.won++
-            team1.points += 3
-            team2.lost++
-          } else if (match.score2 > match.score1) {
-            team2.won++
-            team2.points += 3
-            team1.lost++
-          } else {
-            team1.drawn++
-            team2.drawn++
-            team1.points += 1
-            team2.points += 1
-          }
-        }
-      }
-    })
-
-    // Convert to arrays and sort
-    const result: Record<string, Team[]> = {}
-    Object.keys(standings).forEach(groupName => {
-      const groupMatches = allMatches.filter(match =>
-        match.group_name === groupName && match.round === 'Gruppespill'
-      )
-      result[groupName] = Object.values(standings[groupName]).sort((a, b) => {
-        if (b.points !== a.points) return b.points - a.points
-        const aDiff = a.goalsFor - a.goalsAgainst
-        const bDiff = b.goalsFor - b.goalsAgainst
-        if (bDiff !== aDiff) return bDiff - aDiff
-        if (b.goalsFor !== a.goalsFor) return b.goalsFor - a.goalsFor
-        return getHeadToHeadComparison(a.name, b.name, groupMatches)
-      })
-    })
-
-    return result
-  }
+  useEffect(() => {
+    if (!tournamentId) return
+    const pollMs = tournament?.status === 'ongoing' ? 12000 : 30000
+    const interval = setInterval(loadMatches, pollMs)
+    return () => clearInterval(interval)
+  }, [tournamentId, loadMatches, tournament?.status])
 
   const buildGroupRoundMap = (groupMatches: any[]) => {
     const teamSet = new Set<string>()
@@ -353,6 +200,18 @@ export default function TournamentDetailPage() {
     )
   }
 
+  const mapMatchStatus = (rawStatus: string): Match['status'] => {
+    if (
+      rawStatus === 'completed' ||
+      rawStatus === 'live' ||
+      rawStatus === 'pending_result' ||
+      rawStatus === 'pending_confirmation'
+    ) {
+      return rawStatus
+    }
+    return 'scheduled'
+  }
+
   // Transform database matches to display format
   const displayMatches: Match[] = matches.map((m: any) => ({
     id: m.id,
@@ -362,11 +221,18 @@ export default function TournamentDetailPage() {
     awayScore: m.score2 ?? null,
     date: m.scheduled_time ? new Date(m.scheduled_time).toLocaleDateString(locale, { day: 'numeric', month: 'numeric', year: 'numeric' }) : '',
     time: m.scheduled_time ? new Date(m.scheduled_time).toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' }) : '',
-    status: m.status === 'completed' ? 'completed' : m.status === 'live' ? 'live' : 'scheduled',
+    status: mapMatchStatus(m.status),
     group: m.group_name || undefined,
     round: m.round || undefined,
     groupRound: m.group_round ?? undefined
   }))
+
+  const completedCount = matches.filter((m: any) => m.status === 'completed').length
+  const liveCount = matches.filter((m: any) => m.status === 'live').length
+  const pendingCount = matches.filter(
+    (m: any) => m.status === 'pending_confirmation' || m.status === 'pending_result'
+  ).length
+  const matchProgress = matches.length > 0 ? Math.round((completedCount / matches.length) * 100) : 0
 
   const groupRoundMaps: Record<string, Record<string, number>> = {}
   const groupedGroupMatches = matches
@@ -401,6 +267,10 @@ export default function TournamentDetailPage() {
         return 'bg-red-600'
       case 'completed':
         return 'bg-green-600'
+      case 'pending_confirmation':
+        return 'bg-yellow-600'
+      case 'pending_result':
+        return 'bg-orange-600'
       default:
         return 'bg-slate-600'
     }
@@ -414,9 +284,31 @@ export default function TournamentDetailPage() {
         return 'LIVE'
       case 'completed':
         return t('Ferdig', 'Finished')
+      case 'pending_confirmation':
+        return t('Venter bekreftelse', 'Pending')
+      case 'pending_result':
+        return t('Venter resultat', 'Awaiting')
       default:
         return t('Planlagt', 'Scheduled')
     }
+  }
+
+  const getMatchMeta = (match: Match) => {
+    const parts: string[] = []
+    if (match.date && match.time) parts.push(`${match.date} ${match.time}`)
+    if (match.group) {
+      const groupLabel = match.group.startsWith('Gruppe')
+        ? (isEnglish ? match.group.replace('Gruppe', 'Group') : match.group)
+        : `${t('Gruppe', 'Group')} ${match.group}`
+      parts.push(groupLabel)
+    }
+    if (match.round && match.round !== 'Gruppespill') parts.push(translateRoundName(match.round))
+    if (match.round === 'Gruppespill' && match.group) {
+      const roundNo =
+        match.groupRound || groupRoundMaps[match.group]?.[buildKey(match.homeTeam, match.awayTeam)]
+      if (roundNo) parts.push(`${t('Runde', 'Round')} ${roundNo}`)
+    }
+    return parts.join(' · ')
   }
 
   const translateRoundName = (round?: string) => {
@@ -433,6 +325,213 @@ export default function TournamentDetailPage() {
       'Ukjent runde': 'Unknown round'
     }
     return map[round] || round
+  }
+
+  const getMatchScheduleMeta = (match: Match) => {
+    if (match.date && match.time) return `${match.date} ${match.time}`
+    return ''
+  }
+
+  const formatGroupLabel = (group: string) =>
+    group.startsWith('Gruppe')
+      ? (isEnglish ? group.replace('Gruppe', 'Group') : group)
+      : `${t('Gruppe', 'Group')} ${group}`
+
+  const knockoutRoundOrder: Record<string, number> = {
+    '16-delsfinaler': 1,
+    'Åttendelsfinaler': 2,
+    'Kvartfinaler': 3,
+    'Semifinaler': 4,
+    'Finale': 5,
+    'Sluttspill': 0
+  }
+
+  type MatchListSection = { key: string; title: string; matches: Match[] }
+
+  const buildMatchListSections = (): MatchListSection[] => {
+    const groupByRound: Record<string, Record<number, Match[]>> = {}
+    const knockoutByRound: Record<string, Match[]> = {}
+
+    sortedDisplayMatches.forEach(match => {
+      if (match.round === 'Gruppespill' && match.group) {
+        const groupName = match.group
+        const roundNo =
+          match.groupRound ||
+          groupRoundMaps[groupName]?.[buildKey(match.homeTeam, match.awayTeam)] ||
+          0
+        if (!groupByRound[groupName]) groupByRound[groupName] = {}
+        if (!groupByRound[groupName][roundNo]) groupByRound[groupName][roundNo] = []
+        groupByRound[groupName][roundNo].push(match)
+        return
+      }
+      const roundKey = match.round || t('Annet', 'Other')
+      if (!knockoutByRound[roundKey]) knockoutByRound[roundKey] = []
+      knockoutByRound[roundKey].push(match)
+    })
+
+    const sections: MatchListSection[] = []
+
+    Object.keys(groupByRound)
+      .sort((a, b) => a.localeCompare(b, locale))
+      .forEach(groupName => {
+        const rounds = groupByRound[groupName]
+        Object.keys(rounds)
+          .map(Number)
+          .sort((a, b) => a - b)
+          .forEach(roundNo => {
+            sections.push({
+              key: `group-${groupName}-r${roundNo}`,
+              title:
+                roundNo > 0
+                  ? `${formatGroupLabel(groupName)} · ${t('Runde', 'Round')} ${roundNo}`
+                  : formatGroupLabel(groupName),
+              matches: rounds[roundNo]
+            })
+          })
+      })
+
+    Object.keys(knockoutByRound)
+      .sort((a, b) => (knockoutRoundOrder[a] ?? 999) - (knockoutRoundOrder[b] ?? 999))
+      .forEach(roundKey => {
+        sections.push({
+          key: `ko-${roundKey}`,
+          title: translateRoundName(roundKey),
+          matches: knockoutByRound[roundKey]
+        })
+      })
+
+    return sections
+  }
+
+  const matchListSections = buildMatchListSections()
+
+  const renderMatchRow = (match: Match, meta?: string) => {
+    const showScore = match.status === 'completed' || match.status === 'live'
+    const metaLine = meta ?? getMatchMeta(match)
+    return (
+      <div
+        key={match.id}
+        className={`flex items-center gap-1.5 sm:gap-2 px-2 py-1.5 text-xs sm:text-sm min-h-[2rem] ${
+          match.status === 'live' ? 'bg-red-950/10' : ''
+        }`}
+      >
+        <span
+          className="w-[28%] sm:w-[22%] min-w-0 truncate text-right font-medium"
+          title={match.homeTeam}
+        >
+          {match.homeTeam}
+        </span>
+        <span
+          className={`w-5 text-center font-bold tabular-nums ${
+            showScore && match.status === 'live' ? 'text-red-400' : 'text-slate-200'
+          }`}
+        >
+          {showScore ? match.homeScore : '·'}
+        </span>
+        <span className="text-slate-600">-</span>
+        <span
+          className={`w-5 text-center font-bold tabular-nums ${
+            showScore && match.status === 'live' ? 'text-red-400' : 'text-slate-200'
+          }`}
+        >
+          {showScore ? match.awayScore : '·'}
+        </span>
+        <span
+          className="w-[28%] sm:w-[22%] min-w-0 truncate font-medium"
+          title={match.awayTeam}
+        >
+          {match.awayTeam}
+        </span>
+        <span
+          className={`shrink-0 px-1.5 py-0.5 rounded text-[10px] font-medium whitespace-nowrap ${getStatusColor(match.status)}`}
+        >
+          {getStatusText(match.status)}
+        </span>
+        {metaLine && (
+          <span
+            className="hidden sm:inline text-[10px] text-slate-500 truncate min-w-0 flex-1"
+            title={metaLine}
+          >
+            {metaLine}
+          </span>
+        )}
+      </div>
+    )
+  }
+
+  const renderBracketPreview = (preview: BracketPreviewRound[], isProvisional: boolean) => {
+    const getRoundColor = (round: string) => {
+      if (round.includes('Kvartfinal')) return 'text-blue-400 border-blue-500'
+      if (round.includes('Semifinal')) return 'text-green-400 border-green-500'
+      if (round.includes('Finale')) return 'text-yellow-400 border-yellow-500'
+      return 'text-purple-400 border-purple-500'
+    }
+
+    return (
+      <div className="pro11-card p-6">
+        <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
+          <h3 className="text-lg font-semibold">{t('Sluttspill-bracket', 'Knockout bracket')}</h3>
+          <span className="text-xs text-slate-500">
+            {isProvisional
+              ? t('Foreløpig — seeding-logikk', 'Preview — seeding logic')
+              : t('Oppdateres automatisk', 'Updates automatically')}
+          </span>
+        </div>
+        <p className="text-sm text-slate-400 mb-4">
+          {t(
+            '1A = 1. plass i gruppe A, 2B = 2. plass i gruppe B, osv. Lagnavn fylles inn etter hvert som tabellen spiller seg ut.',
+            '1A = 1st in group A, 2B = 2nd in group B, etc. Team names fill in as standings develop.'
+          )}
+        </p>
+        <div className="overflow-x-auto -mx-4 sm:mx-0">
+          <div className="w-max min-w-full grid grid-flow-col auto-cols-[minmax(200px,1fr)] gap-6 pb-2">
+            {preview.map(round => {
+              const roundColor = getRoundColor(round.round)
+              return (
+                <div key={round.round} className="min-w-[200px] pro11-card p-4 bg-slate-900/40">
+                  <div className={`border-l-4 ${roundColor.split(' ')[1]} pl-3 mb-4`}>
+                    <h4 className={`text-lg font-bold ${roundColor.split(' ')[0]}`}>
+                      {translateRoundName(round.round)}
+                    </h4>
+                    <p className="text-slate-400 text-xs">
+                      {round.matches.length}{' '}
+                      {round.matches.length === 1 ? t('kamp', 'match') : t('kamper', 'matches')}
+                    </p>
+                  </div>
+                  <div className="space-y-3">
+                    {round.matches.map((match, index) => (
+                      <div
+                        key={match.id}
+                        className="p-3 rounded-lg border border-dashed border-slate-600/60 bg-slate-800/30"
+                      >
+                        <div className="text-xs text-slate-500 font-medium mb-2">
+                          {t('Kamp', 'Match')} {index + 1}
+                        </div>
+                        <div className="flex items-center justify-between gap-2 text-sm">
+                          <div className="flex-1 min-w-0 text-right">
+                            <div className="text-yellow-300/90 text-xs font-semibold">{match.team1.label}</div>
+                            {match.team1.team && (
+                              <div className="truncate font-medium text-slate-200">{match.team1.team}</div>
+                            )}
+                          </div>
+                          <span className="text-slate-500 shrink-0">vs</span>
+                          <div className="flex-1 min-w-0 text-left">
+                            <div className="text-yellow-300/90 text-xs font-semibold">{match.team2.label}</div>
+                            {match.team2.team && (
+                              <div className="truncate font-medium text-slate-200">{match.team2.team}</div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -468,15 +567,41 @@ export default function TournamentDetailPage() {
                       ? t('Stengt', 'Closed')
                       : t('Fullført', 'Completed')}
               </span>
-              <Link
-                href={`/add-team?tournament=${encodeURIComponent(tournament.id)}`}
-                className="inline-flex items-center gap-1.5 text-sm text-blue-400 hover:text-blue-300"
-              >
-                <Plus className="w-4 h-4" />
-                {t('Legg til lag', 'Add team')}
-              </Link>
+              {tournament.status === 'open' && (
+                <Link
+                  href={`/add-team?tournament=${encodeURIComponent(tournament.id)}`}
+                  className="inline-flex items-center gap-1.5 text-sm text-blue-400 hover:text-blue-300"
+                >
+                  <Plus className="w-4 h-4" />
+                  {t('Legg til lag', 'Add team')}
+                </Link>
+              )}
             </div>
           </div>
+
+          {matches.length > 0 && (
+            <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1 mb-6 text-sm text-slate-300">
+              <span>
+                <span className="font-semibold text-white">{completedCount}/{matches.length}</span>{' '}
+                {t('kamper', 'matches')}
+              </span>
+              <span className="text-blue-400 font-semibold">{matchProgress}%</span>
+              {liveCount > 0 && (
+                <span className="text-red-400 font-semibold">{liveCount} LIVE</span>
+              )}
+              {pendingCount > 0 && (
+                <span className="text-yellow-400">
+                  {pendingCount} {t('venter', 'pending')}
+                </span>
+              )}
+              {lastUpdated && (
+                <span className="text-xs text-slate-500">
+                  {t('Oppdatert', 'Updated')}{' '}
+                  {lastUpdated.toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' })}
+                </span>
+              )}
+            </div>
+          )}
 
           {/* Tabs */}
           <div className="pro11-card p-6 mb-8">
@@ -530,31 +655,9 @@ export default function TournamentDetailPage() {
                     {Object.entries(groupStandings).map(([groupName, standings]) => (
                       <div key={groupName} className="pro11-card p-4">
                         <h3 className="font-semibold mb-3 text-lg">{groupName}</h3>
-                        <GroupStandingsTable
-                          rows={standings.map(team => ({
-                            team: team.name,
-                            played: team.played,
-                            wins: team.won,
-                            draws: team.drawn,
-                            losses: team.lost,
-                            goalsFor: team.goalsFor,
-                            goalsAgainst: team.goalsAgainst,
-                            points: team.points
-                          }))}
-                          isEnglish={isEnglish}
-                        />
+                        <GroupStandingsTable rows={standings} isEnglish={isEnglish} />
                       </div>
                     ))}
-                  </div>
-                ) : matches.length > 0 ? (
-                  <div className="text-center py-12">
-                    <div className="text-slate-400 mb-4">
-                      <Trophy className="w-16 h-16 mx-auto mb-4 opacity-50" />
-                      <h3 className="text-xl font-semibold mb-2">
-                        {t('Ingen gruppespillkamper ferdig ennå', 'No group stage matches completed yet')}
-                      </h3>
-                      <p>{t('Tabellen vil vises når kamper er spilt og resultater er registrert.', 'The standings will appear once matches are played and results are registered.')}</p>
-                    </div>
                   </div>
                 ) : (
                   <div className="text-center py-12">
@@ -572,114 +675,13 @@ export default function TournamentDetailPage() {
 
             {activeTab === 'matches' && (
               <div>
-                {sortedDisplayMatches.length > 0 ? (
+                {matchListSections.length > 0 ? (
                   <div className="space-y-4">
-                    {sortedDisplayMatches.map(match => (
-                      <div key={match.id} className="pro11-card p-4">
-                        <div className="matches-mobile space-y-3">
-                          <div className="flex items-center justify-between">
-                            <div className="text-sm text-slate-400">{match.date} {match.time}</div>
-                            <div className={`inline-block px-2 py-1 rounded text-xs font-semibold ${getStatusColor(match.status)}`}>
-                              {getStatusText(match.status)}
-                            </div>
-                          </div>
-                          <div className="space-y-2">
-                            <div className="flex items-center justify-between gap-3">
-                              <div className="min-w-0">
-                                <div className="text-base font-semibold break-words">{match.homeTeam}</div>
-                              </div>
-                              <div
-                                className={`text-2xl font-bold ${
-                                  match.status === 'completed' || match.status === 'live'
-                                    ? match.status === 'live'
-                                      ? 'text-red-400'
-                                      : 'text-white'
-                                    : 'text-slate-400'
-                                }`}
-                              >
-                                {match.status === 'completed' || match.status === 'live' ? match.homeScore : '-'}
-                              </div>
-                            </div>
-                            <div className="flex items-center justify-between gap-3">
-                              <div className="min-w-0">
-                                <div className="text-base font-semibold break-words">{match.awayTeam}</div>
-                              </div>
-                              <div
-                                className={`text-2xl font-bold ${
-                                  match.status === 'completed' || match.status === 'live'
-                                    ? match.status === 'live'
-                                      ? 'text-red-400'
-                                      : 'text-white'
-                                    : 'text-slate-400'
-                                }`}
-                              >
-                                {match.status === 'completed' || match.status === 'live' ? match.awayScore : '-'}
-                              </div>
-                            </div>
-                          </div>
-                          <div className="text-xs text-slate-500 space-y-1">
-                            {match.group && (
-                              <div>
-                                {match.group.startsWith('Gruppe')
-                                  ? (isEnglish ? match.group.replace('Gruppe', 'Group') : match.group)
-                                  : `${t('Gruppe', 'Group')} ${match.group}`}
-                              </div>
-                            )}
-                            {match.round && match.round !== 'Gruppespill' && (
-                              <div>{translateRoundName(match.round)}</div>
-                            )}
-                            {match.round === 'Gruppespill' && match.group && (
-                              <div>
-                                {t('Runde', 'Round')}{' '}
-                                {match.groupRound || groupRoundMaps[match.group]?.[buildKey(match.homeTeam, match.awayTeam)] || '?'}
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                        <div className="matches-desktop flex items-center justify-between">
-                          <div className="flex items-center gap-3 flex-1 min-w-0">
-                            <div className="text-right flex-1 min-w-0">
-                              <span className="font-medium break-words">{match.homeTeam}</span>
-                            </div>
-                            <div className="text-center">
-                              {match.status === 'completed' ? (
-                                <div className="text-2xl font-bold">
-                                  {match.homeScore} - {match.awayScore}
-                                </div>
-                              ) : match.status === 'live' ? (
-                                <div className="text-2xl font-bold text-red-400">
-                                  {match.homeScore} - {match.awayScore}
-                                </div>
-                              ) : (
-                                <div className="text-lg text-slate-400">vs</div>
-                              )}
-                            </div>
-                            <div className="text-left flex-1 min-w-0">
-                              <span className="font-medium break-words">{match.awayTeam}</span>
-                            </div>
-                          </div>
-                          <div className="text-right ml-4">
-                            <div className="text-sm text-slate-400">{match.date} {match.time}</div>
-                            <div className={`inline-block px-2 py-1 rounded text-xs font-semibold ${getStatusColor(match.status)}`}>
-                              {getStatusText(match.status)}
-                            </div>
-                            {match.group && (
-                              <div className="text-xs text-slate-500 mt-1">
-                                {match.group.startsWith('Gruppe')
-                                  ? (isEnglish ? match.group.replace('Gruppe', 'Group') : match.group)
-                                  : `${t('Gruppe', 'Group')} ${match.group}`}
-                              </div>
-                            )}
-                            {match.round && match.round !== 'Gruppespill' && (
-                              <div className="text-xs text-slate-500 mt-1">{translateRoundName(match.round)}</div>
-                            )}
-                            {match.round === 'Gruppespill' && match.group && (
-                              <div className="text-xs text-slate-500 mt-1">
-                                {t('Runde', 'Round')}{' '}
-                                {match.groupRound || groupRoundMaps[match.group]?.[buildKey(match.homeTeam, match.awayTeam)] || '?'}
-                              </div>
-                            )}
-                          </div>
+                    {matchListSections.map(section => (
+                      <div key={section.key}>
+                        <h3 className="text-sm font-semibold text-slate-300 mb-1.5 px-1">{section.title}</h3>
+                        <div className="divide-y divide-slate-700/50 rounded border border-slate-700/40 overflow-hidden">
+                          {section.matches.map(match => renderMatchRow(match, getMatchScheduleMeta(match)))}
                         </div>
                       </div>
                     ))}
@@ -702,6 +704,10 @@ export default function TournamentDetailPage() {
             )}
 
              {activeTab === 'bracket' && (() => {
+               const desc = isEnglish && tournament.description_en ? tournament.description_en : tournament.description
+               const formatText = getFormatFromDescription(desc)
+               const bracketPreview = buildKnockoutBracketPreview(groupStandings, formatText, isEnglish)
+
                // Filter knockout matches (not group stage)
                const knockoutMatches = matches.filter((m: any) => m.round && m.round !== 'Gruppespill')
                
@@ -718,8 +724,15 @@ export default function TournamentDetailPage() {
                const allGroupMatchesCompleted = groupMatches.length > 0 && 
                  groupMatches.every((m: any) => m.status === 'completed')
                const shouldShowKnockout = groupMatches.length === 0 || allGroupMatchesCompleted
+
+               if (knockoutMatches.length === 0 && bracketPreview && groupMatches.length > 0) {
+                 return renderBracketPreview(bracketPreview, !allGroupMatchesCompleted)
+               }
                
                if (!shouldShowKnockout && groupMatches.length > 0) {
+                 if (bracketPreview) {
+                   return renderBracketPreview(bracketPreview, true)
+                 }
                  return (
                    <div className="text-center py-12">
                      <div className="text-slate-400 mb-4">
