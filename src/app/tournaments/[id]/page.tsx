@@ -7,6 +7,7 @@ import { Trophy, Users, Calendar, Clock, CheckCircle, XCircle, ExternalLink, Plu
 import { fetchTournamentById } from '../../../lib/tournaments'
 import { useLanguage } from '@/components/LanguageProvider'
 import Header from '@/components/Header'
+import GroupStandingsTable from '@/components/GroupStandingsTable'
 
 interface Team {
   id: string
@@ -529,62 +530,19 @@ export default function TournamentDetailPage() {
                     {Object.entries(groupStandings).map(([groupName, standings]) => (
                       <div key={groupName} className="pro11-card p-4">
                         <h3 className="font-semibold mb-3 text-lg">{groupName}</h3>
-                        <div className="standings-mobile space-y-2">
-                          {standings.map((team, index) => (
-                            <div
-                              key={team.id}
-                              className={`standings-card rounded-lg border border-slate-700/60 px-3 py-2 ${
-                                index < 2 ? 'bg-green-900/20' : 'bg-slate-800/40'
-                              }`}
-                            >
-                              <div className="flex items-center justify-between">
-                                <div className="text-sm font-semibold">{index + 1}</div>
-                                <div className="flex-1 px-3 text-sm font-medium break-words">{team.name}</div>
-                                <div className="text-sm font-bold text-blue-400">{team.points} {t('p', 'pts')}</div>
-                              </div>
-                              <div className="mt-1 text-xs text-slate-400">
-                                {t('K', 'P')}: {team.played} · {t('V', 'W')}: {team.won} · {t('U', 'D')}: {team.drawn} · {t('T', 'L')}: {team.lost}
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                        <div className="standings-desktop overflow-x-auto">
-                          <table className="w-full">
-                            <thead>
-                              <tr className="border-b border-slate-700">
-                                <th className="py-2 px-3 text-left text-sm">{t('Pos', 'Pos')}</th>
-                                <th className="py-2 px-3 text-left text-sm">{t('Lag', 'Team')}</th>
-                                <th className="py-2 px-3 text-center text-sm">{t('K', 'P')}</th>
-                                <th className="py-2 px-3 text-center text-sm">{t('V', 'W')}</th>
-                                <th className="py-2 px-3 text-center text-sm">{t('U', 'D')}</th>
-                                <th className="py-2 px-3 text-center text-sm">{t('T', 'L')}</th>
-                                <th className="py-2 px-3 text-center text-sm">{t('M+', 'GF')}</th>
-                                <th className="py-2 px-3 text-center text-sm">{t('M-', 'GA')}</th>
-                                <th className="py-2 px-3 text-center text-sm font-semibold">{t('P', 'Pts')}</th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {standings.map((team, index) => (
-                                <tr 
-                                  key={team.id} 
-                                  className={`border-b border-slate-700 ${
-                                    index < 2 ? 'bg-green-900/20' : ''
-                                  }`}
-                                >
-                                  <td className="py-2 px-3 text-sm font-semibold">{index + 1}</td>
-                                  <td className="py-2 px-3 text-sm font-medium">{team.name}</td>
-                                  <td className="py-2 px-3 text-center text-sm">{team.played}</td>
-                                  <td className="py-2 px-3 text-center text-sm text-green-400">{team.won}</td>
-                                  <td className="py-2 px-3 text-center text-sm text-yellow-400">{team.drawn}</td>
-                                  <td className="py-2 px-3 text-center text-sm text-red-400">{team.lost}</td>
-                                  <td className="py-2 px-3 text-center text-sm">{team.goalsFor}</td>
-                                  <td className="py-2 px-3 text-center text-sm">{team.goalsAgainst}</td>
-                                  <td className="py-2 px-3 text-center text-sm font-semibold text-blue-400">{team.points}</td>
-                                </tr>
-                              ))}
-                            </tbody>
-                          </table>
-                        </div>
+                        <GroupStandingsTable
+                          rows={standings.map(team => ({
+                            team: team.name,
+                            played: team.played,
+                            wins: team.won,
+                            draws: team.drawn,
+                            losses: team.lost,
+                            goalsFor: team.goalsFor,
+                            goalsAgainst: team.goalsAgainst,
+                            points: team.points
+                          }))}
+                          isEnglish={isEnglish}
+                        />
                       </div>
                     ))}
                   </div>

@@ -200,6 +200,12 @@ nav a:hover {
   border-color: rgba(100, 116, 139, 0.7);
 }
 
+/* VG Live-style standings table */
+.vglive-standings th,
+.vglive-standings td {
+  vertical-align: middle;
+}
+
 /* Table styles */
 table {
   width: 100%;
