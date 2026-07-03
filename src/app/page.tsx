@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react'
 import Link from 'next/link'
-import { Trophy, Users, Calendar, ExternalLink, Info } from 'lucide-react'
+import { Trophy, Users, Calendar, ExternalLink, Info, Banknote } from 'lucide-react'
 import { fetchTournaments } from '../lib/tournaments'
 import Header from '@/components/Header'
 import { useLanguage } from '@/components/LanguageProvider'
@@ -26,6 +26,7 @@ export default function HomePage() {
   const [nextTournament, setNextTournament] = useState<any>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [showCardDescription, setShowCardDescription] = useState(false)
+  const [showAboutMore, setShowAboutMore] = useState(false)
   const { language } = useLanguage()
   const isEnglish = language === 'en'
 
@@ -66,28 +67,90 @@ export default function HomePage() {
 
   const genLabel = nextTournament ? getGenLabel(nextTournament) : null
 
+  const getStatusLabel = (status: string) => {
+    if (status === 'ongoing') return 'LIVE'
+    if (status === 'open') return isEnglish ? 'Open for registration' : 'Åpen for påmelding'
+    if (status === 'closed') return isEnglish ? 'Closed' : 'Stengt'
+    if (status === 'completed') return isEnglish ? 'Completed' : 'Fullført'
+    return status
+  }
+
+  const getStatusBadgeClass = (status: string) => {
+    if (status === 'ongoing') return 'bg-red-600'
+    if (status === 'open') return 'bg-green-600'
+    if (status === 'closed') return 'bg-yellow-600'
+    return 'bg-slate-600'
+  }
+
+  const formatEntryFee = (fee: number) => {
+    if (!fee || fee <= 0) return isEnglish ? 'Free' : 'Gratis'
+    return `${fee} NOK`
+  }
+
+  const aboutIntro = isEnglish
+    ? [
+        'PRO11 came about because many Pro Clubs tournaments lived and died in a single evening.',
+        'We run tournaments, store the results, and let teams build a history that continues — developed and run from Norway.'
+      ]
+    : [
+        'PRO11 ble til fordi mange Pro Clubs-turneringer levde og døde samme kveld.',
+        'Vi arrangerer turneringer, lagrer resultatene og lar lag bygge en historie som fortsetter — utviklet og drevet fra Norge.'
+      ]
+
+  const aboutMore = isEnglish
+    ? [
+        'There was a time when the tournament scene was larger and more united, and when teams met again and again over time. Today there are still many tournaments, but most stand alone — small one-off events with no history or continuity.',
+        'PRO11 is an attempt to build something more lasting. Not just to run tournaments, but to connect them, store the results, and let teams build a history that continues.',
+        'The aim is not only to fill a gap, but to take tournaments a step further.'
+      ]
+    : [
+        'Det fantes en tid hvor turneringsmiljøet var større og mer samlet, og hvor lag møttes igjen og igjen over tid. I dag finnes det fortsatt mange turneringer, men de fleste står alene — små arrangementer uten historikk eller videre utvikling.',
+        'PRO11 er et forsøk på å bygge noe mer varig. Ikke bare arrangere turneringer, men knytte dem sammen, lagre resultatene og la lag bygge en historie som fortsetter videre.',
+        'Målet er ikke bare å fylle et tomrom, men å ta turneringene et steg videre.'
+      ]
+
+  const TournamentCardSkeleton = () => (
+    <div className="pro11-card p-6 sm:p-8 mb-12 mt-2 w-full max-w-4xl overflow-hidden animate-pulse">
+      <div className="flex flex-col md:flex-row items-center justify-center gap-8">
+        <div className="w-full max-w-md space-y-4">
+          <div className="h-5 w-32 bg-slate-700/80 rounded mx-auto" />
+          <div className="h-8 w-3/4 bg-slate-700/80 rounded mx-auto" />
+          <div className="space-y-3">
+            <div className="h-4 w-56 bg-slate-700/60 rounded mx-auto" />
+            <div className="h-4 w-48 bg-slate-700/60 rounded mx-auto" />
+            <div className="h-4 w-40 bg-slate-700/60 rounded mx-auto" />
+            <div className="h-4 w-36 bg-slate-700/60 rounded mx-auto" />
+          </div>
+          <div className="h-9 w-28 bg-slate-700/80 rounded-full mx-auto" />
+        </div>
+        <div className="w-full max-w-xs space-y-3">
+          <div className="h-12 w-full bg-slate-700/80 rounded" />
+          <div className="h-11 w-full bg-slate-700/60 rounded" />
+        </div>
+      </div>
+    </div>
+  )
+
   return (
     <div className="min-h-screen">
       <Header />
 
       {/* Hero Section */}
-      <main className="container mx-auto px-4 py-12 flex flex-col items-center w-full max-w-full overflow-x-hidden">
+      <main className="container mx-auto px-4 pt-16 sm:pt-20 pb-12 flex flex-col items-center w-full max-w-full overflow-x-hidden">
 
         {/* Next Tournament Card or No Tournaments Message */}
         {isLoading ? (
-          <div className="pro11-card p-8 mb-12 w-full max-w-4xl text-center">
-            <div className="flex items-center justify-center">
-              <div className="w-8 h-8 border-2 border-blue-400 border-t-transparent rounded-full animate-spin"></div>
-            </div>
-          </div>
+          <TournamentCardSkeleton />
         ) : nextTournament ? (
-          <div className="pro11-card p-6 sm:p-8 mb-12 w-full max-w-4xl text-center overflow-hidden">
+          <div className="pro11-card p-6 sm:p-8 mb-12 mt-2 w-full max-w-4xl text-center overflow-hidden">
             <div className="flex flex-col md:flex-row items-center justify-center gap-8">
               <div className="text-center min-w-0 w-full max-w-full">
                 <div className="flex items-center justify-center space-x-2 mb-4">
                   <Trophy className="w-6 h-6 text-yellow-400" />
                   <span className="text-yellow-400 font-semibold">
-                    {isEnglish ? 'Upcoming' : 'Kommende'}
+                    {nextTournament.status === 'ongoing'
+                      ? (isEnglish ? 'Live now' : 'Pågående')
+                      : (isEnglish ? 'Upcoming' : 'Kommende')}
                   </span>
                 </div>
                 {genLabel && (
@@ -121,14 +184,19 @@ export default function HomePage() {
                       {isEnglish ? 'teams registered' : 'lag påmeldt'}
                     </span>
                   </div>
+                  <div className="flex items-center justify-center gap-3 flex-wrap">
+                    <Banknote className="w-5 h-5 text-blue-300 shrink-0" />
+                    <span className="break-words">
+                      {isEnglish ? 'Entry fee' : 'Påmeldingsavgift'}:{' '}
+                      {formatEntryFee(nextTournament.entryFee ?? 0)}
+                    </span>
+                  </div>
                 </div>
                 <div className="mt-6 text-center">
                   <span
-                    className={`inline-block text-white px-6 py-2 rounded-full text-sm font-semibold ${
-                      nextTournament.status === 'ongoing' ? 'bg-red-600' : 'bg-green-600'
-                    }`}
+                    className={`inline-block text-white px-6 py-2 rounded-full text-sm font-semibold ${getStatusBadgeClass(nextTournament.status)}`}
                   >
-                    {nextTournament.status === 'ongoing' ? 'LIVE' : nextTournament.status}
+                    {getStatusLabel(nextTournament.status)}
                   </span>
                 </div>
                 {(() => {
@@ -157,19 +225,20 @@ export default function HomePage() {
                 })()}
               </div>
               <div className="text-center flex flex-col items-center gap-4 w-full max-w-full min-w-0">
-                {nextTournament.status === 'ongoing' || nextTournament.isDemo ? (
-                  nextTournament.isDemo ? (
-                    <Link
-                      href={`/tournaments/${nextTournament.id}`}
-                      className="pro11-button text-lg px-6 sm:px-8 py-4 w-full sm:w-auto max-w-full"
-                    >
-                      {isEnglish ? 'View demo tournament' : 'Se demo-turnering'}
-                    </Link>
-                  ) : (
-                    <button disabled className="pro11-button-secondary text-lg px-6 sm:px-8 py-4 w-full sm:w-auto max-w-full">
-                      {isEnglish ? 'Registration closed' : 'Påmelding stengt'}
-                    </button>
-                  )
+                {nextTournament.status === 'ongoing' ? (
+                  <Link
+                    href={`/tournaments/${nextTournament.id}`}
+                    className="pro11-button text-lg px-6 sm:px-8 py-4 w-full sm:w-auto max-w-full"
+                  >
+                    {isEnglish ? 'View tournament' : 'Se turnering'}
+                  </Link>
+                ) : nextTournament.isDemo ? (
+                  <Link
+                    href={`/tournaments/${nextTournament.id}`}
+                    className="pro11-button text-lg px-6 sm:px-8 py-4 w-full sm:w-auto max-w-full"
+                  >
+                    {isEnglish ? 'View demo tournament' : 'Se demo-turnering'}
+                  </Link>
                 ) : (
                   <Link href="/register" className="pro11-button text-lg px-6 sm:px-8 py-4 w-full sm:w-auto max-w-full">
                     {isEnglish ? 'Register team' : 'Meld på lag'}
@@ -188,7 +257,7 @@ export default function HomePage() {
             </div>
           </div>
         ) : (
-          <div className="pro11-card p-8 mb-12 w-full max-w-4xl text-center">
+          <div className="pro11-card p-8 mb-12 mt-2 w-full max-w-4xl text-center">
             <div className="flex flex-col items-center justify-center gap-6">
               <Trophy className="w-16 h-16 text-slate-400" />
               <h3 className="text-2xl font-bold text-white mb-2">
@@ -223,31 +292,30 @@ export default function HomePage() {
             {isEnglish ? 'About PRO11' : 'Om PRO11'}
           </h3>
           <div className="w-full max-w-2xl mx-auto text-center">
-            <p className="text-slate-300 leading-relaxed mb-4">
-              {isEnglish
-                ? 'PRO11 came about because many Pro Clubs tournaments lived and died in a single evening.'
-                : 'PRO11 ble til fordi mange Pro Clubs-turneringer levde og døde samme kveld.'}
-            </p>
-            <p className="text-slate-300 leading-relaxed mb-4">
-              {isEnglish
-                ? 'There was a time when the tournament scene was larger and more united, and when teams met again and again over time. Today there are still many tournaments, but most stand alone — small one-off events with no history or continuity.'
-                : 'Det fantes en tid hvor turneringsmiljøet var større og mer samlet, og hvor lag møttes igjen og igjen over tid. I dag finnes det fortsatt mange turneringer, men de fleste står alene — små arrangementer uten historikk eller videre utvikling.'}
-            </p>
-            <p className="text-slate-300 leading-relaxed mb-4">
-              {isEnglish
-                ? 'PRO11 is an attempt to build something more lasting. Not just to run tournaments, but to connect them, store the results, and let teams build a history that continues.'
-                : 'PRO11 er et forsøk på å bygge noe mer varig. Ikke bare arrangere turneringer, men knytte dem sammen, lagre resultatene og la lag bygge en historie som fortsetter videre.'}
-            </p>
-            <p className="text-slate-300 leading-relaxed mb-4">
-              {isEnglish
-                ? 'The aim is not only to fill a gap, but to take tournaments a step further.'
-                : 'Målet er ikke bare å fylle et tomrom, men å ta turneringene et steg videre.'}
-            </p>
-            <p className="text-slate-300 leading-relaxed">
-              {isEnglish
-                ? 'Developed and run from Norway.'
-                : 'Utviklet og drevet fra Norge.'}
-            </p>
+            {aboutIntro.map((paragraph, index) => (
+              <p key={index} className="text-slate-300 leading-relaxed mb-4">
+                {paragraph}
+              </p>
+            ))}
+            <button
+              type="button"
+              onClick={() => setShowAboutMore(prev => !prev)}
+              className="inline-flex items-center gap-2 text-slate-300 hover:text-white text-sm font-medium transition-colors"
+            >
+              <Info className="w-4 h-4" />
+              {showAboutMore
+                ? (isEnglish ? 'Show less' : 'Vis mindre')
+                : (isEnglish ? 'Read more' : 'Les mer')}
+            </button>
+            {showAboutMore && (
+              <div className="mt-4 space-y-4 text-left">
+                {aboutMore.map((paragraph, index) => (
+                  <p key={index} className="text-slate-300 leading-relaxed">
+                    {paragraph}
+                  </p>
+                ))}
+              </div>
+            )}
           </div>
         </div>
 
