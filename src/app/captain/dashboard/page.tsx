@@ -609,6 +609,7 @@ export default function CaptainDashboardPage() {
 
   const calculateGroupStandings = (matches: Match[]): Record<string, GroupStandingRow[]> => {
     const standings: Record<string, Record<string, GroupStandingRow>> = {}
+    const defaultGroup = 'Gruppe'
 
     const getHeadToHeadComparison = (teamA: string, teamB: string, groupMatches: Match[]) => {
       let aPoints = 0
@@ -665,8 +666,8 @@ export default function CaptainDashboardPage() {
     }
 
     matches.forEach(match => {
-      if (match.round !== 'Gruppespill' || !match.group) return
-      const group = match.group
+      if (match.round !== 'Gruppespill') return
+      const group = match.group?.trim() || defaultGroup
       if (!standings[group]) standings[group] = {}
 
       const ensureTeam = (name: string) => {
@@ -719,7 +720,9 @@ export default function CaptainDashboardPage() {
 
     return Object.fromEntries(
       Object.entries(standings).map(([group, rows]) => {
-        const groupMatches = matches.filter(match => match.round === 'Gruppespill' && match.group === group)
+        const groupMatches = matches.filter(
+          match => match.round === 'Gruppespill' && (match.group?.trim() || defaultGroup) === group
+        )
         const sorted = Object.values(rows).sort((a, b) => {
           if (b.points !== a.points) return b.points - a.points
           const diffA = a.goalsFor - a.goalsAgainst
@@ -1896,13 +1899,19 @@ export default function CaptainDashboardPage() {
               ? tournament.matches 
               : tournament.matches.filter(m => m.round === 'Gruppespill')
 
-            const groupedMatches = (tournament.allMatches || tournament.matches).filter(m => m.round === 'Gruppespill' && m.group)
+            const standingsSource = (tournament.allMatches && tournament.allMatches.length > 0)
+              ? tournament.allMatches
+              : tournament.matches
+            const groupedMatches = standingsSource.filter(m => m.round === 'Gruppespill')
             const standingsByGroup = calculateGroupStandings(groupedMatches)
-            const teamGroup = groupedMatches.find(m => m.team1 === team.teamName || m.team2 === team.teamName)?.group
-            const activeGroup = teamGroup && standingsByGroup[teamGroup]
-              ? teamGroup
-              : Object.keys(standingsByGroup)[0]
-            const activeStandings = activeGroup ? standingsByGroup[activeGroup] : []
+            const teamGroup = groupedMatches.find(
+              m => m.team1 === team.teamName || m.team2 === team.teamName
+            )?.group?.trim() || 'Gruppe'
+            const activeGroup =
+              standingsByGroup[teamGroup]?.length
+                ? teamGroup
+                : Object.keys(standingsByGroup).sort()[0]
+            const activeStandings = activeGroup ? (standingsByGroup[activeGroup] || []) : []
             
             const groupRoundMap = buildGroupRoundMap(groupMatches)
             const buildKey = (teamA: string, teamB: string) => [teamA, teamB].sort().join('|')
@@ -2079,14 +2088,23 @@ export default function CaptainDashboardPage() {
                     </div>
                   ))}
                 </div>
-                {activeStandings.length > 0 && (
-                  <div className="pro11-card p-4 md:col-span-2">
+                {groupedMatches.length > 0 && (
+                  <div className="w-full rounded-lg border border-slate-700/60 bg-slate-800/40 p-4">
                     <h3 className="text-sm font-semibold text-slate-300 mb-3">
                       {t('Tabell', 'Standings')}{' '}
                       {activeGroup ? `• ${isEnglish ? activeGroup.replace('Gruppe', 'Group') : activeGroup}` : ''}
                     </h3>
 
-                    <div className="standings-mobile space-y-2">
+                    {activeStandings.length === 0 ? (
+                      <p className="text-sm text-slate-400">
+                        {t(
+                          'Tabellen oppdateres når gruppespillkamper er fullført.',
+                          'Standings update when group stage matches are completed.'
+                        )}
+                      </p>
+                    ) : (
+                      <>
+                    <div className="space-y-2 sm:hidden">
                       {activeStandings.map((row, index) => {
                         const goalDiff = row.goalsFor - row.goalsAgainst
                         const isOwnTeam = row.team === team.teamName
@@ -2136,7 +2154,7 @@ export default function CaptainDashboardPage() {
                       })}
                     </div>
 
-                    <div className="standings-desktop overflow-x-auto">
+                    <div className="hidden sm:block overflow-x-auto -mx-1 px-1">
                       <table className="w-full text-sm min-w-[32rem]">
                         <thead>
                           <tr className="text-slate-500 border-b border-slate-700">
@@ -2185,6 +2203,8 @@ export default function CaptainDashboardPage() {
                         </tbody>
                       </table>
                     </div>
+                      </>
+                    )}
                   </div>
                 )}
                 </div>
