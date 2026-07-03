@@ -57,18 +57,18 @@ interface AdminMatchCardProps {
   getStatusLabel: (status: string, match: AdminMatchCardMatch) => string
 }
 
-function ProofLinks({ match, isEnglish }: { match: AdminMatchCardMatch; isEnglish: boolean }) {
+function ProofLinks({ match }: { match: AdminMatchCardMatch }) {
   if (!match.team1_proof_url && !match.team2_proof_url) return null
   return (
-    <div className="flex flex-wrap gap-2 mt-2">
+    <>
       {match.team1_proof_url && (
         <a
           href={match.team1_proof_url}
           target="_blank"
           rel="noopener noreferrer"
-          className="text-xs text-blue-400 hover:text-blue-300 underline"
+          className="text-blue-400 hover:text-blue-300 underline"
         >
-          📷 {match.team1_name}
+          📷1
         </a>
       )}
       {match.team2_proof_url && (
@@ -76,12 +76,12 @@ function ProofLinks({ match, isEnglish }: { match: AdminMatchCardMatch; isEnglis
           href={match.team2_proof_url}
           target="_blank"
           rel="noopener noreferrer"
-          className="text-xs text-blue-400 hover:text-blue-300 underline"
+          className="text-blue-400 hover:text-blue-300 underline"
         >
-          📷 {match.team2_name}
+          📷2
         </a>
       )}
-    </div>
+    </>
   )
 }
 
@@ -106,8 +106,8 @@ export default function AdminMatchCard({
   const t = (noText: string, enText: string) => (isEnglish ? enText : noText)
   const showFinalScore = match.status === 'completed' && match.score1 !== undefined && match.score2 !== undefined
   const hasSubmittedScores =
-    match.team1_submitted_score1 !== null && match.team1_submitted_score1 !== undefined ||
-    match.team2_submitted_score1 !== null && match.team2_submitted_score1 !== undefined
+    (match.team1_submitted_score1 !== null && match.team1_submitted_score1 !== undefined) ||
+    (match.team2_submitted_score1 !== null && match.team2_submitted_score1 !== undefined)
   const submittedMismatch =
     match.team1_submitted_score1 !== null &&
     match.team1_submitted_score1 !== undefined &&
@@ -115,187 +115,205 @@ export default function AdminMatchCard({
     match.team2_submitted_score1 !== undefined &&
     (match.team1_submitted_score1 !== match.team2_submitted_score2 ||
       match.team1_submitted_score2 !== match.team2_submitted_score1)
+  const showSubmissionLine =
+    hasSubmittedScores &&
+    !isEditing &&
+    (submittedMismatch || match.status === 'pending_confirmation' || match.status === 'pending_result')
+
+  const score1 = showFinalScore ? match.score1 : null
+  const score2 = showFinalScore ? match.score2 : null
 
   return (
     <div
-      className={`rounded-lg border p-3 sm:p-4 transition-colors ${
+      className={
         submittedMismatch
-          ? 'border-orange-500/50 bg-orange-950/20'
+          ? 'bg-orange-950/25'
           : match.status === 'live'
-            ? 'border-red-500/40 bg-red-950/15'
-            : 'border-slate-700/60 bg-slate-800/40'
-      }`}
+            ? 'bg-red-950/10'
+            : undefined
+      }
     >
-      <div className="flex items-start gap-3">
-        <input
-          type="checkbox"
-          checked={selected}
-          onChange={onToggleSelect}
-          className="h-4 w-4 mt-1 shrink-0"
-          aria-label={t('Velg kamp', 'Select match')}
-        />
-        <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
-            <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium whitespace-nowrap ${getStatusColor(match.status)}`}>
-              {getStatusLabel(match.status, match)}
-            </span>
-            {metaLine && <span className="text-xs text-slate-400 truncate">{metaLine}</span>}
+      {isEditing ? (
+        <div className="px-2 py-2 space-y-2 border-b border-slate-700/50 bg-slate-800/60">
+          <div className="flex items-center gap-2 text-xs sm:text-sm">
+            <input type="checkbox" checked={selected} onChange={onToggleSelect} className="h-3.5 w-3.5 shrink-0" />
+            <span className="font-medium truncate">{match.team1_name}</span>
+            <span className="text-slate-500">vs</span>
+            <span className="font-medium truncate">{match.team2_name}</span>
           </div>
-
-          <p className="text-sm sm:text-base font-semibold text-slate-100 leading-snug">
-            <span className="break-words">{match.team1_name}</span>
-            <span className="text-slate-500 font-normal mx-2">vs</span>
-            <span className="break-words">{match.team2_name}</span>
-          </p>
-
-          <div className="mt-2 text-2xl font-bold text-slate-50 tabular-nums">
-            {showFinalScore ? `${match.score1} – ${match.score2}` : '– : –'}
+          <div className="grid grid-cols-2 gap-2">
+            <input
+              type="number"
+              min="0"
+              value={editForm.score1 ?? ''}
+              onChange={e => setEditForm({ ...editForm, score1: parseInt(e.target.value) || 0 })}
+              className="px-2 py-1 bg-slate-700 rounded text-center text-sm"
+              placeholder={match.team1_name}
+            />
+            <input
+              type="number"
+              min="0"
+              value={editForm.score2 ?? ''}
+              onChange={e => setEditForm({ ...editForm, score2: parseInt(e.target.value) || 0 })}
+              className="px-2 py-1 bg-slate-700 rounded text-center text-sm"
+              placeholder={match.team2_name}
+            />
           </div>
-
-          {hasSubmittedScores && !isEditing && (
-            <div className={`mt-2 text-xs ${submittedMismatch ? 'text-orange-300' : 'text-slate-400'}`}>
-              {submittedMismatch && <span className="font-medium">{t('Uenighet: ', 'Conflict: ')}</span>}
-              {match.team1_name}: {match.team1_submitted_score1 ?? '–'}-{match.team1_submitted_score2 ?? '–'}
-              {' · '}
-              {match.team2_name}: {match.team2_submitted_score1 ?? '–'}-{match.team2_submitted_score2 ?? '–'}
-              <ProofLinks match={match} isEnglish={isEnglish} />
+          {hasSubmittedScores && (
+            <div className="flex flex-wrap gap-1">
+              {match.team1_submitted_score1 != null && match.team1_submitted_score2 != null && (
+                <button
+                  type="button"
+                  onClick={() =>
+                    setEditForm({
+                      ...editForm,
+                      score1: match.team1_submitted_score1!,
+                      score2: match.team1_submitted_score2!
+                    })
+                  }
+                  className="text-[10px] px-1.5 py-0.5 rounded bg-slate-600 hover:bg-slate-500"
+                >
+                  {t('Bruk', 'Use')} 1
+                </button>
+              )}
+              {match.team2_submitted_score1 != null && match.team2_submitted_score2 != null && (
+                <button
+                  type="button"
+                  onClick={() =>
+                    setEditForm({
+                      ...editForm,
+                      score1: match.team2_submitted_score2!,
+                      score2: match.team2_submitted_score1!
+                    })
+                  }
+                  className="text-[10px] px-1.5 py-0.5 rounded bg-slate-600 hover:bg-slate-500"
+                >
+                  {t('Bruk', 'Use')} 2
+                </button>
+              )}
             </div>
           )}
-
-          {isEditing ? (
-            <div className="mt-4 space-y-3 border-t border-slate-700/60 pt-3">
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="text-xs text-slate-400 block mb-1 truncate" title={match.team1_name}>
-                    {match.team1_name}
-                  </label>
-                  <input
-                    type="number"
-                    min="0"
-                    value={editForm.score1 ?? ''}
-                    onChange={e => setEditForm({ ...editForm, score1: parseInt(e.target.value) || 0 })}
-                    className="w-full px-2 py-2 bg-slate-700 rounded text-center"
-                  />
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            <input
+              type="datetime-local"
+              lang={isEnglish ? 'en' : 'no'}
+              value={editForm.scheduled_time || ''}
+              onChange={e => setEditForm({ ...editForm, scheduled_time: e.target.value })}
+              className="px-2 py-1 bg-slate-700 rounded text-xs w-full"
+            />
+            <select
+              value={editForm.status || 'scheduled'}
+              onChange={e => setEditForm({ ...editForm, status: e.target.value })}
+              className="px-2 py-1 bg-slate-700 rounded text-xs w-full"
+            >
+              <option value="scheduled">{t('Planlagt', 'Scheduled')}</option>
+              <option value="live">LIVE</option>
+              <option value="pending_confirmation">{t('Venter bekreftelse', 'Pending')}</option>
+              <option value="pending_result">{t('Venter resultat', 'Awaiting')}</option>
+              <option value="completed">{t('Ferdig', 'Finished')}</option>
+            </select>
+          </div>
+          <div className="flex flex-wrap gap-1 text-[10px]">
+            <ProofLinks match={match} />
+          </div>
+          {matchLog.length > 0 && (
+            <div className="text-[10px] text-slate-400 space-y-0.5 max-h-20 overflow-y-auto">
+              {matchLog.map((entry, i) => (
+                <div key={entry.id || i}>
+                  {entry.action === 'admin_override'
+                    ? t('Admin', 'Admin')
+                    : entry.actor_name || t('Bekreftet', 'Confirmed')}
+                  {' '}
+                  ({entry.old_score1 ?? '-'}-{entry.old_score2 ?? '-'} → {entry.new_score1 ?? '-'}
+                  {entry.new_score2 ?? '-'})
                 </div>
-                <div>
-                  <label className="text-xs text-slate-400 block mb-1 truncate" title={match.team2_name}>
-                    {match.team2_name}
-                  </label>
-                  <input
-                    type="number"
-                    min="0"
-                    value={editForm.score2 ?? ''}
-                    onChange={e => setEditForm({ ...editForm, score2: parseInt(e.target.value) || 0 })}
-                    className="w-full px-2 py-2 bg-slate-700 rounded text-center"
-                  />
-                </div>
-              </div>
-              {hasSubmittedScores && (
-                <div className="flex flex-wrap gap-2">
-                  {match.team1_submitted_score1 != null && match.team1_submitted_score2 != null && (
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setEditForm({
-                          ...editForm,
-                          score1: match.team1_submitted_score1!,
-                          score2: match.team1_submitted_score2!
-                        })
-                      }
-                      className="text-xs px-2 py-1 rounded bg-slate-600 hover:bg-slate-500"
-                    >
-                      {t('Bruk', 'Use')} {match.team1_name}
-                    </button>
-                  )}
-                  {match.team2_submitted_score1 != null && match.team2_submitted_score2 != null && (
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setEditForm({
-                          ...editForm,
-                          score1: match.team2_submitted_score2!,
-                          score2: match.team2_submitted_score1!
-                        })
-                      }
-                      className="text-xs px-2 py-1 rounded bg-slate-600 hover:bg-slate-500"
-                    >
-                      {t('Bruk', 'Use')} {match.team2_name}
-                    </button>
-                  )}
-                </div>
-              )}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <input
-                  type="datetime-local"
-                  lang={isEnglish ? 'en' : 'no'}
-                  value={editForm.scheduled_time || ''}
-                  onChange={e => setEditForm({ ...editForm, scheduled_time: e.target.value })}
-                  className="px-2 py-2 bg-slate-700 rounded text-sm w-full"
-                />
-                <select
-                  value={editForm.status || 'scheduled'}
-                  onChange={e => setEditForm({ ...editForm, status: e.target.value })}
-                  className="px-2 py-2 bg-slate-700 rounded text-sm w-full"
-                >
-                  <option value="scheduled">{t('Planlagt', 'Scheduled')}</option>
-                  <option value="live">LIVE</option>
-                  <option value="pending_confirmation">{t('Venter bekreftelse', 'Pending confirmation')}</option>
-                  <option value="pending_result">{t('Venter resultat', 'Pending result')}</option>
-                  <option value="completed">{t('Ferdig', 'Finished')}</option>
-                </select>
-              </div>
-              <ProofLinks match={match} isEnglish={isEnglish} />
-              {matchLog.length > 0 && (
-                <div className="text-xs text-slate-400 space-y-1">
-                  <span className="font-medium text-slate-300">{t('Resultatlogg', 'Result log')}</span>
-                  {matchLog.map((entry, i) => (
-                    <div key={entry.id || i}>
-                      {entry.action === 'admin_override'
-                        ? t('Admin overstyring', 'Admin override')
-                        : `${t('Bekreftet av', 'Confirmed by')} ${entry.actor_name || ''}`}
-                      {' '}
-                      ({entry.old_score1 ?? '-'}-{entry.old_score2 ?? '-'} → {entry.new_score1 ?? '-'}-
-                      {entry.new_score2 ?? '-'}) {new Date(entry.created_at).toLocaleString(locale)}
-                    </div>
-                  ))}
-                </div>
-              )}
-              <div className="flex gap-2">
-                <button onClick={onSave} className="pro11-button text-sm flex items-center gap-1 px-4 py-2">
-                  <Save className="w-4 h-4" />
-                  {t('Lagre', 'Save')}
-                </button>
-                <button onClick={onCancel} className="pro11-button-secondary text-sm flex items-center gap-1 px-4 py-2">
-                  <X className="w-4 h-4" />
-                  {t('Avbryt', 'Cancel')}
-                </button>
-              </div>
+              ))}
             </div>
-          ) : (
-            <div className="mt-3 flex flex-wrap gap-2">
+          )}
+          <div className="flex gap-1">
+            <button onClick={onSave} className="pro11-button text-xs flex items-center gap-1 px-2 py-1">
+              <Save className="w-3 h-3" />
+              {t('Lagre', 'Save')}
+            </button>
+            <button onClick={onCancel} className="pro11-button-secondary text-xs flex items-center gap-1 px-2 py-1">
+              <X className="w-3 h-3" />
+            </button>
+          </div>
+        </div>
+      ) : (
+        <>
+          <div className="flex items-center gap-1.5 sm:gap-2 px-2 py-1.5 text-xs sm:text-sm min-h-[2rem]">
+            <input
+              type="checkbox"
+              checked={selected}
+              onChange={onToggleSelect}
+              className="h-3.5 w-3.5 shrink-0"
+              aria-label={t('Velg', 'Select')}
+            />
+            <span className="w-[28%] sm:w-[22%] min-w-0 truncate text-right font-medium" title={match.team1_name}>
+              {match.team1_name}
+            </span>
+            <span className="w-5 text-center font-bold tabular-nums text-slate-200">{score1 ?? '·'}</span>
+            <span className="text-slate-600">-</span>
+            <span className="w-5 text-center font-bold tabular-nums text-slate-200">{score2 ?? '·'}</span>
+            <span className="w-[28%] sm:w-[22%] min-w-0 truncate font-medium" title={match.team2_name}>
+              {match.team2_name}
+            </span>
+            <span
+              className={`shrink-0 px-1.5 py-0.5 rounded text-[10px] font-medium whitespace-nowrap ${getStatusColor(match.status)}`}
+            >
+              {getStatusLabel(match.status, match)}
+            </span>
+            {metaLine && (
+              <span className="hidden lg:inline text-[10px] text-slate-500 truncate max-w-[7rem]" title={metaLine}>
+                {metaLine}
+              </span>
+            )}
+            <div className="ml-auto flex shrink-0 gap-0.5">
               <button
                 onClick={onStartEdit}
-                className="pro11-button-secondary text-xs flex items-center gap-1 px-3 py-1.5"
+                className="p-1 rounded hover:bg-slate-700 text-blue-400"
+                title={t('Rediger', 'Edit')}
               >
                 <Edit className="w-3.5 h-3.5" />
-                {t('Rediger', 'Edit')}
               </button>
               <button
                 onClick={() => onWalkover('team1')}
-                className="text-xs px-3 py-1.5 rounded bg-slate-700 hover:bg-slate-600"
+                className="px-1 py-0.5 rounded text-[10px] bg-slate-700/80 hover:bg-slate-600"
+                title={`WO ${match.team1_name}`}
               >
-                WO {match.team1_name.length > 12 ? '1' : match.team1_name}
+                WO1
               </button>
               <button
                 onClick={() => onWalkover('team2')}
-                className="text-xs px-3 py-1.5 rounded bg-slate-700 hover:bg-slate-600"
+                className="px-1 py-0.5 rounded text-[10px] bg-slate-700/80 hover:bg-slate-600"
+                title={`WO ${match.team2_name}`}
               >
-                WO {match.team2_name.length > 12 ? '2' : match.team2_name}
+                WO2
               </button>
             </div>
+          </div>
+          {showSubmissionLine && (
+            <div
+              className={`px-2 pb-1 pl-7 text-[10px] leading-tight truncate ${
+                submittedMismatch ? 'text-orange-300' : 'text-slate-500'
+              }`}
+            >
+              {submittedMismatch && '⚠ '}
+              {match.team1_submitted_score1 ?? '·'}-{match.team1_submitted_score2 ?? '·'} /{' '}
+              {match.team2_submitted_score1 ?? '·'}-{match.team2_submitted_score2 ?? '·'}
+              {(match.team1_proof_url || match.team2_proof_url) && (
+                <span className="ml-1">
+                  <ProofLinks match={match} />
+                </span>
+              )}
+            </div>
           )}
-        </div>
-      </div>
+          {metaLine && (
+            <div className="px-2 pb-1 pl-7 text-[10px] text-slate-500 lg:hidden truncate">{metaLine}</div>
+          )}
+        </>
+      )}
     </div>
   )
 }

@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import Link from 'next/link'
 import { useParams } from 'next/navigation'
-import { ArrowLeft, Trophy, Users, Calendar, Edit, Save, X, RefreshCw, Wrench, Radio, AlertTriangle } from 'lucide-react'
+import { ArrowLeft, Trophy, RefreshCw, Wrench, Radio } from 'lucide-react'
 import { ToastContainer } from '@/components/Toast'
 import type { ToastType } from '@/components/Toast'
 import { useLanguage } from '@/components/LanguageProvider'
@@ -129,7 +129,7 @@ export default function TournamentMatchesPage() {
   const [selectedMatchIds, setSelectedMatchIds] = useState<Set<string>>(new Set())
   const [bulkScheduledTime, setBulkScheduledTime] = useState('')
   const [isBulkSaving, setIsBulkSaving] = useState(false)
-  const [showBulkTool, setShowBulkTool] = useState(true)
+  const [showBulkTool, setShowBulkTool] = useState(false)
   const [matchFilter, setMatchFilter] = useState<'all' | 'attention' | 'live' | 'pending'>('all')
   const [matchLog, setMatchLog] = useState<Array<{ id?: string; action: string; actor_type?: string; actor_name?: string; old_score1?: number | null; old_score2?: number | null; new_score1?: number | null; new_score2?: number | null; created_at: string }>>([])
   const previousMatchesRef = useRef<Match[]>([])
@@ -1325,7 +1325,7 @@ export default function TournamentMatchesPage() {
   }
 
   const renderMatchCards = (matchList: Match[], getMetaLine?: (match: Match) => string | null) => (
-    <div className="grid gap-3">
+    <div className="divide-y divide-slate-700/50 rounded border border-slate-700/40 overflow-hidden">
       {matchList.filter(passesMatchFilter).map(match => (
         <AdminMatchCard
           key={match.id}
@@ -1394,14 +1394,12 @@ export default function TournamentMatchesPage() {
           <div className="flex flex-wrap sm:flex-nowrap items-center gap-2 shrink-0">
             <Link
               href={`/admin/live?tournament=${tournamentId}`}
-              className="pro11-button-secondary text-sm flex items-center space-x-2"
+              className="text-sm text-slate-400 hover:text-slate-200 flex items-center gap-1"
             >
-              <Radio className="w-4 h-4" />
+              <Radio className="w-3.5 h-3.5" />
               <span>{t('Live-senter', 'Live center')}</span>
               {matchStats.attention > 0 && (
-                <span className="ml-1 inline-flex items-center justify-center min-w-[1.25rem] h-5 px-1 rounded-full bg-orange-500/90 text-white text-xs font-semibold">
-                  {matchStats.attention}
-                </span>
+                <span className="text-orange-400">({matchStats.attention})</span>
               )}
             </Link>
             <button onClick={loadData} className="pro11-button-secondary text-sm flex items-center space-x-2">
@@ -1420,62 +1418,7 @@ export default function TournamentMatchesPage() {
         </div>
       </header>
 
-      <main className="container mx-auto px-4 py-6">
-        {matches.length > 0 && (
-          <>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
-              <div className="pro11-card p-3">
-                <p className="text-xs text-slate-400">{t('Fremdrift', 'Progress')}</p>
-                <p className="text-lg font-bold text-blue-400">{matchStats.progress}%</p>
-                <p className="text-xs text-slate-500">
-                  {matchStats.completed}/{matchStats.total} {t('ferdig', 'done')}
-                </p>
-              </div>
-              <div className="pro11-card p-3">
-                <p className="text-xs text-slate-400">LIVE</p>
-                <p className="text-lg font-bold text-red-400">{matchStats.live}</p>
-              </div>
-              <div className="pro11-card p-3">
-                <p className="text-xs text-slate-400">{t('Venter', 'Pending')}</p>
-                <p className="text-lg font-bold text-yellow-400">{matchStats.pending}</p>
-              </div>
-              <div className="pro11-card p-3">
-                <p className="text-xs text-slate-400 flex items-center gap-1">
-                  <AlertTriangle className="w-3 h-3" />
-                  {t('Trenger handling', 'Needs action')}
-                </p>
-                <p className="text-lg font-bold text-orange-400">{matchStats.attention}</p>
-              </div>
-            </div>
-
-            <div className="flex flex-wrap gap-2 mb-6">
-              {(
-                [
-                  { id: 'all' as const, label: t('Alle', 'All'), count: matchStats.total },
-                  { id: 'attention' as const, label: t('Trenger handling', 'Needs action'), count: matchStats.attention },
-                  { id: 'live' as const, label: 'LIVE', count: matchStats.live },
-                  { id: 'pending' as const, label: t('Venter', 'Pending'), count: matchStats.pending }
-                ] as const
-              ).map(filter => (
-                <button
-                  key={filter.id}
-                  type="button"
-                  onClick={() => setMatchFilter(filter.id)}
-                  className={`text-xs px-3 py-1.5 rounded-full border transition-colors ${
-                    matchFilter === filter.id
-                      ? 'bg-blue-600/30 border-blue-500 text-blue-200'
-                      : 'bg-slate-800/50 border-slate-600 text-slate-300 hover:border-slate-500'
-                  }`}
-                >
-                  {filter.label}
-                  {filter.count > 0 && (
-                    <span className="ml-1.5 text-slate-400">({filter.count})</span>
-                  )}
-                </button>
-              ))}
-            </div>
-          </>
-        )}
+      <main className="container mx-auto px-4 py-4">
         {(scheduleDiagnostics.missingGroupRound.length > 0 || scheduleDiagnostics.duplicates.length > 0) && (
           <div className="pro11-card p-4 mb-6 border border-orange-500/40 bg-orange-900/10">
             <h2 className="text-lg font-semibold text-orange-300 mb-2">{t('Feilsøking: kampprogram', 'Diagnostics: match schedule')}</h2>
@@ -1501,101 +1444,71 @@ export default function TournamentMatchesPage() {
             )}
           </div>
         )}
-        {/* Group Stage Standings */}
-        {Object.keys(groupStandings).length > 0 && (
-          <div className="mb-8">
-            <h2 className="text-xl font-bold mb-4 flex items-center space-x-2">
-              <Trophy className="w-5 h-5" />
-              <span>{t('Gruppespill - Tabeller', 'Group stage - Standings')}</span>
-            </h2>
-            <div className="grid md:grid-cols-2 gap-4">
-              {Object.entries(groupStandings).map(([groupName, standings]) => (
-                <div key={groupName} className="pro11-card p-4">
-                  <h3 className="font-semibold mb-3 text-lg">{groupName}</h3>
-                  <GroupStandingsTable rows={standings} isEnglish={isEnglish} />
-                </div>
-              ))}
-            </div>
+
+        {matches.length > 0 && (
+          <div className="flex flex-wrap items-center gap-2 sm:gap-3 mb-3 text-xs">
+            <h2 className="text-base font-bold text-slate-100 mr-1">{t('Kamper', 'Matches')}</h2>
+            <span className="text-slate-500">
+              {matchStats.completed}/{matchStats.total} · {matchStats.progress}%
+            </span>
+            <select
+              value={matchFilter}
+              onChange={e => setMatchFilter(e.target.value as typeof matchFilter)}
+              className="px-2 py-1 bg-slate-800 border border-slate-600 rounded text-xs text-slate-200"
+            >
+              <option value="all">{t('Alle', 'All')} ({matchStats.total})</option>
+              <option value="attention">{t('Handling', 'Action')} ({matchStats.attention})</option>
+              <option value="live">LIVE ({matchStats.live})</option>
+              <option value="pending">{t('Venter', 'Pending')} ({matchStats.pending})</option>
+            </select>
+            {!showBulkTool && (
+              <button onClick={() => setShowBulkTool(true)} className="pro11-button-secondary text-xs px-2 py-1">
+                {t('Bulk tid', 'Bulk time')}
+              </button>
+            )}
           </div>
         )}
+
         {showBulkTool && (
-          <div className="pro11-card p-4 mb-6">
-            <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-              <div className="space-y-1">
-                <h2 className="text-lg font-semibold">{t('Bulk dato/klokkeslett', 'Bulk date/time')}</h2>
-                <p className="text-sm text-slate-400">
-                  {t('Velg kamper i listene under, sett tid og oppdater flere samtidig.', 'Select matches below, set time, and update multiple at once.')}
-                </p>
-              </div>
+          <div className="pro11-card p-3 mb-4">
+            <div className="flex flex-wrap items-center gap-2">
+              <input
+                type="datetime-local"
+                lang={isEnglish ? 'en' : 'no'}
+                value={bulkScheduledTime}
+                onChange={(e) => setBulkScheduledTime(e.target.value)}
+                className="px-2 py-1 bg-slate-700 rounded text-xs"
+              />
               <button
-                onClick={() => setShowBulkTool(false)}
-                className="pro11-button-secondary text-sm"
+                onClick={applyBulkSchedule}
+                disabled={isBulkSaving}
+                className="pro11-button-secondary text-xs px-2 py-1"
               >
-                {t('Skjul', 'Hide')}
+                {isBulkSaving
+                  ? t('Oppdaterer...', 'Updating...')
+                  : t(`Oppdater (${selectedMatchIds.size})`, `Update (${selectedMatchIds.size})`)}
+              </button>
+              <button onClick={() => selectMatches(groupMatches.map(match => match.id))} className="pro11-button-secondary text-xs px-2 py-1">
+                {t('Alle grupper', 'All groups')}
+              </button>
+              <button onClick={() => selectMatches(knockoutMatches.map(match => match.id))} className="pro11-button-secondary text-xs px-2 py-1">
+                {t('Alle sluttspill', 'All KO')}
+              </button>
+              <button onClick={clearSelectedMatches} className="pro11-button-secondary text-xs px-2 py-1">
+                {t('Tøm', 'Clear')}
+              </button>
+              <button onClick={() => setShowBulkTool(false)} className="text-xs text-slate-400 hover:text-slate-200 ml-auto">
+                {t('Lukk', 'Close')}
               </button>
             </div>
-            <>
-              <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-center">
-                <input
-                  type="datetime-local"
-                  lang={isEnglish ? 'en' : 'no'}
-                  value={bulkScheduledTime}
-                  onChange={(e) => setBulkScheduledTime(e.target.value)}
-                  className="px-3 py-2 bg-slate-700 rounded text-sm"
-                />
-                <button
-                  onClick={applyBulkSchedule}
-                  disabled={isBulkSaving}
-                  className="pro11-button-secondary text-sm"
-                >
-                  {isBulkSaving
-                    ? t('Oppdaterer...', 'Updating...')
-                    : t(`Oppdater valgte (${selectedMatchIds.size})`, `Update selected (${selectedMatchIds.size})`)}
-                </button>
-              </div>
-              <div className="mt-3 flex flex-wrap gap-2">
-                <button
-                  onClick={() => selectMatches(groupMatches.map(match => match.id))}
-                  className="pro11-button-secondary text-xs"
-                >
-                  {t('Velg alle gruppespill', 'Select all group stage')}
-                </button>
-                <button
-                  onClick={() => selectMatches(knockoutMatches.map(match => match.id))}
-                  className="pro11-button-secondary text-xs"
-                >
-                  {t('Velg alle sluttspill', 'Select all knockout')}
-                </button>
-                <button
-                  onClick={clearSelectedMatches}
-                  className="pro11-button-secondary text-xs"
-                >
-                  {t('Tøm utvalg', 'Clear selection')}
-                </button>
-              </div>
-            </>
           </div>
         )}
 
         {/* Group Stage Matches */}
         {groupMatches.length > 0 && (
-          <div className="mb-8">
-            <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
-              <h2 className="text-xl font-bold flex items-center space-x-2">
-                <Users className="w-5 h-5" />
-                <span>{t('Gruppespill - Kamper', 'Group stage - Matches')}</span>
-              </h2>
-              {!showBulkTool && (
-                <button
-                  onClick={() => setShowBulkTool(true)}
-                  className="pro11-button-secondary text-xs"
-                >
-                  {t('Vis bulk', 'Show bulk')}
-                </button>
-              )}
-            </div>
-            <div className="pro11-card p-4">
-              <div className="space-y-3">
+          <div className="mb-5">
+            <div className="pro11-card p-2 sm:p-3">
+              <div className="space-y-4">
                 {Object.entries(
                   groupMatches.reduce((acc, match) => {
                     const group = match.group_name || t('Ukjent gruppe', 'Unknown group')
@@ -1619,17 +1532,17 @@ export default function TournamentMatchesPage() {
                   if (visibleMatches.length === 0) return null
 
                   return (
-                    <div key={groupName} className="mb-6">
-                      <h3 className="font-semibold mb-3 text-lg">{groupName}</h3>
+                    <div key={groupName}>
+                      <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1 px-1">
+                        {groupName}
+                      </h3>
                       {renderMatchCards(sortedGroupMatches, match => {
                         const round =
                           match.group_round || roundMap[buildKey(match.team1_name, match.team2_name)]
                         const parts = [
-                          round ? `${t('Runde', 'Round')} ${round}` : null,
+                          round ? `R${round}` : null,
                           match.scheduled_time
-                            ? new Date(match.scheduled_time).toLocaleString(locale, {
-                                day: 'numeric',
-                                month: 'short',
+                            ? new Date(match.scheduled_time).toLocaleTimeString(locale, {
                                 hour: '2-digit',
                                 minute: '2-digit'
                               })
@@ -1647,36 +1560,22 @@ export default function TournamentMatchesPage() {
 
             {/* Knockout Stage Matches */}
             {knockoutMatches.length > 0 && (
-              <div className="mb-8">
-                <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
-                  <h2 className="text-xl font-bold flex items-center space-x-2">
-                    <Trophy className="w-5 h-5" />
-                    <span>{t('Sluttspill - Kamper', 'Knockout - Matches')}</span>
-                  </h2>
-                  {!showBulkTool && (
-                    <button
-                      onClick={() => setShowBulkTool(true)}
-                      className="pro11-button-secondary text-xs"
-                    >
-                      {t('Vis bulk', 'Show bulk')}
-                    </button>
-                  )}
-                </div>
+              <div className="mb-5">
                 {!shouldShowKnockout && groupMatches.length > 0 ? (
-                  <div className="pro11-card p-4 mb-4 bg-yellow-900/20 border border-yellow-600/30">
+                  <div className="pro11-card p-3 mb-3 bg-yellow-900/20 border border-yellow-600/30 text-sm">
                     <p className="text-yellow-400">
-                      {t(
-                        '⚠️ Sluttspill vil bli vist når alle gruppespillkamper er ferdig.',
-                        '⚠️ Knockout matches will be shown when all group stage matches are completed.'
-                      )}
+                      {t('Sluttspill vises når gruppespill er ferdig.', 'Knockout shows when groups are done.')}
                     </p>
-                    <p className="text-slate-400 text-sm mt-2">
-                      {t('Ferdig', 'Completed')}: {groupMatches.filter(m => m.status === 'completed').length} / {groupMatches.length} {t('kamper', 'matches')}
+                    <p className="text-slate-400 text-xs mt-1">
+                      {groupMatches.filter(m => m.status === 'completed').length}/{groupMatches.length}
                     </p>
                   </div>
                 ) : shouldShowKnockout ? (
-            <div className="pro11-card p-4">
-              <div className="space-y-3">
+            <div className="pro11-card p-2 sm:p-3">
+              <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-2 px-1">
+                {t('Sluttspill', 'Knockout')}
+              </h3>
+              <div className="space-y-4">
                 {Object.entries(
                   knockoutMatches.reduce((acc, match) => {
                     const round = match.round || t('Ukjent runde', 'Unknown round')
@@ -1689,13 +1588,11 @@ export default function TournamentMatchesPage() {
                   if (visibleMatches.length === 0) return null
 
                   return (
-                    <div key={roundName} className="mb-6">
-                      <h3 className="font-semibold mb-3 text-lg">{roundName}</h3>
+                    <div key={roundName}>
+                      <h3 className="text-xs font-semibold text-slate-400 mb-1 px-1">{roundName}</h3>
                       {renderMatchCards(roundMatches, match =>
                         match.scheduled_time
-                          ? new Date(match.scheduled_time).toLocaleString(locale, {
-                              day: 'numeric',
-                              month: 'short',
+                          ? new Date(match.scheduled_time).toLocaleTimeString(locale, {
                               hour: '2-digit',
                               minute: '2-digit'
                             })
@@ -1709,6 +1606,23 @@ export default function TournamentMatchesPage() {
                 ) : null}
               </div>
             )}
+
+        {Object.keys(groupStandings).length > 0 && (
+          <details className="mb-6 group">
+            <summary className="text-sm font-semibold text-slate-400 cursor-pointer hover:text-slate-300 mb-2 list-none flex items-center gap-1">
+              <Trophy className="w-3.5 h-3.5" />
+              {t('Gruppespill - tabeller', 'Group standings')}
+            </summary>
+            <div className="grid md:grid-cols-2 gap-3 mt-2">
+              {Object.entries(groupStandings).map(([groupName, standings]) => (
+                <div key={groupName} className="pro11-card p-3">
+                  <h3 className="text-xs font-semibold text-slate-400 mb-2">{groupName}</h3>
+                  <GroupStandingsTable rows={standings} isEnglish={isEnglish} />
+                </div>
+              ))}
+            </div>
+          </details>
+        )}
 
         {matches.length === 0 && (
           <div className="pro11-card p-8 text-center">
