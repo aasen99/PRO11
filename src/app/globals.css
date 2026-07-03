@@ -156,10 +156,6 @@ body {
   margin: 0;
 }
 
-nav a:hover {
-  color: #5393ff;
-}
-
 /* Standings responsive helpers */
 .standings-mobile {
   display: block;
