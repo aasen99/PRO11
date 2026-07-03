@@ -5,7 +5,8 @@ import { validatePassword, hashPassword, comparePassword } from '@/lib/password'
 import {
   getAdminSession,
   getCaptainSession,
-  unauthorizedResponse
+  unauthorizedResponse,
+  setCaptainSessionCookie
 } from '@/lib/session'
 import { isDemoTournament } from '@/lib/demo-tournament'
 
@@ -256,11 +257,19 @@ export async function POST(request: NextRequest) {
 
     console.log('Team registered successfully:', teamData.id)
 
-    return NextResponse.json({
+    const response = NextResponse.json({
       success: true,
       team: teamData,
       ...(returnPassword != null && returnPassword !== '' && { password: returnPassword })
     })
+
+    setCaptainSessionCookie(response, {
+      teamId: teamData.id,
+      teamName: teamData.teamName,
+      captainEmail: teamData.captainEmail
+    })
+
+    return response
 
   } catch (error: any) {
     console.error('API error:', error)

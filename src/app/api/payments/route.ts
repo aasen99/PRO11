@@ -86,6 +86,12 @@ export async function PUT(request: NextRequest) {
       if (!paymentRow || paymentRow.team_id !== captain.teamId) {
         return unauthorizedResponse()
       }
+      if (status === 'completed') {
+        return NextResponse.json(
+          { error: 'Payment must be verified through PayPal capture or complete-free endpoint' },
+          { status: 403 }
+        )
+      }
     }
 
     // Use admin client to bypass RLS

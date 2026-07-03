@@ -154,6 +154,7 @@ export default function RegisterPage() {
     try {
       const response = await fetch('/api/teams', {
         method: 'POST',
+        credentials: 'include',
         headers: {
           'Content-Type': 'application/json',
         },
@@ -225,6 +226,7 @@ export default function RegisterPage() {
     try {
       const loginRes = await fetch('/api/captain/login', {
         method: 'POST',
+        credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: loginEmail.trim(), password: loginPassword })
       })
@@ -278,6 +280,7 @@ export default function RegisterPage() {
 
       const response = await fetch('/api/teams', {
         method: 'POST',
+        credentials: 'include',
         headers: {
           'Content-Type': 'application/json',
         },
@@ -327,6 +330,7 @@ export default function RegisterPage() {
       const { registrationPayload, teamPassword } = pendingRegistration
       const response = await fetch('/api/teams', {
         method: 'POST',
+        credentials: 'include',
         headers: {
           'Content-Type': 'application/json',
         },

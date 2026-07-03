@@ -4,8 +4,8 @@ import React, { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { Shield, CreditCard, CheckCircle, ArrowLeft, Mail } from 'lucide-react'
 import { PayPalScriptProvider, PayPalButtons } from '@paypal/react-paypal-js'
-import { getTournamentById } from '../../lib/tournaments'
 import { useLanguage } from '@/components/LanguageProvider'
+import { apiFetch } from '@/lib/client-fetch'
 
 interface PaymentData {
   teamName: string
@@ -133,61 +133,40 @@ export default function PaymentPage() {
     }
   }
 
-  const handlePaymentSuccess = async (details: any) => {
+  const handlePaymentSuccess = async (orderId: string) => {
+    if (!paymentData?.teamId) return
+
     setIsProcessing(true)
-    
+
     try {
-      // Opprett betalingspost i database først
-      let paymentRecordId = null
-      if (paymentData && paymentData.teamId) {
-        const createResponse = await fetch('/api/payments', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            teamId: paymentData.teamId,
-            amount: paymentData.amount,
-            currency: 'NOK'
-          })
+      const response = await apiFetch('/api/paypal/capture', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          orderId,
+          teamId: paymentData.teamId
         })
-        
-        if (createResponse.ok) {
-          const paymentData_result = await createResponse.json()
-          paymentRecordId = paymentData_result.paymentId
-        }
+      })
+
+      const result = await response.json().catch(() => ({}))
+
+      if (!response.ok) {
+        throw new Error(result.error || (isEnglish ? 'Payment verification failed' : 'Betalingen kunne ikke verifiseres'))
       }
-      
-      // Oppdater betaling i database
-      if (paymentRecordId) {
-        const response = await fetch('/api/payments', {
-          method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            paymentId: paymentRecordId,
-            status: 'completed',
-            paypalOrderId: details.id || details.orderID
-          })
-        })
-        
-        if (!response.ok) {
-          console.warn('Payment update failed, but continuing...')
-        }
-      }
-      
-      console.log('Payment successful:', details)
+
       setPaymentComplete(true)
-      
-      // Oppdater team-status i localStorage for adminpanelet
       updateLocalTeamStatus()
-      
-      // Ikke fjern registreringsdata - brukeren kan trenge passordet
-      
     } catch (error) {
       console.error('Payment error:', error)
-      alert(isEnglish ? 'Payment failed. Please try again.' : 'Betalingen feilet. Prøv igjen.')
+      alert(
+        error instanceof Error
+          ? error.message
+          : isEnglish
+            ? 'Payment failed. Please try again.'
+            : 'Betalingen feilet. Prøv igjen.'
+      )
     } finally {
       setIsProcessing(false)
     }
@@ -201,45 +180,32 @@ export default function PaymentPage() {
 
     setIsProcessing(true)
     try {
-      let paymentRecordId = null
-      const createResponse = await fetch('/api/payments', {
+      const response = await apiFetch('/api/payments/complete-free', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          teamId: paymentData.teamId,
-          amount: paymentData.amount,
-          currency: 'NOK',
-          paymentMethod: 'free'
+          teamId: paymentData.teamId
         })
       })
 
-      if (createResponse.ok) {
-        const paymentData_result = await createResponse.json()
-        paymentRecordId = paymentData_result.paymentId
-      }
-
-      if (paymentRecordId) {
-        await fetch('/api/payments', {
-          method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            paymentId: paymentRecordId,
-            status: 'completed'
-          })
-        })
-      } else {
-        console.warn('Free registration payment record not created.')
+      const result = await response.json().catch(() => ({}))
+      if (!response.ok) {
+        throw new Error(result.error || (isEnglish ? 'Could not complete free registration' : 'Kunne ikke fullføre gratis påmelding'))
       }
 
       updateLocalTeamStatus()
       setPaymentComplete(true)
     } catch (error) {
       console.error('Free registration error:', error)
-      alert(isEnglish ? 'Could not complete free registration. Please try again.' : 'Kunne ikke fullføre gratis påmelding. Prøv igjen.')
+      alert(
+        error instanceof Error
+          ? error.message
+          : isEnglish
+            ? 'Could not complete free registration. Please try again.'
+            : 'Kunne ikke fullføre gratis påmelding. Prøv igjen.'
+      )
     } finally {
       setIsProcessing(false)
     }
@@ -480,10 +446,20 @@ export default function PaymentPage() {
             </div>
           ) : (
           <div className="pro11-card p-6 mt-8">
-            <h2 className="text-xl font-bold mb-4">{isEnglish ? 'Pay with PayPal' : 'Betaling med PayPal'}</h2>
+            <h2 className="text-xl font-bold mb-4">{isEnglish ? 'Choose payment method' : 'Velg betalingsmetode'}</h2>
             <p className="text-slate-300 mb-6 text-center">
-              {isEnglish ? 'Safe and secure payment with PayPal' : 'Trygg og sikker betaling med PayPal'}
+              {isEnglish ? 'Safe and secure payment' : 'Trygg og sikker betaling'}
             </p>
+
+            <button
+              type="button"
+              disabled
+              className="w-full py-3 px-4 rounded-lg bg-[#ff5b24]/20 text-[#ff5b24] cursor-not-allowed border border-[#ff5b24]/40 flex items-center justify-center gap-2 mb-4"
+              aria-disabled="true"
+            >
+              <span className="font-bold tracking-wide">Vipps</span>
+              <span className="text-xs opacity-80">{isEnglish ? 'Coming soon' : 'Kommer snart'}</span>
+            </button>
             
             <div className="text-center">
               {paypalLoading ? (
@@ -499,6 +475,7 @@ export default function PaymentPage() {
                   }}
                 >
                   <PayPalButtons
+                    disabled={isProcessing}
                     createOrder={(data, actions) => {
                       return actions.order.create({
                         intent: 'CAPTURE',
@@ -511,10 +488,12 @@ export default function PaymentPage() {
                         }]
                       })
                     }}
-                    onApprove={(data, actions) => {
-                      return actions.order!.capture().then((details) => {
-                        handlePaymentSuccess(details)
-                      })
+                    onApprove={(data) => {
+                      if (!data.orderID) {
+                        handlePaymentError(new Error('Missing PayPal order ID'))
+                        return Promise.resolve()
+                      }
+                      return handlePaymentSuccess(data.orderID)
                     }}
                     onError={handlePaymentError}
                     style={{
@@ -545,8 +524,8 @@ export default function PaymentPage() {
               
               <p className="text-slate-400 text-sm mt-4">
                 {isEnglish
-                  ? 'After successful payment your team will be approved for the tournament'
-                  : 'Etter fullført betaling vil laget ditt bli godkjent for turneringen'}
+                  ? 'Payment is verified on our server before your team is approved'
+                  : 'Betalingen verifiseres på serveren før laget ditt godkjennes'}
               </p>
             </div>
           </div>
