@@ -1984,6 +1984,7 @@ export default function CaptainDashboardPage() {
                     </p>
                   </div>
                 )}
+                <div className="flex flex-col-reverse md:flex-col gap-6">
                 <div className="grid gap-3 md:grid-cols-2 md:gap-4 md:items-start">
                   {sortedMatches.map(match => (
                     <div key={match.id} className="min-w-0 flex flex-col gap-3 p-4 md:p-3 bg-slate-800/50 rounded-lg">
@@ -2079,45 +2080,114 @@ export default function CaptainDashboardPage() {
                   ))}
                 </div>
                 {activeStandings.length > 0 && (
-                  <div className="pro11-card p-4">
+                  <div className="pro11-card p-4 md:col-span-2">
                     <h3 className="text-sm font-semibold text-slate-300 mb-3">
                       {t('Tabell', 'Standings')}{' '}
                       {activeGroup ? `• ${isEnglish ? activeGroup.replace('Gruppe', 'Group') : activeGroup}` : ''}
                     </h3>
-                    <div className="overflow-x-auto">
-                      <table className="w-full text-xs">
+
+                    <div className="standings-mobile space-y-2">
+                      {activeStandings.map((row, index) => {
+                        const goalDiff = row.goalsFor - row.goalsAgainst
+                        const isOwnTeam = row.team === team.teamName
+                        return (
+                          <div
+                            key={row.team}
+                            className={`standings-card rounded-lg border px-3 py-3 ${
+                              isOwnTeam
+                                ? 'border-blue-500/50 bg-blue-900/20'
+                                : index < 2
+                                  ? 'border-green-600/30 bg-green-900/15'
+                                  : 'border-slate-700/60 bg-slate-800/40'
+                            }`}
+                          >
+                            <div className="flex items-start gap-3">
+                              <span className="text-sm font-bold text-slate-400 w-5 shrink-0 pt-0.5">{index + 1}</span>
+                              <div className="min-w-0 flex-1">
+                                <div className="flex items-start justify-between gap-2">
+                                  <p className={`text-sm font-semibold leading-snug break-words ${isOwnTeam ? 'text-blue-300' : 'text-slate-100'}`}>
+                                    {row.team}
+                                    {isOwnTeam && (
+                                      <span className="ml-1.5 text-[10px] font-medium text-blue-400 uppercase tracking-wide">
+                                        {t('ditt lag', 'your team')}
+                                      </span>
+                                    )}
+                                  </p>
+                                  <span className="text-base font-bold text-blue-400 shrink-0">{row.points}</span>
+                                </div>
+                                <div className="mt-2 grid grid-cols-4 gap-x-2 gap-y-1 text-[11px] text-slate-400">
+                                  <span>{t('K', 'P')}: <span className="text-slate-200">{row.played}</span></span>
+                                  <span>{t('S', 'W')}: <span className="text-green-400">{row.wins}</span></span>
+                                  <span>{t('U', 'D')}: <span className="text-yellow-400">{row.draws}</span></span>
+                                  <span>{t('T', 'L')}: <span className="text-red-400">{row.losses}</span></span>
+                                  <span>{t('M+', 'GF')}: <span className="text-slate-200">{row.goalsFor}</span></span>
+                                  <span>{t('M-', 'GA')}: <span className="text-slate-200">{row.goalsAgainst}</span></span>
+                                  <span className="col-span-2">
+                                    {t('MF', 'GD')}:{' '}
+                                    <span className={goalDiff > 0 ? 'text-green-400' : goalDiff < 0 ? 'text-red-400' : 'text-slate-200'}>
+                                      {goalDiff > 0 ? `+${goalDiff}` : goalDiff}
+                                    </span>
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        )
+                      })}
+                    </div>
+
+                    <div className="standings-desktop overflow-x-auto">
+                      <table className="w-full text-sm min-w-[32rem]">
                         <thead>
-                          <tr className="text-slate-500">
-                            <th className="text-center py-2 w-6">#</th>
-                            <th className="text-left py-2">{t('Lag', 'Team')}</th>
-                            <th className="text-center py-2">{t('K', 'P')}</th>
-                            <th className="text-center py-2">{t('S', 'W')}</th>
-                            <th className="text-center py-2">{t('U', 'D')}</th>
-                            <th className="text-center py-2">{t('T', 'L')}</th>
-                            <th className="text-center py-2">{t('M+', 'GF')}</th>
-                            <th className="text-center py-2">{t('M-', 'GA')}</th>
-                            <th className="text-center py-2">{t('P', 'Pts')}</th>
+                          <tr className="text-slate-500 border-b border-slate-700">
+                            <th className="text-center py-2 px-2 w-8">#</th>
+                            <th className="text-left py-2 px-2 min-w-[10rem]">{t('Lag', 'Team')}</th>
+                            <th className="text-center py-2 px-2">{t('K', 'P')}</th>
+                            <th className="text-center py-2 px-2">{t('S', 'W')}</th>
+                            <th className="text-center py-2 px-2">{t('U', 'D')}</th>
+                            <th className="text-center py-2 px-2">{t('T', 'L')}</th>
+                            <th className="text-center py-2 px-2">{t('M+', 'GF')}</th>
+                            <th className="text-center py-2 px-2">{t('M-', 'GA')}</th>
+                            <th className="text-center py-2 px-2">{t('MF', 'GD')}</th>
+                            <th className="text-center py-2 px-2 font-semibold">{t('P', 'Pts')}</th>
                           </tr>
                         </thead>
                         <tbody>
-                          {activeStandings.map((row, index) => (
-                            <tr key={row.team} className="border-t border-slate-700/50">
-                              <td className="py-2 text-center text-slate-400">{index + 1}</td>
-                              <td className="py-2 text-slate-200 max-w-0 truncate" title={row.team}>{row.team}</td>
-                              <td className="py-2 text-center text-slate-300">{row.played}</td>
-                              <td className="py-2 text-center text-green-400">{row.wins}</td>
-                              <td className="py-2 text-center text-yellow-400">{row.draws}</td>
-                              <td className="py-2 text-center text-red-400">{row.losses}</td>
-                              <td className="py-2 text-center text-slate-300">{row.goalsFor}</td>
-                              <td className="py-2 text-center text-slate-300">{row.goalsAgainst}</td>
-                              <td className="py-2 text-center font-semibold text-blue-400">{row.points}</td>
-                            </tr>
-                          ))}
+                          {activeStandings.map((row, index) => {
+                            const goalDiff = row.goalsFor - row.goalsAgainst
+                            const isOwnTeam = row.team === team.teamName
+                            return (
+                              <tr
+                                key={row.team}
+                                className={`border-t border-slate-700/50 ${
+                                  isOwnTeam ? 'bg-blue-900/20' : index < 2 ? 'bg-green-900/10' : ''
+                                }`}
+                              >
+                                <td className="py-2 px-2 text-center text-slate-400">{index + 1}</td>
+                                <td className={`py-2 px-2 font-medium ${isOwnTeam ? 'text-blue-300' : 'text-slate-200'}`}>
+                                  {row.team}
+                                </td>
+                                <td className="py-2 px-2 text-center text-slate-300">{row.played}</td>
+                                <td className="py-2 px-2 text-center text-green-400">{row.wins}</td>
+                                <td className="py-2 px-2 text-center text-yellow-400">{row.draws}</td>
+                                <td className="py-2 px-2 text-center text-red-400">{row.losses}</td>
+                                <td className="py-2 px-2 text-center text-slate-300">{row.goalsFor}</td>
+                                <td className="py-2 px-2 text-center text-slate-300">{row.goalsAgainst}</td>
+                                <td className={`py-2 px-2 text-center font-medium ${
+                                  goalDiff > 0 ? 'text-green-400' : goalDiff < 0 ? 'text-red-400' : 'text-slate-300'
+                                }`}>
+                                  {goalDiff > 0 ? `+${goalDiff}` : goalDiff}
+                                </td>
+                                <td className="py-2 px-2 text-center font-semibold text-blue-400">{row.points}</td>
+                              </tr>
+                            )
+                          })}
                         </tbody>
                       </table>
                     </div>
                   </div>
                 )}
+                </div>
               </div>
             </div>
             )
