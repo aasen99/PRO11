@@ -163,10 +163,20 @@ export default function PersonvernPage() {
             <h2 className="text-xl font-semibold">{t('9. Informasjonskapsler (cookies)', '9. Cookies')}</h2>
             <p className="text-slate-300">{t('PRO11 benytter informasjonskapsler for:', 'PRO11 uses cookies for:')}</p>
             <ul className="list-disc list-inside text-slate-300 space-y-2">
-              <li>{t('Nødvendig funksjonalitet', 'Essential functionality')}</li>
-              <li>{t('Innlogging og sikkerhet', 'Login and security')}</li>
-              <li>{t('Anonym besøksstatistikk', 'Anonymous visitor statistics')}</li>
+              <li>{t('Nødvendig funksjonalitet (innlogging og sikkerhet)', 'Essential functionality (login and security)')}</li>
+              <li>
+                {t(
+                  'Analyse (kun med samtykke): Google Analytics for anonym trafikkstatistikk',
+                  'Analytics (only with consent): Google Analytics for anonymous traffic statistics'
+                )}
+              </li>
             </ul>
+            <p className="text-slate-300">
+              {t(
+                'Du kan godta eller avslå analysedata via cookie-varselet. Valget lagres i nettleseren din, og avslag registreres i våre systemer slik at vi kan følge opp andelen som ikke ønsker analyse.',
+                'You can accept or decline analytics via the cookie banner. Your choice is stored in your browser, and declines are logged in our systems so we can monitor how many users opt out.'
+              )}
+            </p>
           </section>
 
           <section className="space-y-3">

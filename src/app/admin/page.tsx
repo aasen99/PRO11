@@ -264,6 +264,20 @@ export default function AdminPage() {
   const [paymentSaving, setPaymentSaving] = useState(false)
   const [isSyncingPayPalFees, setIsSyncingPayPalFees] = useState(false)
   const [paymentSyncSummary, setPaymentSyncSummary] = useState<string | null>(null)
+  const [cookieConsentStats, setCookieConsentStats] = useState<{
+    accepted: number
+    declined: number
+    total: number
+    acceptanceRate: number
+    last30Days?: {
+      accepted: number
+      declined: number
+      total: number
+      acceptanceRate: number
+    }
+    tableMissing?: boolean
+  } | null>(null)
+  const [cookieConsentLoading, setCookieConsentLoading] = useState(false)
   const [demoDeletingId, setDemoDeletingId] = useState('')
   const [demoError, setDemoError] = useState('')
   const [demoResult, setDemoResult] = useState<{
@@ -955,6 +969,29 @@ export default function AdminPage() {
       loadPaymentRecords()
     }
   }, [isAuthenticated, activeTab, selectedTournament, paymentMethodFilter])
+
+  const loadCookieConsentStats = async () => {
+    setCookieConsentLoading(true)
+    try {
+      const response = await apiFetch('/api/admin/cookie-consent', { credentials: 'include' })
+      if (!response.ok) {
+        setCookieConsentStats(null)
+        return
+      }
+      const data = await response.json()
+      setCookieConsentStats(data)
+    } catch {
+      setCookieConsentStats(null)
+    } finally {
+      setCookieConsentLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    if (isAuthenticated && activeTab === 'statistics') {
+      loadCookieConsentStats()
+    }
+  }, [isAuthenticated, activeTab])
 
   const demoTournaments = tournaments.filter(tournament =>
     isDemoTournament({ title: tournament.title, description: tournament.description })
@@ -3322,6 +3359,72 @@ PRO11 Team`)
                         <span className="font-medium text-yellow-400">{totalTeams - paidTeams}</span>
                       </div>
                     </div>
+                  </div>
+
+                  <div className="pro11-card p-4 md:col-span-2">
+                    <div className="flex items-center justify-between gap-3 mb-3">
+                      <h4 className="font-semibold text-sm">{t('Cookie-samtykke', 'Cookie consent')}</h4>
+                      <button
+                        type="button"
+                        onClick={loadCookieConsentStats}
+                        disabled={cookieConsentLoading}
+                        className="text-xs text-blue-400 hover:text-blue-300 disabled:opacity-50"
+                      >
+                        {cookieConsentLoading ? t('Laster...', 'Loading...') : t('Oppdater', 'Refresh')}
+                      </button>
+                    </div>
+                    {cookieConsentLoading && !cookieConsentStats ? (
+                      <p className="text-sm text-slate-400">{t('Laster cookie-statistikk...', 'Loading cookie statistics...')}</p>
+                    ) : cookieConsentStats ? (
+                      <div className="grid sm:grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <p className="text-xs uppercase tracking-wide text-slate-500">{t('Totalt', 'All time')}</p>
+                          <div className="flex justify-between text-sm">
+                            <span>{t('Godtatt analyse:', 'Accepted analytics:')}</span>
+                            <span className="font-medium text-green-400">{cookieConsentStats.accepted}</span>
+                          </div>
+                          <div className="flex justify-between text-sm">
+                            <span>{t('Avslått analyse:', 'Declined analytics:')}</span>
+                            <span className="font-medium text-orange-400">{cookieConsentStats.declined}</span>
+                          </div>
+                          <div className="flex justify-between text-sm">
+                            <span>{t('Andel som godtar:', 'Acceptance rate:')}</span>
+                            <span className="font-medium">{cookieConsentStats.acceptanceRate}%</span>
+                          </div>
+                        </div>
+                        <div className="space-y-2">
+                          <p className="text-xs uppercase tracking-wide text-slate-500">{t('Siste 30 dager', 'Last 30 days')}</p>
+                          <div className="flex justify-between text-sm">
+                            <span>{t('Godtatt:', 'Accepted:')}</span>
+                            <span className="font-medium text-green-400">{cookieConsentStats.last30Days?.accepted ?? 0}</span>
+                          </div>
+                          <div className="flex justify-between text-sm">
+                            <span>{t('Avslått:', 'Declined:')}</span>
+                            <span className="font-medium text-orange-400">{cookieConsentStats.last30Days?.declined ?? 0}</span>
+                          </div>
+                          <div className="flex justify-between text-sm">
+                            <span>{t('Andel som godtar:', 'Acceptance rate:')}</span>
+                            <span className="font-medium">{cookieConsentStats.last30Days?.acceptanceRate ?? 0}%</span>
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      <p className="text-sm text-slate-400">{t('Kunne ikke hente cookie-statistikk.', 'Could not load cookie statistics.')}</p>
+                    )}
+                    {cookieConsentStats?.tableMissing && (
+                      <p className="text-xs text-yellow-400 mt-3">
+                        {t(
+                          'Kjør ADD_COOKIE_CONSENT.sql i Supabase for å aktivere logging av avslag/godkjenning.',
+                          'Run ADD_COOKIE_CONSENT.sql in Supabase to enable logging of accept/decline choices.'
+                        )}
+                      </p>
+                    )}
+                    <p className="text-xs text-slate-500 mt-3">
+                      {t(
+                        'Google Analytics lastes kun når brukeren godtar. Avslag telles her, ikke i Google.',
+                        'Google Analytics loads only when users accept. Declines are counted here, not in Google.'
+                      )}
+                    </p>
                   </div>
                 </div>
 

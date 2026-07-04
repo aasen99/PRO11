@@ -1,14 +1,16 @@
- 'use client'
- 
- import React from 'react'
+'use client'
+
+import React from 'react'
 import Link from 'next/link'
 import { useLanguage } from './LanguageProvider'
 import LanguageToggle from './LanguageToggle'
- 
- export default function Footer() {
-   const { language } = useLanguage()
-   const isEnglish = language === 'en'
- 
+import { useCookieConsent } from './CookieConsentProvider'
+
+export default function Footer() {
+  const { language } = useLanguage()
+  const { resetConsent } = useCookieConsent()
+  const isEnglish = language === 'en'
+
   return (
     <footer className="py-6 sm:py-8 px-4 text-xs text-slate-500 flex flex-col items-center justify-center w-full">
       <div className="max-w-2xl w-full mx-auto text-center">
@@ -23,6 +25,14 @@ import LanguageToggle from './LanguageToggle'
           <Link href="/personvern" className="text-white hover:text-slate-200 transition-colors whitespace-nowrap">
             {isEnglish ? 'Privacy' : 'Personvern'}
           </Link>
+          <button
+            type="button"
+            onClick={resetConsent}
+            className="text-white hover:text-slate-200 transition-colors whitespace-nowrap"
+            style={{ background: 'transparent', border: 'none', padding: 0 }}
+          >
+            {isEnglish ? 'Cookie settings' : 'Cookie-innstillinger'}
+          </button>
           <LanguageToggle />
         </div>
         <p className="px-1 text-center">{isEnglish ? '© 2026 PRO11. Part of E-spårt AS.' : '© 2026 PRO11. En del av E-spårt AS.'}</p>
@@ -34,4 +44,4 @@ import LanguageToggle from './LanguageToggle'
       </div>
     </footer>
   )
- }
+}

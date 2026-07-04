@@ -3,6 +3,7 @@ import { Inter } from 'next/font/google'
 import './globals.css'
 import { LanguageProvider } from '@/components/LanguageProvider'
 import Footer from '@/components/Footer'
+import CookieConsentProvider from '@/components/CookieConsentProvider'
 
 const inter = Inter({ subsets: ['latin'] })
 
@@ -44,12 +45,14 @@ export default function RootLayout({
     <html lang="no">
       <body className={`${inter.className} bg-slate-900 text-white min-h-screen`}>
         <LanguageProvider>
+          <CookieConsentProvider>
           <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900 flex flex-col">
             <main className="flex-1">
               {children}
             </main>
             <Footer />
           </div>
+          </CookieConsentProvider>
         </LanguageProvider>
       </body>
     </html>
