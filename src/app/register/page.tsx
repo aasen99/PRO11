@@ -200,8 +200,8 @@ export default function RegisterPage() {
         existingTeams.push(result.team)
         localStorage.setItem('adminTeams', JSON.stringify(existingTeams))
         
-        // Redirect til passord-visning siden
-        window.location.href = '/registration-success'
+        const entryFee = tournament?.entryFee ?? 0
+        window.location.href = entryFee > 0 ? '/payment' : '/registration-success'
       } else {
         const error = await response.json()
         alert(`${isEnglish ? 'Registration failed' : 'Registrering feilet'}: ${error.error || (isEnglish ? 'Unknown error' : 'Ukjent feil')}`)

@@ -25,15 +25,19 @@ export default function RegistrationSuccessPage() {
   const isEnglish = language === 'en'
 
   useEffect(() => {
-    // Hent registreringsdata fra localStorage
     const stored = localStorage.getItem('teamRegistration')
-    if (stored) {
-      const data = JSON.parse(stored)
-      setRegistrationData(data)
-    } else {
-      // Hvis ingen data, redirect til registrering
+    if (!stored) {
       window.location.href = '/register'
+      return
     }
+
+    const data = JSON.parse(stored) as RegistrationData
+    if ((data.entryFee ?? 0) > 0) {
+      window.location.href = '/payment'
+      return
+    }
+
+    setRegistrationData(data)
   }, [])
 
   const copyPassword = () => {
