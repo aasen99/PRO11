@@ -11,25 +11,35 @@ export interface MatchForWinner {
 
 export function isFinalRound(round?: string | null): boolean {
   if (!round) return false
-  const normalized = round.toLowerCase()
+  const normalized = round.trim().toLowerCase()
   if (/semi/i.test(normalized)) return false
-  return /\bfinale?\b/i.test(normalized) || normalized === 'final'
+  if (normalized === 'finale' || normalized === 'final') return true
+  if (normalized === 'sluttspill') return true
+  return /\bfinale?\b/i.test(normalized)
 }
 
-export function getTournamentWinnerFromMatches(matches: MatchForWinner[]): string | null {
-  const finals = matches.filter(match => isFinalRound(match.round) && match.status === 'completed')
-  if (finals.length === 0) return null
-
-  const final = finals[finals.length - 1]
-  const team1 = final.team1_name || final.team1
-  const team2 = final.team2_name || final.team2
-  const score1 = final.score1
-  const score2 = final.score2
+function getWinnerFromMatch(match: MatchForWinner): string | null {
+  const team1 = (match.team1_name || match.team1 || '').trim()
+  const team2 = (match.team2_name || match.team2 || '').trim()
+  const score1 = match.score1
+  const score2 = match.score2
 
   if (!team1 || !team2 || score1 == null || score2 == null) return null
   if (score1 > score2) return team1
   if (score2 > score1) return team2
   return team1
+}
+
+export function getTournamentWinnerFromMatches(matches: MatchForWinner[]): string | null {
+  const completedKnockout = matches.filter(
+    match => match.status === 'completed' && match.round && match.round !== 'Gruppespill'
+  )
+  if (completedKnockout.length === 0) return null
+
+  const finalMatches = completedKnockout.filter(match => isFinalRound(match.round))
+  const decisiveMatches = finalMatches.length > 0 ? finalMatches : completedKnockout
+  const final = decisiveMatches[decisiveMatches.length - 1]
+  return getWinnerFromMatch(final)
 }
 
 export function isTeamTournamentWinner(teamName: string, matches: MatchForWinner[]): boolean {

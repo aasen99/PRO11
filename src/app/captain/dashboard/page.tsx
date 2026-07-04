@@ -17,7 +17,11 @@ import GroupStandingsTable from '@/components/GroupStandingsTable'
 import { calculateGroupStandings, toStandingsMatchInputs } from '@/lib/group-standings'
 import { formatCaptainDiscordDisplay } from '@/lib/discord'
 import { isTeamTournamentWinner } from '@/lib/tournament-winner'
-import { getTournamentPrizeAmount, type PrizePayoutRecord } from '@/lib/prize-payout'
+import {
+  getTournamentPrizeAmount,
+  tournamentHasConfiguredPrize,
+  type PrizePayoutRecord
+} from '@/lib/prize-payout'
 import PrizePayoutForm from '@/components/captain/PrizePayoutForm'
 
 interface Team {
@@ -305,6 +309,14 @@ export default function CaptainDashboardPage() {
               let captainTeamId: string | null = null
               let captainCheckedIn = false
               let matchingTeamRecord: any = null
+              let winnerCheckMatches: {
+                team1_name?: string
+                team2_name?: string
+                round?: string | null
+                status: string
+                score1?: number | null
+                score2?: number | null
+              }[] = []
               
               if (tournamentResponse.ok) {
                 const data = await tournamentResponse.json()
@@ -322,10 +334,10 @@ export default function CaptainDashboardPage() {
                 }, {})
 
                 const matchingTeam = (teamsData.teams || []).find((team: any) => {
-                  const name = team.teamName || team.team_name
-                  const email = team.captainEmail || team.captain_email
+                  const email = String(team.captainEmail || team.captain_email || '').trim().toLowerCase()
                   const teamTournamentId = team.tournamentId || team.tournament_id
-                  return name === parsedTeam.teamName && email === parsedTeam.captainEmail && teamTournamentId === tournamentId
+                  const captainEmail = String(parsedTeam.captainEmail || '').trim().toLowerCase()
+                  return email === captainEmail && teamTournamentId === tournamentId
                 })
                 if (matchingTeam) {
                   matchingTeamRecord = matchingTeam
@@ -337,6 +349,15 @@ export default function CaptainDashboardPage() {
               if (matchesResponse.ok) {
                 const matchesData = await matchesResponse.json()
                 const rawMatches = matchesData.matches || []
+
+                winnerCheckMatches = rawMatches.map((m: any) => ({
+                  team1_name: m.team1_name,
+                  team2_name: m.team2_name,
+                  round: m.round,
+                  status: m.status,
+                  score1: m.score1,
+                  score2: m.score2
+                }))
 
                 allMatches = rawMatches.map((m: any) => ({
                   id: m.id,
@@ -446,7 +467,17 @@ export default function CaptainDashboardPage() {
                 }).filter((match: Match | null): match is Match => match !== null)
               }
               
-              return tournament ? { tournament, matches, allMatches, captainTeamId, captainCheckedIn, matchingTeam: matchingTeamRecord } : null
+              return tournament
+                ? {
+                    tournament,
+                    matches,
+                    allMatches,
+                    winnerCheckMatches,
+                    captainTeamId,
+                    captainCheckedIn,
+                    matchingTeam: matchingTeamRecord
+                  }
+                : null
             } catch (error) {
               console.error(`Error loading tournament ${tournamentId}:`, error)
               return null
@@ -479,27 +510,24 @@ export default function CaptainDashboardPage() {
                 ? t.matches || []
                 : (t.matches || []).filter((m: Match) => m.round === 'Gruppespill')
 
-              const winnerCheckMatches = allMatches.map((match: Match) => ({
-                team1_name: match.team1,
-                team2_name: match.team2,
-                round: match.round,
-                status: match.status,
-                score1: match.score1,
-                score2: match.score2
-              }))
-              const prizeAmount = getTournamentPrizeAmount({
+              const winnerCheckMatches = t.winnerCheckMatches || []
+              const prizeParams = {
                 prizePool: tournament.prize_pool,
                 entryFee: tournament.entry_fee,
                 description: tournament.description,
-                eligibleTeams: tournament.current_teams
-              })
-              const isWinner = isTeamTournamentWinner(parsedTeam.teamName, winnerCheckMatches)
+                eligibleTeams: tournament.eligible_teams,
+                currentTeams: tournament.current_teams
+              }
+              const prizeAmount = getTournamentPrizeAmount(prizeParams)
+              const teamNameForTournament =
+                t.matchingTeam?.teamName || t.matchingTeam?.team_name || parsedTeam.teamName
+              const isWinner = isTeamTournamentWinner(teamNameForTournament, winnerCheckMatches)
               const matchingTeam = t.matchingTeam
               const winnerInfo =
-                isWinner && prizeAmount > 0 && t.captainTeamId
+                isWinner && t.captainTeamId && tournamentHasConfiguredPrize(prizeParams)
                   ? {
                       teamId: t.captainTeamId,
-                      prizeAmount,
+                      prizeAmount: Math.max(prizeAmount, Number(tournament.prize_pool) || 0),
                       payout: {
                         type: matchingTeam?.prizePayoutType || matchingTeam?.prize_payout_type || null,
                         bankAccount: matchingTeam?.prizeBankAccount || matchingTeam?.prize_bank_account || null,

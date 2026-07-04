@@ -30,12 +30,25 @@ export function getTournamentPrizeAmount(params: {
   entryFee?: number | null
   description?: string | null
   eligibleTeams?: number | null
+  currentTeams?: number | null
 }): number {
   const perTeamPot = getPerTeamPotFromDescription(params.description)
+  const teamCount = Math.max(0, params.eligibleTeams ?? params.currentTeams ?? 0)
   if (perTeamPot !== null) {
-    return perTeamPot * Math.max(0, params.eligibleTeams || 0)
+    return perTeamPot * teamCount
   }
   return Math.max(0, Number(params.prizePool) || 0)
+}
+
+export function tournamentHasConfiguredPrize(params: {
+  prizePool?: number | null
+  description?: string | null
+  eligibleTeams?: number | null
+  currentTeams?: number | null
+}): boolean {
+  if (getPerTeamPotFromDescription(params.description) !== null) return true
+  if (Number(params.prizePool) > 0) return true
+  return getTournamentPrizeAmount(params) > 0
 }
 
 export function normalizeNorwegianBankAccount(value: string): string {

@@ -11,9 +11,9 @@ import {
 import { isDemoTournament } from '@/lib/demo-tournament'
 import { isTeamTournamentWinner, type MatchForWinner } from '@/lib/tournament-winner'
 import {
-  getTournamentPrizeAmount,
   normalizeIban,
   normalizeNorwegianBankAccount,
+  tournamentHasConfiguredPrize,
   type PrizePayoutInput,
   validatePrizePayoutInput
 } from '@/lib/prize-payout'
@@ -427,8 +427,7 @@ export async function PUT(request: NextRequest) {
       if (
         !admin &&
         (!captain ||
-          captain.captainEmail.toLowerCase() !== String(existingTeam.captain_email || '').toLowerCase() ||
-          captain.teamName.toLowerCase() !== String(existingTeam.team_name || '').toLowerCase())
+          captain.captainEmail.toLowerCase() !== String(existingTeam.captain_email || '').toLowerCase())
       ) {
         return unauthorizedResponse()
       }
@@ -448,6 +447,15 @@ export async function PUT(request: NextRequest) {
         return NextResponse.json({ error: 'Tournament not found' }, { status: 404 })
       }
 
+      const { data: teamsForTournament } = await supabase
+        .from('teams')
+        .select('status, payment_status')
+        .eq('tournament_id', tournamentId)
+
+      const eligibleTeams = (teamsForTournament || []).filter((team: any) =>
+        team.status === 'approved' || team.payment_status === 'completed'
+      ).length
+
       const { data: matches, error: matchesError } = await supabase
         .from('matches')
         .select('team1_name, team2_name, round, status, score1, score2')
@@ -461,14 +469,15 @@ export async function PUT(request: NextRequest) {
         return NextResponse.json({ error: 'Only the tournament winner can submit prize payout details.' }, { status: 403 })
       }
 
-      const prizeAmount = getTournamentPrizeAmount({
+      const prizeParams = {
         prizePool: tournament.prize_pool as number | null,
         entryFee: tournament.entry_fee as number | null,
         description: tournament.description as string | null,
-        eligibleTeams: tournament.current_teams as number | null
-      })
+        eligibleTeams,
+        currentTeams: tournament.current_teams as number | null
+      }
 
-      if (prizeAmount <= 0) {
+      if (!tournamentHasConfiguredPrize(prizeParams)) {
         return NextResponse.json({ error: 'This tournament has no prize payout.' }, { status: 400 })
       }
 
