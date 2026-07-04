@@ -15,6 +15,7 @@ import {
 } from '@/lib/match-submission'
 import GroupStandingsTable from '@/components/GroupStandingsTable'
 import { calculateGroupStandings, toStandingsMatchInputs } from '@/lib/group-standings'
+import { formatCaptainDiscordDisplay } from '@/lib/discord'
 
 interface Team {
   id: string
@@ -122,6 +123,8 @@ export default function CaptainDashboardPage() {
   const { language } = useLanguage()
   const isEnglish = language === 'en'
   const t = (noText: string, enText: string) => (isEnglish ? enText : noText)
+  const formatOpponentDiscord = (username: string | null | undefined) =>
+    formatCaptainDiscordDisplay(username, isEnglish)
   const locale = isEnglish ? 'en-US' : 'nb-NO'
 
   const translateRoundName = (round?: string) => {
@@ -1457,7 +1460,7 @@ export default function CaptainDashboardPage() {
                                   )}
                                 </div>
                                 <div className="text-xs text-slate-400 md:text-sm">
-                                  {nextMatch.opponentDiscordUsername || t('Motstanders discord ikke registrert', 'Opponent Discord not registered')}
+                                  {formatOpponentDiscord(nextMatch.opponentDiscordUsername)}
                                 </div>
                                 <div className="text-xs md:text-sm text-slate-300">
                                   {nextMatch.canConfirmResult &&
@@ -1870,7 +1873,7 @@ export default function CaptainDashboardPage() {
                           )}
                         </div>
                         <div className="text-xs text-slate-400 mt-1 truncate">
-                          {match.opponentDiscordUsername || t('Motstanders discord ikke registrert', 'Opponent Discord not registered')}
+                          {formatOpponentDiscord(match.opponentDiscordUsername)}
                         </div>
                         {match.resultSubmissionBlockedReason && (
                           <p className="text-xs text-amber-400/90 mt-2 line-clamp-2">

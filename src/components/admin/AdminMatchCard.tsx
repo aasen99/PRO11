@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react'
 import { Copy, Check, Edit, Save, X } from 'lucide-react'
+import { formatCaptainDiscordDisplay } from '@/lib/discord'
 
 export interface AdminMatchCardMatch {
   id: string
@@ -103,7 +104,9 @@ function TeamNameWithDiscord({
             </p>
             {discord ? (
               <div className="flex items-center justify-between gap-2">
-                <span className="text-sm font-medium text-[#949cf0] truncate">@{discord}</span>
+                <span className="text-sm font-medium text-[#949cf0] truncate">
+                  {formatCaptainDiscordDisplay(discord, isEnglish)}
+                </span>
                 <button
                   type="button"
                   onClick={handleCopy}
@@ -119,7 +122,7 @@ function TeamNameWithDiscord({
               </div>
             ) : (
               <p className="text-xs text-slate-500">
-                {t('Discord ikke registrert', 'Discord not registered')}
+                {formatCaptainDiscordDisplay(null, isEnglish)}
               </p>
             )}
           </div>
