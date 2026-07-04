@@ -7,6 +7,7 @@ import { Users, ArrowLeft } from 'lucide-react'
 import Header from '@/components/Header'
 import { useLanguage } from '@/components/LanguageProvider'
 import { validatePasswordClient } from '@/lib/utils'
+import { validateCaptainNameParts } from '@/lib/captain-name'
 
 function AddTeamContent() {
   const searchParams = useSearchParams()
@@ -17,7 +18,8 @@ function AddTeamContent() {
 
   const [form, setForm] = useState({
     teamName: '',
-    captainName: '',
+    captainFirstName: '',
+    captainLastName: '',
     captainEmail: '',
     captainPhone: '',
     discordUsername: '',
@@ -33,14 +35,14 @@ function AddTeamContent() {
     e.preventDefault()
     setError('')
     const name = form.teamName?.trim()
-    const captain = form.captainName?.trim()
+    const captainNameValidation = validateCaptainNameParts(form.captainFirstName, form.captainLastName, isEnglish)
     const email = form.captainEmail?.trim()
     if (!name) {
       setError(t('Lagnavn er påkrevd.', 'Team name is required.'))
       return
     }
-    if (!captain) {
-      setError(t('Kapteinens navn er påkrevd.', 'Captain name is required.'))
+    if (!captainNameValidation.valid) {
+      setError(captainNameValidation.error || t('Ugyldig kaptein-navn.', 'Invalid captain name.'))
       return
     }
     if (!email) {
@@ -66,7 +68,7 @@ function AddTeamContent() {
     try {
       const body: Record<string, unknown> = {
         teamName: name,
-        captainName: captain,
+        captainName: captainNameValidation.fullName,
         captainEmail: email,
         captainPhone: form.captainPhone || undefined,
         discordUsername: form.discordUsername || undefined,
@@ -164,15 +166,27 @@ function AddTeamContent() {
                   required
                 />
               </div>
-              <div>
-                <label className="block text-sm font-medium text-slate-300 mb-1">{t('Kaptein', 'Captain')} *</label>
-                <input
-                  type="text"
-                  value={form.captainName}
-                  onChange={(e) => setForm(f => ({ ...f, captainName: e.target.value }))}
-                  className="pro11-input w-full"
-                  required
-                />
+              <div className="grid sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-slate-300 mb-1">{t('Fornavn', 'First name')} *</label>
+                  <input
+                    type="text"
+                    value={form.captainFirstName}
+                    onChange={(e) => setForm(f => ({ ...f, captainFirstName: e.target.value }))}
+                    className="pro11-input w-full"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-300 mb-1">{t('Etternavn', 'Last name')} *</label>
+                  <input
+                    type="text"
+                    value={form.captainLastName}
+                    onChange={(e) => setForm(f => ({ ...f, captainLastName: e.target.value }))}
+                    className="pro11-input w-full"
+                    required
+                  />
+                </div>
               </div>
               <div>
                 <label className="block text-sm font-medium text-slate-300 mb-1">{t('E-post kaptein', 'Captain email')} *</label>

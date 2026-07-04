@@ -23,6 +23,11 @@ import {
   type PrizePayoutRecord
 } from '@/lib/prize-payout'
 import PrizePayoutForm from '@/components/captain/PrizePayoutForm'
+import {
+  hasFullCaptainName,
+  splitCaptainName,
+  validateCaptainNameParts
+} from '@/lib/captain-name'
 
 interface Team {
   id: string
@@ -116,6 +121,9 @@ export default function CaptainDashboardPage() {
   const [isRejectingResult, setIsRejectingResult] = useState(false)
   const [confirmingMatchId, setConfirmingMatchId] = useState<string | null>(null)
   const [discordUsername, setDiscordUsername] = useState('')
+  const [captainFirstName, setCaptainFirstName] = useState('')
+  const [captainLastName, setCaptainLastName] = useState('')
+  const [isSavingCaptainName, setIsSavingCaptainName] = useState(false)
   const [isSavingDiscord, setIsSavingDiscord] = useState(false)
   const [showDiscordEditor, setShowDiscordEditor] = useState(false)
   const [toasts, setToasts] = useState<ToastMessage[]>([])
@@ -236,6 +244,9 @@ export default function CaptainDashboardPage() {
       setTeam(parsedTeam)
       setDiscordUsername(parsedTeam.discordUsername || '')
       setShowDiscordEditor(!parsedTeam.discordUsername)
+      const nameParts = splitCaptainName(parsedTeam.captainName)
+      setCaptainFirstName(nameParts.firstName)
+      setCaptainLastName(nameParts.lastName)
 
       const refreshPaymentStatus = async () => {
         if (parsedTeam.paymentStatus) return
@@ -705,6 +716,13 @@ export default function CaptainDashboardPage() {
 
   const handleRegisterForTournament = async (tournamentId: string) => {
     if (!team) return
+    if (!hasFullCaptainName(team.captainName)) {
+      alert(t(
+        'Du må oppgi både fornavn og etternavn før du kan melde på en turnering.',
+        'You must provide both first and last name before registering for a tournament.'
+      ))
+      return
+    }
     setRegisteringForTournamentId(tournamentId)
     try {
       const res = await apiFetch('/api/teams', {
@@ -937,6 +955,45 @@ export default function CaptainDashboardPage() {
       alert(t('Noe gikk galt ved oppdatering av Discord-brukernavn.', 'Something went wrong updating the Discord username.'))
     } finally {
       setIsSavingDiscord(false)
+    }
+  }
+
+  const saveCaptainName = async () => {
+    if (!team) return
+    const validation = validateCaptainNameParts(captainFirstName, captainLastName, isEnglish)
+    if (!validation.valid) {
+      alert(validation.error || t('Ugyldig navn.', 'Invalid name.'))
+      return
+    }
+
+    setIsSavingCaptainName(true)
+    try {
+      const response = await apiFetch('/api/teams', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: team.id,
+          captainName: validation.fullName
+        })
+      })
+
+      if (!response.ok) {
+        const error = await response.json()
+        alert(t(`Kunne ikke oppdatere navn: ${error.error || 'Ukjent feil'}`, `Could not update name: ${error.error || 'Unknown error'}`))
+        return
+      }
+
+      const result = await response.json()
+      const updatedCaptainName = result.team?.captainName || result.team?.captain_name || validation.fullName
+      const updatedTeam = { ...team, captainName: updatedCaptainName }
+      setTeam(updatedTeam)
+      localStorage.setItem('captainTeam', JSON.stringify(updatedTeam))
+      addToast({ message: t('Navn oppdatert.', 'Name updated.'), type: 'success' })
+    } catch (error) {
+      console.error('Error updating captain name:', error)
+      alert(t('Noe gikk galt ved oppdatering av navn.', 'Something went wrong updating your name.'))
+    } finally {
+      setIsSavingCaptainName(false)
     }
   }
 
@@ -1249,6 +1306,8 @@ export default function CaptainDashboardPage() {
     )
   }
 
+  const needsCaptainNameUpdate = !hasFullCaptainName(team.captainName)
+
   const liveTournaments = tournaments.filter(
     t => t.status === 'live' || t.checkInOpen || (t.matches && t.matches.length > 0)
   )
@@ -1284,6 +1343,49 @@ export default function CaptainDashboardPage() {
       <main className="container mx-auto px-4 py-6 flex flex-col items-center">
         <ToastContainer toasts={toasts} onRemove={removeToast} />
         <div className="max-w-6xl w-full">
+          {needsCaptainNameUpdate && (
+            <div className="pro11-card p-6 mb-6 border border-orange-600/40 bg-orange-900/10">
+              <h2 className="text-xl font-bold mb-2">{t('Fullfør navnet ditt', 'Complete your name')}</h2>
+              <p className="text-slate-300 mb-4">
+                {t(
+                  'Vi krever både fornavn og etternavn for kapteinen. Oppdater navnet ditt for å fortsette.',
+                  'We require both first and last name for the captain. Update your name to continue.'
+                )}
+              </p>
+              <div className="grid md:grid-cols-2 gap-4 mb-4">
+                <div>
+                  <label className="block text-sm font-medium text-slate-300 mb-2">{t('Fornavn', 'First name')}</label>
+                  <input
+                    type="text"
+                    value={captainFirstName}
+                    onChange={(e) => setCaptainFirstName(e.target.value)}
+                    className="pro11-input w-full"
+                    autoComplete="given-name"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-300 mb-2">{t('Etternavn', 'Last name')}</label>
+                  <input
+                    type="text"
+                    value={captainLastName}
+                    onChange={(e) => setCaptainLastName(e.target.value)}
+                    className="pro11-input w-full"
+                    autoComplete="family-name"
+                  />
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={saveCaptainName}
+                disabled={isSavingCaptainName}
+                className="pro11-button"
+              >
+                {isSavingCaptainName ? t('Lagrer...', 'Saving...') : t('Lagre navn', 'Save name')}
+              </button>
+            </div>
+          )}
+
+          <div className={needsCaptainNameUpdate ? 'opacity-40 pointer-events-none select-none' : ''}>
           {/* Welcome Section */}
           <div className="pro11-card p-6 mb-6">
             <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
@@ -2079,6 +2181,7 @@ export default function CaptainDashboardPage() {
               </Link>
             </div>
           )}
+          </div>
         </div>
       </main>
 

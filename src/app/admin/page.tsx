@@ -6,6 +6,7 @@ import { Shield, Users, Trophy, Calendar, Download, CheckCircle, XCircle, Eye, P
 import { useLanguage } from '@/components/LanguageProvider'
 import { apiFetch } from '@/lib/client-fetch'
 import { isDemoTournament, DEMO_PASSWORD } from '@/lib/demo-tournament'
+import { validateCaptainNameParts } from '@/lib/captain-name'
 
 interface Player {
   name: string
@@ -199,7 +200,8 @@ export default function AdminPage() {
   const [createTeamForm, setCreateTeamForm] = useState({
     tournamentId: '',
     teamName: '',
-    captainName: '',
+    captainFirstName: '',
+    captainLastName: '',
     captainEmail: '',
     captainPhone: '',
     discordUsername: '',
@@ -651,7 +653,8 @@ export default function AdminPage() {
     setCreateTeamForm({
       tournamentId: selectedTournament || (tournaments[0]?.id ?? ''),
       teamName: '',
-      captainName: '',
+      captainFirstName: '',
+      captainLastName: '',
       captainEmail: '',
       captainPhone: '',
       discordUsername: '',
@@ -665,7 +668,6 @@ export default function AdminPage() {
     setCreateTeamError('')
     const tid = createTeamForm.tournamentId?.trim()
     const name = createTeamForm.teamName?.trim()
-    const captain = createTeamForm.captainName?.trim()
     const email = createTeamForm.captainEmail?.trim()
     if (!tid) {
       setCreateTeamError(t('Velg en turnering.', 'Select a tournament.'))
@@ -675,8 +677,13 @@ export default function AdminPage() {
       setCreateTeamError(t('Lagnavn er påkrevd.', 'Team name is required.'))
       return
     }
-    if (!captain) {
-      setCreateTeamError(t('Kapteinens navn er påkrevd.', 'Captain name is required.'))
+    const captainNameValidation = validateCaptainNameParts(
+      createTeamForm.captainFirstName,
+      createTeamForm.captainLastName,
+      isEnglish
+    )
+    if (!captainNameValidation.valid) {
+      setCreateTeamError(captainNameValidation.error || t('Ugyldig kaptein-navn.', 'Invalid captain name.'))
       return
     }
     if (!email) {
@@ -691,7 +698,7 @@ export default function AdminPage() {
         body: JSON.stringify({
           tournamentId: tid,
           teamName: name,
-          captainName: captain,
+          captainName: captainNameValidation.fullName,
           captainEmail: email,
           captainPhone: createTeamForm.captainPhone || undefined,
           discordUsername: createTeamForm.discordUsername || undefined,
@@ -2677,11 +2684,21 @@ PRO11 Team`)
                           />
                         </div>
                         <div>
-                          <label className="block text-sm font-medium text-slate-300 mb-1">{t('Kaptein', 'Captain')} *</label>
+                          <label className="block text-sm font-medium text-slate-300 mb-1">{t('Fornavn', 'First name')} *</label>
                           <input
                             type="text"
-                            value={createTeamForm.captainName}
-                            onChange={(e) => setCreateTeamForm(f => ({ ...f, captainName: e.target.value }))}
+                            value={createTeamForm.captainFirstName}
+                            onChange={(e) => setCreateTeamForm(f => ({ ...f, captainFirstName: e.target.value }))}
+                            className="pro11-input w-full"
+                            required
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-slate-300 mb-1">{t('Etternavn', 'Last name')} *</label>
+                          <input
+                            type="text"
+                            value={createTeamForm.captainLastName}
+                            onChange={(e) => setCreateTeamForm(f => ({ ...f, captainLastName: e.target.value }))}
                             className="pro11-input w-full"
                             required
                           />

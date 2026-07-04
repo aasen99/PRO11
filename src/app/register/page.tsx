@@ -8,10 +8,12 @@ import { fetchTournamentById } from '../../lib/tournaments'
 import { useLanguage } from '@/components/LanguageProvider'
 import { validatePasswordClient } from '@/lib/utils'
 import { isDemoTournament } from '@/lib/demo-tournament'
+import { hasFullCaptainName, validateCaptainNameParts } from '@/lib/captain-name'
 
 interface TeamRegistration {
   teamName: string
-  captainName: string
+  captainFirstName: string
+  captainLastName: string
   captainEmail: string
   discordUsername: string
   expectedPlayers: number
@@ -22,7 +24,8 @@ interface TeamRegistration {
 export default function RegisterPage() {
   const [formData, setFormData] = useState<TeamRegistration>({
     teamName: '',
-    captainName: '',
+    captainFirstName: '',
+    captainLastName: '',
     captainEmail: '',
     discordUsername: '',
     expectedPlayers: 11,
@@ -125,8 +128,18 @@ export default function RegisterPage() {
     }
     
     // Validate form
-    if (!formData.teamName || !formData.captainName || !formData.captainEmail) {
+    if (!formData.teamName || !formData.captainFirstName || !formData.captainLastName || !formData.captainEmail) {
       alert(isEnglish ? 'Please fill in all required fields' : 'Vennligst fyll ut alle påkrevde felter')
+      return
+    }
+
+    const captainNameValidation = validateCaptainNameParts(
+      formData.captainFirstName,
+      formData.captainLastName,
+      isEnglish
+    )
+    if (!captainNameValidation.valid) {
+      alert(captainNameValidation.error || (isEnglish ? 'Invalid captain name' : 'Ugyldig kaptein-navn'))
       return
     }
 
@@ -160,7 +173,7 @@ export default function RegisterPage() {
         },
         body: JSON.stringify({
           teamName: formData.teamName,
-          captainName: formData.captainName,
+          captainName: captainNameValidation.fullName,
           captainEmail: formData.captainEmail,
           discordUsername: formData.discordUsername,
           captainPhone: '',
@@ -174,6 +187,7 @@ export default function RegisterPage() {
         const result = await response.json()
         const registrationData = {
           ...formData,
+          captainName: captainNameValidation.fullName,
           teamId: result.team.id,
           password: undefined,
           userChosePassword: true,
@@ -238,6 +252,16 @@ export default function RegisterPage() {
       }
 
       const latestTeam = loginData.team
+      const existingCaptainName = latestTeam.captainName || latestTeam.captain_name || ''
+      if (!hasFullCaptainName(existingCaptainName)) {
+        setLoginError(
+          isEnglish
+            ? 'Your profile is missing a last name. Log in to the captain dashboard and complete your first and last name before registering for a new tournament.'
+            : 'Profilen din mangler etternavn. Logg inn på lagleder-dashboardet og fullfør fornavn og etternavn før du melder på en ny turnering.'
+        )
+        setIsLoginLoading(false)
+        return
+      }
 
       const tournamentTeamsResponse = await fetch(`/api/teams?tournamentId=${formData.tournamentId}`)
       if (tournamentTeamsResponse.ok) {
@@ -521,18 +545,35 @@ export default function RegisterPage() {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium mb-2">{isEnglish ? 'Captain name *' : 'Kaptein navn *'}</label>
+                  <label className="block text-sm font-medium mb-2">{isEnglish ? 'First name *' : 'Fornavn *'}</label>
                   <input
                     type="text"
-                    value={formData.captainName}
-                    onChange={(e) => setFormData({...formData, captainName: e.target.value})}
+                    value={formData.captainFirstName}
+                    onChange={(e) => setFormData({...formData, captainFirstName: e.target.value})}
                     className="pro11-input w-full"
-                    placeholder={isEnglish ? 'Your name' : 'Ditt navn'}
+                    placeholder={isEnglish ? 'First name' : 'Fornavn'}
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-2">{isEnglish ? 'Last name *' : 'Etternavn *'}</label>
+                  <input
+                    type="text"
+                    value={formData.captainLastName}
+                    onChange={(e) => setFormData({...formData, captainLastName: e.target.value})}
+                    className="pro11-input w-full"
+                    placeholder={isEnglish ? 'Last name' : 'Etternavn'}
                     required
                   />
                 </div>
               </div>
               
+              <p className="text-xs text-slate-400 mt-2">
+                {isEnglish
+                  ? 'Both first name and last name are required for the captain.'
+                  : 'Både fornavn og etternavn er påkrevd for kapteinen.'}
+              </p>
+
               <div className="mt-6">
                 <label className="block text-sm font-medium mb-2">{isEnglish ? 'Captain email *' : 'Kaptein e-post *'}</label>
                 <input

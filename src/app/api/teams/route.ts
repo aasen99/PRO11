@@ -17,6 +17,7 @@ import {
   type PrizePayoutInput,
   validatePrizePayoutInput
 } from '@/lib/prize-payout'
+import { normalizeCaptainName, validateCaptainFullName } from '@/lib/captain-name'
 
 function mapPrizePayoutFields(team: any) {
   return {
@@ -100,6 +101,12 @@ export async function POST(request: NextRequest) {
     if (!normalizedTeamName) {
       return NextResponse.json({ error: 'Team name is required' }, { status: 400 })
     }
+
+    const captainValidation = validateCaptainFullName(String(captainName || ''))
+    if (!captainValidation.valid) {
+      return NextResponse.json({ error: captainValidation.error || 'Invalid captain name' }, { status: 400 })
+    }
+    const normalizedCaptainName = captainValidation.fullName || normalizeCaptainName(String(captainName || ''))
 
     // Duplicate check: same tournament (or among standalone teams if no tournament)
     const existingQuery = supabase
@@ -203,7 +210,7 @@ export async function POST(request: NextRequest) {
       .insert({
         tournament_id: tournamentUuid || null,
         team_name: normalizedTeamName,
-        captain_name: captainName,
+        captain_name: normalizedCaptainName,
         captain_email: captainEmail,
         captain_phone: captainPhone || null,
         discord_username: discordUsername || null,
@@ -227,7 +234,7 @@ export async function POST(request: NextRequest) {
         .from('players')
         .insert({
           team_id: team.id,
-          name: captainName,
+          name: normalizedCaptainName,
           psn_id: (captainEmail || '').split('@')[0],
           position: 'ST'
         })
@@ -376,7 +383,7 @@ export async function GET(request: NextRequest) {
 export async function PUT(request: NextRequest) {
   try {
     const body = await request.json()
-    const { id, status, discordUsername, checkedIn, currentPassword, newPassword, prizePayout } = body
+    const { id, status, discordUsername, checkedIn, currentPassword, newPassword, prizePayout, captainName } = body
 
     if (!id) {
       return NextResponse.json({ error: 'Team ID is required' }, { status: 400 })
@@ -395,7 +402,7 @@ export async function PUT(request: NextRequest) {
       } else if (!admin) {
         return unauthorizedResponse()
       }
-    } else if (discordUsername !== undefined || (currentPassword && newPassword)) {
+    } else if (discordUsername !== undefined || captainName !== undefined || (currentPassword && newPassword)) {
       if (!captain || captain.teamId !== id) {
         if (!admin) return unauthorizedResponse()
       }
@@ -412,6 +419,14 @@ export async function PUT(request: NextRequest) {
     if (status) updateData.status = status
     if (discordUsername !== undefined) updateData.discord_username = discordUsername || null
     if (checkedIn !== undefined) updateData.checked_in = Boolean(checkedIn)
+
+    if (captainName !== undefined) {
+      const captainValidation = validateCaptainFullName(String(captainName))
+      if (!captainValidation.valid) {
+        return NextResponse.json({ error: captainValidation.error || 'Invalid captain name' }, { status: 400 })
+      }
+      updateData.captain_name = captainValidation.fullName || normalizeCaptainName(String(captainName))
+    }
 
     if (prizePayout !== undefined) {
       const { data: existingTeam, error: existingTeamError } = await supabase

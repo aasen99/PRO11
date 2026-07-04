@@ -3,6 +3,9 @@ import type { PaymentReportData } from '@/lib/accounting-report'
 
 type PdfDocument = InstanceType<typeof PDFDocument>
 
+const PAGE_MARGIN = 32
+const CONTENT_WIDTH = 842 - PAGE_MARGIN * 2 // A4 landscape
+
 function formatNok(amount: number): string {
   return new Intl.NumberFormat('nb-NO', {
     style: 'currency',
@@ -27,56 +30,186 @@ function formatDateTime(value: string | null | undefined): string {
   })
 }
 
-function truncate(text: string, maxLength: number): string {
-  if (text.length <= maxLength) return text
-  return `${text.slice(0, maxLength - 1)}…`
+function formatDate(value: string | null | undefined): string {
+  if (!value) return '-'
+  return new Date(value).toLocaleDateString('nb-NO', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric'
+  })
 }
 
 const TABLE_COLUMNS = [
-  { label: '#', width: 18 },
-  { label: 'Lag', width: 72 },
-  { label: 'Kaptein', width: 58 },
-  { label: 'E-post', width: 92 },
-  { label: 'Betalt', width: 52 },
-  { label: 'Metode', width: 52 },
-  { label: 'Brutto', width: 44 },
-  { label: 'Gebyr', width: 38 },
-  { label: 'Netto', width: 44 },
-  { label: 'Tx-ID', width: 72 },
-  { label: 'Avst.', width: 28 }
+  { key: 'row', label: '#', width: 20, wrap: false },
+  { key: 'team', label: 'Lag', width: 72, wrap: false },
+  { key: 'captain', label: 'Kaptein', width: 68, wrap: false },
+  { key: 'email', label: 'E-post', width: 132, wrap: true },
+  { key: 'paidAt', label: 'Betalt', width: 54, wrap: false },
+  { key: 'method', label: 'Metode', width: 54, wrap: false },
+  { key: 'gross', label: 'Brutto', width: 48, wrap: false },
+  { key: 'fee', label: 'Gebyr', width: 44, wrap: false },
+  { key: 'net', label: 'Netto', width: 48, wrap: false },
+  { key: 'txId', label: 'Transaksjons-ID', width: 138, wrap: true },
+  { key: 'reconciled', label: 'Avst.', width: 28, wrap: false }
 ] as const
 
-function drawTableHeader(doc: PdfDocument, y: number): number {
-  let x = doc.page.margins.left
-  doc.font('Helvetica-Bold').fontSize(7).fillColor('#111827')
-  for (const column of TABLE_COLUMNS) {
-    doc.text(column.label, x, y, { width: column.width, lineBreak: false })
-    x += column.width
-  }
+function drawSectionBox(
+  doc: PdfDocument,
+  x: number,
+  y: number,
+  width: number,
+  title: string,
+  rows: Array<[string, string]>
+): number {
+  const padding = 10
+  const labelWidth = 118
+  const valueWidth = width - padding * 2 - labelWidth
+  const titleHeight = 16
+  const rowGap = 3
+
+  doc.font('Helvetica').fontSize(8.5)
+  const rowHeights = rows.map(([, value]) =>
+    Math.max(11, doc.heightOfString(value, { width: valueWidth }) + 1)
+  )
+  const rowsHeight = rowHeights.reduce((sum, h) => sum + h + rowGap, 0)
+  const boxHeight = padding * 2 + titleHeight + rowsHeight
+
   doc
-    .moveTo(doc.page.margins.left, y + 11)
-    .lineTo(doc.page.width - doc.page.margins.right, y + 11)
-    .strokeColor('#CBD5E1')
-    .stroke()
-  return y + 16
+    .roundedRect(x, y, width, boxHeight, 4)
+    .fillAndStroke('#F8FAFC', '#CBD5E1')
+
+  doc.font('Helvetica-Bold').fontSize(10).fillColor('#111827').text(title, x + padding, y + padding)
+
+  let rowY = y + padding + titleHeight
+  for (let i = 0; i < rows.length; i++) {
+    const [label, value] = rows[i]
+    doc.font('Helvetica-Bold').fontSize(8.5).fillColor('#64748B').text(label, x + padding, rowY, {
+      width: labelWidth,
+      lineBreak: false
+    })
+    doc.font('Helvetica').fontSize(8.5).fillColor('#111827').text(value, x + padding + labelWidth, rowY, {
+      width: valueWidth,
+      lineBreak: true
+    })
+    rowY += rowHeights[i] + rowGap
+  }
+
+  return y + boxHeight
 }
 
-function drawTableRow(doc: PdfDocument, y: number, row: string[], rowIndex: number): number {
+function drawHeaderSections(doc: PdfDocument, data: PaymentReportData): number {
+  const leftX = doc.page.margins.left
+  const gap = 16
+  const boxWidth = (CONTENT_WIDTH - gap) / 2
+  const rightX = leftX + boxWidth + gap
+  const startY = doc.y
+
+  const infoRows: Array<[string, string]> = [
+    ['Arrangør:', data.organizer],
+    ['Org.nr:', data.orgNumber],
+    ['Turnering:', data.tournament.title],
+    ['Turnerings-ID:', data.tournament.id],
+    ['Periode:', data.periodLabel],
+    ['Generert:', formatDateTime(data.generatedAt)],
+    ['Rapport-ID:', data.reportId],
+    ['Valuta:', data.currency],
+    ['MVA-status:', data.vatStatus],
+    ['Rapporttype:', data.reportType]
+  ]
+
+  const feeRows: Array<[string, string]> = data.summary.feesFullyKnown
+    ? [
+        ['PayPal-gebyrer:', formatNok(data.summary.registeredFees.paypal || 0)],
+        ['Vipps-gebyrer:', formatNok(data.summary.registeredFees.vipps || 0)],
+        ['Ukjente gebyrer:', String(data.summary.registeredFees.unknown)],
+        [
+          'Netto etter gebyrer:',
+          formatOptionalNok(data.summary.netAfterRegisteredFees)
+        ]
+      ]
+    : [
+        ['PayPal-gebyrer:', 'Ikke avstemt'],
+        ['Vipps-gebyrer:', 'Ikke avstemt'],
+        ['Netto etter gebyrer:', 'Ikke beregnet']
+      ]
+
+  const summaryRows: Array<[string, string]> = [
+    ['Betalte lag:', String(data.summary.paidTeams)],
+    ['Gratis/fritatte lag:', String(data.summary.freeTeams)],
+    ['Påmeldingsavgift:', formatNok(data.summary.entryFeePerTeam)],
+    ['Brutto inntekt:', formatNok(data.summary.grossRegistrationIncome)],
+    ['PayPal/kort:', formatNok(data.summary.byMethod.paypal)],
+    ['Vipps:', formatNok(data.summary.byMethod.vipps)],
+    ...feeRows
+  ]
+
+  const leftBottom = drawSectionBox(doc, leftX, startY, boxWidth, 'Info', infoRows)
+  const rightBottom = drawSectionBox(doc, rightX, startY, boxWidth, 'Sammendrag', summaryRows)
+
+  return Math.max(leftBottom, rightBottom) + 18
+}
+
+function drawTableHeader(doc: PdfDocument, y: number): number {
+  doc
+    .rect(doc.page.margins.left, y, CONTENT_WIDTH, 16)
+    .fillAndStroke('#E2E8F0', '#CBD5E1')
+
   let x = doc.page.margins.left
-  const fill = rowIndex % 2 === 0 ? '#F8FAFC' : '#FFFFFF'
-  doc.rect(doc.page.margins.left, y - 2, doc.page.width - doc.page.margins.left - doc.page.margins.right, 13).fill(fill)
-  doc.font('Helvetica').fontSize(6.5).fillColor('#111827')
-  row.forEach((value, index) => {
-    doc.text(value, x, y, { width: TABLE_COLUMNS[index].width, lineBreak: false })
-    x += TABLE_COLUMNS[index].width
+  doc.font('Helvetica-Bold').fontSize(7.5).fillColor('#111827')
+  for (const column of TABLE_COLUMNS) {
+    doc.text(column.label, x + 2, y + 3, { width: column.width - 4, lineBreak: false })
+    x += column.width
+  }
+  return y + 18
+}
+
+function cellHeight(doc: PdfDocument, text: string, width: number, wrap: boolean): number {
+  if (!wrap) return 12
+  const height = doc.heightOfString(text || '-', { width: width - 4 })
+  return Math.max(12, height + 4)
+}
+
+function drawTableRow(
+  doc: PdfDocument,
+  y: number,
+  values: string[],
+  rowIndex: number
+): number {
+  doc.font('Helvetica').fontSize(7).fillColor('#111827')
+
+  const heights = values.map((value, index) =>
+    cellHeight(doc, value, TABLE_COLUMNS[index].width, TABLE_COLUMNS[index].wrap)
+  )
+  const rowHeight = Math.max(...heights) + 4
+
+  const fill = rowIndex % 2 === 0 ? '#FFFFFF' : '#F8FAFC'
+  doc.rect(doc.page.margins.left, y, CONTENT_WIDTH, rowHeight).fill(fill)
+
+  let x = doc.page.margins.left
+  values.forEach((value, index) => {
+    const column = TABLE_COLUMNS[index]
+    doc
+      .fillColor('#111827')
+      .text(value || '-', x + 2, y + 3, {
+        width: column.width - 4,
+        lineBreak: column.wrap,
+        ellipsis: column.wrap ? false : true
+      })
+    x += column.width
   })
-  return y + 13
+
+  doc
+    .rect(doc.page.margins.left, y, CONTENT_WIDTH, rowHeight)
+    .strokeColor('#E2E8F0')
+    .stroke()
+
+  return y + rowHeight
 }
 
 function ensureSpace(doc: PdfDocument, y: number, needed: number): number {
   const bottom = doc.page.height - doc.page.margins.bottom
   if (y + needed <= bottom) return y
-  doc.addPage({ size: 'A4', layout: 'landscape', margin: 32 })
+  doc.addPage({ size: 'A4', layout: 'landscape', margin: PAGE_MARGIN })
   return drawTableHeader(doc, doc.page.margins.top)
 }
 
@@ -85,7 +218,7 @@ export function buildPaymentReportPdf(data: PaymentReportData): Promise<Buffer> 
     const doc = new PDFDocument({
       size: 'A4',
       layout: 'landscape',
-      margin: 32,
+      margin: PAGE_MARGIN,
       info: {
         Title: `PRO11 betalingsrapport - ${data.tournament.title}`,
         Author: 'PRO11',
@@ -98,77 +231,52 @@ export function buildPaymentReportPdf(data: PaymentReportData): Promise<Buffer> 
     doc.on('end', () => resolve(Buffer.concat(chunks)))
     doc.on('error', reject)
 
-    doc.font('Helvetica-Bold').fontSize(16).fillColor('#111827').text(data.reportTitle)
-    doc.moveDown(0.35)
-    doc.font('Helvetica').fontSize(9.5).fillColor('#334155')
-    doc.text(`Arrangør: ${data.organizer}`)
-    doc.text(`Org.nr: ${data.orgNumber}`)
-    doc.text(`Turnering: ${data.tournament.title}`)
-    doc.text(`Turnerings-ID: ${data.tournament.id}`)
-    doc.text(`Periode: ${data.periodLabel}`)
-    doc.text(`Generert: ${formatDateTime(data.generatedAt)}`)
-    doc.text(`Rapport-ID: ${data.reportId}`)
-    doc.text(`Valuta: ${data.currency}`)
-    doc.text(`MVA-status: ${data.vatStatus}`)
-    doc.text(`Rapporttype: ${data.reportType}`)
-    doc.moveDown(0.6)
+    doc.font('Helvetica-Bold').fontSize(15).fillColor('#111827').text(data.reportTitle, {
+      align: 'left'
+    })
+    doc.moveDown(0.5)
 
-    doc.font('Helvetica-Bold').fontSize(11).fillColor('#111827').text('Sammendrag')
-    doc.moveDown(0.25)
-    doc.font('Helvetica').fontSize(9.5).fillColor('#111827')
-    doc.text(`Antall betalte lag: ${data.summary.paidTeams}`)
-    doc.text(`Antall gratis/fritatte lag: ${data.summary.freeTeams}`)
-    doc.text(`Påmeldingsavgift per lag: ${formatNok(data.summary.entryFeePerTeam)}`)
-    doc.text(`Brutto påmeldingsinntekt: ${formatNok(data.summary.grossRegistrationIncome)}`)
-    doc.moveDown(0.15)
-    doc.text('Fordelt på betalingsmetode:')
-    doc.text(`PayPal/kort: ${formatNok(data.summary.byMethod.paypal)}`)
-    doc.text(`Vipps: ${formatNok(data.summary.byMethod.vipps)}`)
-    doc.text(`Gratis/fritatt: ${data.summary.freeTeams} ${data.summary.freeTeams === 1 ? 'lag' : 'lag'}`)
-    doc.moveDown(0.15)
-    doc.text('Registrerte betalingsgebyrer:')
-    if (data.summary.feesFullyKnown) {
-      doc.text(`PayPal: ${formatNok(data.summary.registeredFees.paypal || 0)}`)
-      doc.text(`Vipps: ${formatNok(data.summary.registeredFees.vipps || 0)}`)
-      doc.text(`Ukjente gebyrer: ${data.summary.registeredFees.unknown}`)
-      doc.text(`Netto etter registrerte betalingsgebyrer: ${formatOptionalNok(data.summary.netAfterRegisteredFees)}`)
-    } else {
-      doc.text('PayPal: Ikke avstemt')
-      doc.text('Vipps: Ikke avstemt')
-      doc.text('Netto etter gebyrer: Ikke beregnet')
-    }
+    const tableStartY = drawHeaderSections(doc, data)
 
-    doc.moveDown(0.6)
-    doc.font('Helvetica-Bold').fontSize(11).text('Detaljtabell – betalte påmeldinger')
-    doc.moveDown(0.3)
+    doc.font('Helvetica-Bold').fontSize(10).fillColor('#111827').text(
+      'Detaljtabell – betalte påmeldinger',
+      doc.page.margins.left,
+      tableStartY
+    )
 
-    let y = drawTableHeader(doc, doc.y)
+    let y = drawTableHeader(doc, tableStartY + 16)
     data.lines.forEach((line, index) => {
-      y = ensureSpace(doc, y, 15)
-      y = drawTableRow(
-        doc,
-        y,
-        [
-          String(line.rowNumber),
-          truncate(line.teamName, 14),
-          truncate(line.captainName, 11),
-          truncate(line.captainEmail, 18),
-          line.paidAt ? formatDateTime(line.paidAt).slice(0, 10) : '-',
-          truncate(line.method, 10),
-          formatNok(line.grossAmount),
-          line.feeAmount != null ? formatNok(line.feeAmount) : '-',
-          line.netAmount != null ? formatNok(line.netAmount) : '-',
-          truncate(line.transactionId, 14),
-          line.reconciled
-        ],
-        index
-      )
+      const rowValues = [
+        String(line.rowNumber),
+        line.teamName,
+        line.captainName,
+        line.captainEmail,
+        line.paidAt ? formatDate(line.paidAt) : '-',
+        line.method,
+        formatNok(line.grossAmount),
+        line.feeAmount != null ? formatNok(line.feeAmount) : '-',
+        line.netAmount != null ? formatNok(line.netAmount) : '-',
+        line.transactionId,
+        line.reconciled
+      ]
+
+      const previewHeight =
+        Math.max(
+          ...rowValues.map((value, colIndex) =>
+            cellHeight(doc, value, TABLE_COLUMNS[colIndex].width, TABLE_COLUMNS[colIndex].wrap)
+          )
+        ) + 4
+
+      y = ensureSpace(doc, y, previewHeight + 2)
+      y = drawTableRow(doc, y, rowValues, index)
     })
 
-    doc.moveDown(0.8)
+    y = ensureSpace(doc, y, 30)
     doc.font('Helvetica').fontSize(7.5).fillColor('#64748B').text(
       'Denne rapporten dokumenterer brutto påmeldingsinntekter for PRO11. Gebyrer og utbetalinger avstemmes mot PayPal/Vipps. DNB-innbetaling er oppgjør, ikke nytt salg.',
-      { align: 'left' }
+      doc.page.margins.left,
+      y + 8,
+      { width: CONTENT_WIDTH, align: 'left' }
     )
 
     doc.end()
