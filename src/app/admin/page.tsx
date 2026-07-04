@@ -2403,7 +2403,7 @@ PRO11 Team`)
                   <table className="w-full">
                     <thead>
                       <tr className="border-b border-slate-700 bg-slate-800/50">
-                        <th className="py-3 px-3 text-left text-xs font-medium text-slate-400 uppercase">{t('Lag', 'Team')}</th>
+                        <th className="py-3 px-3 text-left text-xs font-medium text-slate-400 uppercase min-w-[11rem]">{t('Lag', 'Team')}</th>
                         {showAllTeams && (
                           <th className="py-3 px-3 text-left text-xs font-medium text-slate-400 uppercase">{t('Turnering', 'Tournament')}</th>
                         )}
@@ -2418,18 +2418,25 @@ PRO11 Team`)
                     <tbody>
                       {filteredTeams.map(team => (
                         <tr key={team.id} className="border-b border-slate-700/70 hover:bg-slate-800/30">
-                          <td className="py-3 px-3 max-w-0">
-                            <div className="min-w-0">
-                              <div className="font-medium text-sm truncate" title={team.teamName || team.team_name}>{team.teamName || team.team_name}</div>
-                              <div className="text-xs text-slate-500 truncate">{team.captainEmail || team.captain_email}</div>
+                          <td className="py-3 px-3 min-w-[11rem]">
+                            <div>
+                              <div className="font-medium text-sm">{team.teamName || team.team_name}</div>
+                              <div className="text-xs text-slate-500 truncate max-w-[14rem]" title={team.captainEmail || team.captain_email}>
+                                {team.captainEmail || team.captain_email}
+                              </div>
                             </div>
                           </td>
                           {showAllTeams && (
-                            <td className="py-3 px-3 text-sm text-slate-300 max-w-0 truncate" title={getTournamentTitleById(team.tournamentId || team.tournament_id)}>
+                            <td
+                              className="py-3 px-3 text-sm text-slate-300 max-w-[10rem] truncate"
+                              title={getTournamentTitleById(team.tournamentId || team.tournament_id)}
+                            >
                               {getTournamentTitleById(team.tournamentId || team.tournament_id)}
                             </td>
                           )}
-                          <td className="py-3 px-3 text-sm max-w-0 truncate">{team.captainName || team.captain_name}</td>
+                          <td className="py-3 px-3 text-sm max-w-[10rem] truncate" title={team.captainName || team.captain_name}>
+                            {team.captainName || team.captain_name}
+                          </td>
                           <td className="py-3 px-3 text-sm text-slate-300">
                             {team.expectedPlayers || team.expected_players || team.players?.length || 0}
                           </td>
