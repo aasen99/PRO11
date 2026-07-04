@@ -18,6 +18,13 @@ interface PaymentData {
   generatedPassword?: string
 }
 
+interface VippsPendingPayment {
+  reference: string
+  teamId: string
+}
+
+const VIPPS_PENDING_STORAGE_KEY = 'pro11_vipps_pending'
+
 export default function PaymentPage() {
   const [paymentData, setPaymentData] = useState<PaymentData | null>(null)
   const [isProcessing, setIsProcessing] = useState(false)
@@ -29,6 +36,9 @@ export default function PaymentPage() {
   const [vippsConfigured, setVippsConfigured] = useState(false)
   const [vippsLoading, setVippsLoading] = useState(true)
   const [isLoadingRegistration, setIsLoadingRegistration] = useState(true)
+  const [vippsPending, setVippsPending] = useState<VippsPendingPayment | null>(null)
+  const [vippsVerifyError, setVippsVerifyError] = useState('')
+  const vippsReturnHandled = useRef(false)
   const { language } = useLanguage()
   const isEnglish = language === 'en'
 
@@ -203,9 +213,16 @@ export default function PaymentPage() {
       })
 
       const result = await response.json().catch(() => ({}))
-      if (!response.ok || !result.redirectUrl) {
+      if (!response.ok || !result.redirectUrl || !result.reference) {
         throw new Error(result.error || (isEnglish ? 'Could not start Vipps payment' : 'Kunne ikke starte Vipps-betaling'))
       }
+
+      const pending: VippsPendingPayment = {
+        reference: result.reference,
+        teamId: paymentData.teamId
+      }
+      sessionStorage.setItem(VIPPS_PENDING_STORAGE_KEY, JSON.stringify(pending))
+      setVippsPending(pending)
 
       window.location.href = result.redirectUrl
     } catch (error) {
@@ -221,10 +238,9 @@ export default function PaymentPage() {
     }
   }
 
-  const vippsReturnHandled = useRef(false)
-
   const verifyVippsReturn = async (reference: string, teamId: string) => {
     setIsProcessing(true)
+    setVippsVerifyError('')
     try {
       const response = await apiFetch('/api/vipps/verify', {
         method: 'POST',
@@ -237,36 +253,65 @@ export default function PaymentPage() {
         throw new Error(result.error || (isEnglish ? 'Vipps payment verification failed' : 'Vipps-betalingen kunne ikke verifiseres'))
       }
 
+      sessionStorage.removeItem(VIPPS_PENDING_STORAGE_KEY)
+      setVippsPending(null)
       setPaymentComplete(true)
       updateLocalTeamStatus(teamId)
       window.history.replaceState({}, '', '/payment')
     } catch (error) {
       console.error('Vipps verify error:', error)
-      alert(
+      const message =
         error instanceof Error
           ? error.message
           : isEnglish
             ? 'Vipps payment failed. Please try again.'
             : 'Vipps-betaling feilet. Prøv igjen.'
-      )
+      setVippsVerifyError(message)
+      setVippsPending({ reference, teamId })
     } finally {
       setIsProcessing(false)
     }
   }
 
   useEffect(() => {
+    if (typeof window === 'undefined') return
+    const stored = sessionStorage.getItem(VIPPS_PENDING_STORAGE_KEY)
+    if (!stored) return
+    try {
+      const parsed = JSON.parse(stored) as VippsPendingPayment
+      if (parsed.reference && parsed.teamId) {
+        setVippsPending(parsed)
+      }
+    } catch {
+      sessionStorage.removeItem(VIPPS_PENDING_STORAGE_KEY)
+    }
+  }, [])
+
+  useEffect(() => {
     if (typeof window === 'undefined' || isLoadingRegistration || paymentComplete || vippsReturnHandled.current) return
 
     const params = new URLSearchParams(window.location.search)
-    if (params.get('vippsReturn') !== '1') return
+    let parsedStored: VippsPendingPayment | null = null
+    const stored = sessionStorage.getItem(VIPPS_PENDING_STORAGE_KEY)
+    if (stored) {
+      try {
+        parsedStored = JSON.parse(stored) as VippsPendingPayment
+      } catch {
+        sessionStorage.removeItem(VIPPS_PENDING_STORAGE_KEY)
+      }
+    }
 
-    const reference = params.get('reference')
-    const teamId = params.get('teamId')
-    if (!reference || !teamId) return
+    const reference = params.get('reference') || parsedStored?.reference
+    const teamId = params.get('teamId') || parsedStored?.teamId || paymentData?.teamId
+    const isVippsReturn =
+      params.get('vippsReturn') === '1' ||
+      Boolean(reference && teamId && (parsedStored || params.get('reference')))
+
+    if (!isVippsReturn || !reference || !teamId) return
 
     vippsReturnHandled.current = true
     verifyVippsReturn(reference, teamId)
-  }, [isLoadingRegistration, paymentComplete, isEnglish])
+  }, [isLoadingRegistration, paymentComplete, paymentData?.teamId])
 
   const handleFreeRegistration = async () => {
     if (!paymentData?.teamId) {
@@ -562,6 +607,30 @@ export default function PaymentPage() {
                 <span className="text-xs opacity-90">{isEnglish ? 'Starting...' : 'Starter...'}</span>
               ) : null}
             </button>
+
+            {(vippsVerifyError || vippsPending) && !paymentComplete && (
+              <div className="mb-4 rounded-lg border border-yellow-600/40 bg-yellow-900/20 p-4">
+                <p className="text-sm text-yellow-200 mb-3">
+                  {vippsVerifyError ||
+                    (isEnglish
+                      ? 'If you already paid with Vipps, confirm the payment here.'
+                      : 'Hvis du allerede har betalt med Vipps, bekreft betalingen her.')}
+                </p>
+                <button
+                  type="button"
+                  onClick={() =>
+                    vippsPending &&
+                    verifyVippsReturn(vippsPending.reference, vippsPending.teamId)
+                  }
+                  disabled={isProcessing || !vippsPending}
+                  className="pro11-button-secondary text-sm disabled:opacity-50"
+                >
+                  {isProcessing
+                    ? (isEnglish ? 'Confirming payment...' : 'Bekrefter betaling...')
+                    : (isEnglish ? 'Confirm Vipps payment' : 'Bekreft Vipps-betaling')}
+                </button>
+              </div>
+            )}
             
             <div className="text-center">
               {paypalLoading ? (

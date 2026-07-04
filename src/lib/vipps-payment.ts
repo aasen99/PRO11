@@ -1,11 +1,8 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import {
-  captureVippsPayment,
-  getVippsPayment,
-  isVippsPaymentCaptured,
   resolveVippsCapturedAmountNok,
   resolveVippsPspReference,
-  type VippsPaymentResponse
+  waitForSuccessfulVippsPayment
 } from '@/lib/vipps'
 
 export interface CompleteVippsPaymentResult {
@@ -18,24 +15,6 @@ export interface CompleteVippsPaymentResult {
 
 function amountsMatch(expectedNok: number, paidNok: number): boolean {
   return Math.abs(expectedNok - paidNok) < 0.01
-}
-
-async function ensureVippsPaymentCaptured(
-  reference: string,
-  entryFeeNok: number
-): Promise<VippsPaymentResponse> {
-  let payment = await getVippsPayment(reference)
-  const state = String(payment.state || '').toUpperCase()
-
-  if (state === 'AUTHORIZED') {
-    payment = await captureVippsPayment(reference, entryFeeNok, `capture-${reference}`)
-  }
-
-  if (!isVippsPaymentCaptured(payment)) {
-    throw new Error(`Vipps payment is not completed (${payment.state || 'unknown'})`)
-  }
-
-  return payment
 }
 
 export async function completeVippsPaymentForTeam(
@@ -63,7 +42,16 @@ export async function completeVippsPaymentForTeam(
     return { success: false, error: 'This tournament does not require payment' }
   }
 
-  const vippsPayment = await ensureVippsPaymentCaptured(reference, entryFee)
+  let vippsPayment
+  try {
+    vippsPayment = await waitForSuccessfulVippsPayment(reference, entryFee)
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Vipps verification failed'
+    }
+  }
+
   const paidAmount = resolveVippsCapturedAmountNok(vippsPayment)
   if (paidAmount == null || !amountsMatch(entryFee, paidAmount)) {
     return { success: false, error: 'Vipps amount does not match tournament fee' }

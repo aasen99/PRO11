@@ -183,7 +183,7 @@ export async function captureVippsPayment(
   amountNok: number,
   idempotencyKey: string
 ): Promise<VippsPaymentResponse> {
-  return vippsRequest<VippsPaymentResponse>(
+  await vippsRequest<Record<string, never>>(
     `/epayment/v1/payments/${encodeURIComponent(reference)}/capture`,
     {
       method: 'POST',
@@ -196,25 +196,107 @@ export async function captureVippsPayment(
       }
     }
   )
+
+  return getVippsPayment(reference)
+}
+
+export async function waitForSuccessfulVippsPayment(
+  reference: string,
+  expectedAmountNok: number,
+  options?: { attempts?: number; delayMs?: number }
+): Promise<VippsPaymentResponse> {
+  const attempts = options?.attempts ?? 10
+  const delayMs = options?.delayMs ?? 1500
+  let lastPayment: VippsPaymentResponse | null = null
+
+  for (let attempt = 0; attempt < attempts; attempt++) {
+    lastPayment = await getVippsPayment(reference)
+
+    if (isVippsPaymentSuccessful(lastPayment, expectedAmountNok)) {
+      if (
+        isVippsPaymentCaptured(lastPayment) ||
+        (lastPayment.aggregate?.capturedAmount?.value ?? 0) > 0
+      ) {
+        return lastPayment
+      }
+
+      if (isVippsPaymentAuthorized(lastPayment)) {
+        try {
+          lastPayment = await captureVippsPayment(
+            reference,
+            expectedAmountNok,
+            `capture-${reference}-${attempt}`
+          )
+        } catch {
+          lastPayment = await getVippsPayment(reference)
+        }
+
+        if (isVippsPaymentSuccessful(lastPayment, expectedAmountNok)) {
+          return lastPayment
+        }
+      }
+    }
+
+    const state = normalizeVippsState(lastPayment)
+    if (['CANCELLED', 'TERMINATED', 'EXPIRED', 'ABORTED'].includes(state)) {
+      throw new Error(`Vipps payment ${state.toLowerCase()}`)
+    }
+
+    if (attempt < attempts - 1) {
+      await sleep(delayMs)
+    }
+  }
+
+  if (lastPayment && isVippsPaymentSuccessful(lastPayment, expectedAmountNok)) {
+    return lastPayment
+  }
+
+  throw new Error(
+    `Vipps payment is not completed (${normalizeVippsState(lastPayment || { reference }) || 'unknown'})`
+  )
+}
+
+export function normalizeVippsState(payment: VippsPaymentResponse): string {
+  return String(payment.state || '').trim().toUpperCase()
 }
 
 export function isVippsPaymentCaptured(payment: VippsPaymentResponse): boolean {
-  const state = String(payment.state || '').toUpperCase()
-  return state === 'CAPTURED'
+  return normalizeVippsState(payment) === 'CAPTURED'
 }
 
 export function isVippsPaymentAuthorized(payment: VippsPaymentResponse): boolean {
-  const state = String(payment.state || '').toUpperCase()
-  return state === 'AUTHORIZED'
+  return normalizeVippsState(payment) === 'AUTHORIZED'
 }
 
 export function resolveVippsCapturedAmountNok(payment: VippsPaymentResponse): number | null {
   const captured = payment.aggregate?.capturedAmount?.value
-  if (captured != null) return vippsAmountToNok(captured)
+  if (captured != null && captured > 0) return vippsAmountToNok(captured)
   const authorized = payment.aggregate?.authorizedAmount?.value
-  if (authorized != null) return vippsAmountToNok(authorized)
-  if (payment.amount?.value != null) return vippsAmountToNok(payment.amount.value)
+  if (authorized != null && authorized > 0) return vippsAmountToNok(authorized)
+  if (payment.amount?.value != null && payment.amount.value > 0) {
+    return vippsAmountToNok(payment.amount.value)
+  }
   return null
+}
+
+export function isVippsPaymentSuccessful(
+  payment: VippsPaymentResponse,
+  expectedAmountNok: number
+): boolean {
+  const paidAmount = resolveVippsCapturedAmountNok(payment)
+  if (paidAmount == null || Math.abs(expectedAmountNok - paidAmount) >= 0.01) {
+    return false
+  }
+
+  const state = normalizeVippsState(payment)
+  if (state === 'CAPTURED') return true
+  if ((payment.aggregate?.capturedAmount?.value ?? 0) > 0) return true
+  if (state === 'AUTHORIZED') return true
+  return false
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, ms))
 }
 
 export function resolveVippsPspReference(payment: VippsPaymentResponse): string | null {
