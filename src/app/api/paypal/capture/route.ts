@@ -6,6 +6,7 @@ import {
   getCapturedAmount,
   getPayPalCaptureDetails
 } from '@/lib/paypal'
+import { buildPayPalPaymentAccountingUpdate } from '@/lib/payment-reconciliation'
 import {
   getCaptainSession,
   unauthorizedResponse,
@@ -76,20 +77,23 @@ export async function POST(request: NextRequest) {
     }
 
     const captureDetails = getPayPalCaptureDetails(order)
+    const accountingUpdate = buildPayPalPaymentAccountingUpdate(order, entryFee)
     const paidAt = new Date().toISOString()
     const paymentPayload = {
       status: 'completed',
       amount: entryFee,
-      gross_amount: captureDetails.grossAmount ?? entryFee,
-      fee_amount: captureDetails.feeAmount,
-      net_amount: captureDetails.netAmount,
+      gross_amount: accountingUpdate.gross_amount ?? captureDetails.grossAmount ?? entryFee,
+      fee_amount: accountingUpdate.fee_amount,
+      net_amount: accountingUpdate.net_amount,
       payment_method: 'paypal',
       payment_provider: 'paypal',
-      provider_order_id: captureDetails.orderId,
-      provider_transaction_id: captureDetails.captureId,
+      provider_order_id: accountingUpdate.provider_order_id ?? captureDetails.orderId,
+      provider_transaction_id: accountingUpdate.provider_transaction_id ?? captureDetails.captureId,
       stripe_payment_intent_id: orderId,
       paid_at: paidAt,
-      fee_source: captureDetails.feeAmount != null ? 'provider_capture' : null
+      fee_source: accountingUpdate.fee_source,
+      reconciled: accountingUpdate.reconciled,
+      reconciled_at: accountingUpdate.reconciled_at
     }
 
     let paymentId = existingPayment?.id as string | undefined

@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react'
 import Link from 'next/link'
-import { Shield, Users, Trophy, Calendar, Download, CheckCircle, XCircle, Eye, Plus, Settings, Lock, Edit, Trash2, Mail, Key, BarChart3, LogOut, LayoutDashboard, MessageSquare, Radio, Filter, ChevronRight, Award, FileText, CreditCard } from 'lucide-react'
+import { Shield, Users, Trophy, Calendar, Download, CheckCircle, XCircle, Eye, Plus, Settings, Lock, Edit, Trash2, Mail, Key, BarChart3, LogOut, LayoutDashboard, MessageSquare, Radio, Filter, ChevronRight, Award, FileText, CreditCard, RefreshCw } from 'lucide-react'
 import { useLanguage } from '@/components/LanguageProvider'
 import { apiFetch } from '@/lib/client-fetch'
 import { isDemoTournament, DEMO_PASSWORD } from '@/lib/demo-tournament'
@@ -262,6 +262,8 @@ export default function AdminPage() {
     reconciled: false
   })
   const [paymentSaving, setPaymentSaving] = useState(false)
+  const [isSyncingPayPalFees, setIsSyncingPayPalFees] = useState(false)
+  const [paymentSyncSummary, setPaymentSyncSummary] = useState<string | null>(null)
   const [demoDeletingId, setDemoDeletingId] = useState('')
   const [demoError, setDemoError] = useState('')
   const [demoResult, setDemoResult] = useState<{
@@ -890,6 +892,63 @@ export default function AdminPage() {
       setPaymentSaving(false)
     }
   }
+
+  const syncPayPalFees = async (paymentId?: string) => {
+    setIsSyncingPayPalFees(true)
+    setPaymentSyncSummary(null)
+    try {
+      const response = await apiFetch('/api/admin/payments/reconcile', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          tournamentId: selectedTournament || undefined,
+          paymentId: paymentId || undefined
+        })
+      })
+      const data = await response.json()
+      if (!response.ok) {
+        alert(data.error || t('Kunne ikke synkronisere PayPal-gebyrer.', 'Could not sync PayPal fees.'))
+        return
+      }
+
+      const summary = data.summary || {}
+      if (paymentId) {
+        const result = (data.results || [])[0]
+        if (result?.status === 'updated') {
+          setPaymentSyncSummary(
+            t(
+              `Gebyr hentet fra PayPal (${result.feeAmount ?? '-'} kr).`,
+              `Fee fetched from PayPal (${result.feeAmount ?? '-'} NOK).`
+            )
+          )
+          setSelectedPaymentId(null)
+        } else {
+          alert(result?.error || t('Fant ingen gebyrer hos PayPal.', 'No fees found in PayPal.'))
+        }
+      } else {
+        setPaymentSyncSummary(
+          t(
+            `PayPal-synk fullført: ${summary.updated || 0} oppdatert, ${summary.skipped || 0} hoppet over, ${summary.failed || 0} feilet.`,
+            `PayPal sync complete: ${summary.updated || 0} updated, ${summary.skipped || 0} skipped, ${summary.failed || 0} failed.`
+          )
+        )
+      }
+
+      await loadPaymentRecords()
+    } catch {
+      alert(t('Noe gikk galt ved PayPal-synk.', 'Something went wrong during PayPal sync.'))
+    } finally {
+      setIsSyncingPayPalFees(false)
+    }
+  }
+
+  const paypalPaymentsNeedingSync = paymentRecords.filter(payment => {
+    const method = String(payment.paymentMethod || '').toLowerCase()
+    if (method !== 'paypal') return false
+    if (payment.feeAmount == null) return true
+    return !payment.reconciled
+  }).length
 
   useEffect(() => {
     if (isAuthenticated && activeTab === 'payments') {
@@ -3024,7 +3083,37 @@ PRO11 Team`)
                     <Download className="w-4 h-4" />
                     <span>{t('Betalingsrapport CSV', 'Payment report CSV')}</span>
                   </button>
+                  <button
+                    onClick={() => syncPayPalFees()}
+                    disabled={isSyncingPayPalFees || paymentsLoading}
+                    className="pro11-button-secondary flex items-center space-x-2 text-sm disabled:opacity-50"
+                  >
+                    <RefreshCw className={`w-4 h-4 ${isSyncingPayPalFees ? 'animate-spin' : ''}`} />
+                    <span>
+                      {isSyncingPayPalFees
+                        ? t('Synkroniserer...', 'Syncing...')
+                        : t('Hent PayPal-gebyrer', 'Fetch PayPal fees')}
+                    </span>
+                  </button>
                 </div>
+
+                {(paypalPaymentsNeedingSync > 0 || paymentSyncSummary) && (
+                  <div className="pro11-card p-4 border border-blue-600/30 bg-blue-900/10 text-sm text-slate-300">
+                    {paypalPaymentsNeedingSync > 0 && (
+                      <p>
+                        {t(
+                          `${paypalPaymentsNeedingSync} PayPal-betaling${paypalPaymentsNeedingSync === 1 ? '' : 'er'} mangler automatisk gebyravstemming.`,
+                          `${paypalPaymentsNeedingSync} PayPal payment${paypalPaymentsNeedingSync === 1 ? '' : 's'} still need automatic fee reconciliation.`
+                        )}
+                      </p>
+                    )}
+                    {paymentSyncSummary && (
+                      <p className={paypalPaymentsNeedingSync > 0 ? 'mt-2 text-green-400' : 'text-green-400'}>
+                        {paymentSyncSummary}
+                      </p>
+                    )}
+                  </div>
+                )}
 
                 {paymentsLoading ? (
                   <div className="text-center py-12">
@@ -3153,6 +3242,16 @@ PRO11 Team`)
                         </label>
                       </div>
                       <div className="flex justify-end gap-2 mt-5">
+                        <button
+                          type="button"
+                          onClick={() => syncPayPalFees(selectedPaymentId)}
+                          disabled={isSyncingPayPalFees || paymentSaving}
+                          className="pro11-button-secondary text-sm disabled:opacity-50 mr-auto"
+                        >
+                          {isSyncingPayPalFees
+                            ? t('Henter...', 'Fetching...')
+                            : t('Hent fra PayPal', 'Fetch from PayPal')}
+                        </button>
                         <button
                           type="button"
                           onClick={() => setSelectedPaymentId(null)}
