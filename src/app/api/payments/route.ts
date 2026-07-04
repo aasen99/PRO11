@@ -88,7 +88,7 @@ export async function PUT(request: NextRequest) {
       }
       if (status === 'completed') {
         return NextResponse.json(
-          { error: 'Payment must be verified through PayPal capture or complete-free endpoint' },
+          { error: 'Payment must be verified through PayPal capture, Vipps verify, or complete-free endpoint' },
           { status: 403 }
         )
       }

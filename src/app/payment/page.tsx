@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import { Shield, CreditCard, CheckCircle, ArrowLeft, Mail } from 'lucide-react'
 import { PayPalScriptProvider, PayPalButtons } from '@paypal/react-paypal-js'
@@ -26,6 +26,8 @@ export default function PaymentPage() {
   const [tournamentEntryFee, setTournamentEntryFee] = useState<number>(299)
   const [paypalClientId, setPaypalClientId] = useState<string | null>(null)
   const [paypalLoading, setPaypalLoading] = useState(true)
+  const [vippsConfigured, setVippsConfigured] = useState(false)
+  const [vippsLoading, setVippsLoading] = useState(true)
   const [isLoadingRegistration, setIsLoadingRegistration] = useState(true)
   const { language } = useLanguage()
   const isEnglish = language === 'en'
@@ -53,6 +55,23 @@ export default function PaymentPage() {
     }
     
     checkPaypalConfig()
+  }, [])
+
+  useEffect(() => {
+    const checkVippsConfig = async () => {
+      try {
+        const response = await fetch('/api/vipps/config')
+        const data = await response.json()
+        setVippsConfigured(Boolean(data.configured))
+      } catch (error) {
+        console.error('Error checking Vipps config:', error)
+        setVippsConfigured(false)
+      } finally {
+        setVippsLoading(false)
+      }
+    }
+
+    checkVippsConfig()
   }, [])
 
   useEffect(() => {
@@ -117,19 +136,19 @@ export default function PaymentPage() {
   }, [])
 
 
-  const updateLocalTeamStatus = () => {
-    if (!paymentData) return
+  const updateLocalTeamStatus = (teamIdOverride?: string) => {
+    const targetTeamId = teamIdOverride || paymentData?.teamId
+    if (!targetTeamId) return
 
     const storedTeams = localStorage.getItem('adminTeams')
     if (storedTeams) {
       const teams = JSON.parse(storedTeams)
       const updatedTeams = teams.map((team: any) => 
-        team.id === paymentData.teamId 
+        team.id === targetTeamId 
           ? { ...team, paymentStatus: 'completed', payment_status: 'completed', status: 'approved' }
           : team
       )
       localStorage.setItem('adminTeams', JSON.stringify(updatedTeams))
-      console.log('Updated team payment status in localStorage')
     }
   }
 
@@ -171,6 +190,83 @@ export default function PaymentPage() {
       setIsProcessing(false)
     }
   }
+
+  const handleVippsPayment = async () => {
+    if (!paymentData?.teamId) return
+
+    setIsProcessing(true)
+    try {
+      const response = await apiFetch('/api/vipps/create', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ teamId: paymentData.teamId })
+      })
+
+      const result = await response.json().catch(() => ({}))
+      if (!response.ok || !result.redirectUrl) {
+        throw new Error(result.error || (isEnglish ? 'Could not start Vipps payment' : 'Kunne ikke starte Vipps-betaling'))
+      }
+
+      window.location.href = result.redirectUrl
+    } catch (error) {
+      console.error('Vipps payment error:', error)
+      alert(
+        error instanceof Error
+          ? error.message
+          : isEnglish
+            ? 'Vipps payment failed. Please try again.'
+            : 'Vipps-betaling feilet. Prøv igjen.'
+      )
+      setIsProcessing(false)
+    }
+  }
+
+  const vippsReturnHandled = useRef(false)
+
+  const verifyVippsReturn = async (reference: string, teamId: string) => {
+    setIsProcessing(true)
+    try {
+      const response = await apiFetch('/api/vipps/verify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reference, teamId })
+      })
+
+      const result = await response.json().catch(() => ({}))
+      if (!response.ok) {
+        throw new Error(result.error || (isEnglish ? 'Vipps payment verification failed' : 'Vipps-betalingen kunne ikke verifiseres'))
+      }
+
+      setPaymentComplete(true)
+      updateLocalTeamStatus(teamId)
+      window.history.replaceState({}, '', '/payment')
+    } catch (error) {
+      console.error('Vipps verify error:', error)
+      alert(
+        error instanceof Error
+          ? error.message
+          : isEnglish
+            ? 'Vipps payment failed. Please try again.'
+            : 'Vipps-betaling feilet. Prøv igjen.'
+      )
+    } finally {
+      setIsProcessing(false)
+    }
+  }
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || isLoadingRegistration || paymentComplete || vippsReturnHandled.current) return
+
+    const params = new URLSearchParams(window.location.search)
+    if (params.get('vippsReturn') !== '1') return
+
+    const reference = params.get('reference')
+    const teamId = params.get('teamId')
+    if (!reference || !teamId) return
+
+    vippsReturnHandled.current = true
+    verifyVippsReturn(reference, teamId)
+  }, [isLoadingRegistration, paymentComplete, isEnglish])
 
   const handleFreeRegistration = async () => {
     if (!paymentData?.teamId) {
@@ -453,12 +549,18 @@ export default function PaymentPage() {
 
             <button
               type="button"
-              disabled
-              className="w-full py-3 px-4 rounded-lg bg-[#ff5b24]/20 text-[#ff5b24] cursor-not-allowed border border-[#ff5b24]/40 flex items-center justify-center gap-2 mb-4"
-              aria-disabled="true"
+              onClick={handleVippsPayment}
+              disabled={isProcessing || vippsLoading || !vippsConfigured}
+              className="w-full py-3 px-4 rounded-lg bg-[#ff5b24] hover:bg-[#e6511f] disabled:opacity-50 disabled:cursor-not-allowed text-white border border-[#ff5b24] flex items-center justify-center gap-2 mb-4 transition-colors"
             >
               <span className="font-bold tracking-wide">Vipps</span>
-              <span className="text-xs opacity-80">{isEnglish ? 'Coming soon' : 'Kommer snart'}</span>
+              {vippsLoading ? (
+                <span className="text-xs opacity-90">{isEnglish ? 'Loading...' : 'Laster...'}</span>
+              ) : !vippsConfigured ? (
+                <span className="text-xs opacity-90">{isEnglish ? 'Not configured' : 'Ikke konfigurert'}</span>
+              ) : isProcessing ? (
+                <span className="text-xs opacity-90">{isEnglish ? 'Starting...' : 'Starter...'}</span>
+              ) : null}
             </button>
             
             <div className="text-center">
