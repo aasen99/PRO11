@@ -49,14 +49,24 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'This tournament requires payment' }, { status: 400 })
     }
 
+    const paidAt = new Date().toISOString()
+
     const { data: payment, error: paymentError } = await supabase
       .from('payments')
       .insert({
         team_id: teamId,
         amount: 0,
+        gross_amount: 0,
+        fee_amount: 0,
+        net_amount: 0,
         currency: 'nok',
         status: 'completed',
-        payment_method: 'free'
+        payment_method: 'free',
+        payment_provider: null,
+        paid_at: paidAt,
+        fee_source: null,
+        reconciled: true,
+        reconciled_at: paidAt
       })
       .select('id')
       .single()

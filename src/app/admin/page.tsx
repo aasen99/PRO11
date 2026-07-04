@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react'
 import Link from 'next/link'
-import { Shield, Users, Trophy, Calendar, Download, CheckCircle, XCircle, Eye, Plus, Settings, Lock, Edit, Trash2, Mail, Key, BarChart3, LogOut, LayoutDashboard, MessageSquare, Radio, Filter, ChevronRight, Award, FileText } from 'lucide-react'
+import { Shield, Users, Trophy, Calendar, Download, CheckCircle, XCircle, Eye, Plus, Settings, Lock, Edit, Trash2, Mail, Key, BarChart3, LogOut, LayoutDashboard, MessageSquare, Radio, Filter, ChevronRight, Award, FileText, CreditCard } from 'lucide-react'
 import { useLanguage } from '@/components/LanguageProvider'
 import { apiFetch } from '@/lib/client-fetch'
 import { isDemoTournament, DEMO_PASSWORD } from '@/lib/demo-tournament'
@@ -176,7 +176,7 @@ export default function AdminPage() {
   const [sessionChecked, setSessionChecked] = useState(false)
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
-  const [activeTab, setActiveTab] = useState<'overview' | 'teams' | 'tournaments' | 'prizes' | 'statistics' | 'settings' | 'messages'>('overview')
+  const [activeTab, setActiveTab] = useState<'overview' | 'teams' | 'tournaments' | 'prizes' | 'payments' | 'statistics' | 'settings' | 'messages'>('overview')
   const [teamFilter, setTeamFilter] = useState<'all' | 'pending' | 'approved' | 'not_checked_in'>('all')
   const [selectedTournament, setSelectedTournament] = useState('')
   const getLatestTournamentId = (list: any[]) => {
@@ -247,6 +247,19 @@ export default function AdminPage() {
   const [demoNumGroups, setDemoNumGroups] = useState(2)
   const [demoLoading, setDemoLoading] = useState(false)
   const [isExportingAccountingPdf, setIsExportingAccountingPdf] = useState(false)
+  const [paymentRecords, setPaymentRecords] = useState<any[]>([])
+  const [paymentsLoading, setPaymentsLoading] = useState(false)
+  const [paymentMethodFilter, setPaymentMethodFilter] = useState<'all' | 'paypal' | 'vipps' | 'free'>('all')
+  const [selectedPaymentId, setSelectedPaymentId] = useState<string | null>(null)
+  const [paymentEditForm, setPaymentEditForm] = useState({
+    feeAmount: '',
+    feeSource: 'manual',
+    payoutId: '',
+    providerTransactionId: '',
+    accountingNote: '',
+    reconciled: false
+  })
+  const [paymentSaving, setPaymentSaving] = useState(false)
   const [demoDeletingId, setDemoDeletingId] = useState('')
   const [demoError, setDemoError] = useState('')
   const [demoResult, setDemoResult] = useState<{
@@ -766,7 +779,7 @@ export default function AdminPage() {
     window.URL.revokeObjectURL(url)
   }
 
-  const downloadAccountingPdf = async (tournamentId?: string) => {
+  const downloadAccountingPdf = async (tournamentId?: string, format: 'pdf' | 'csv' = 'pdf') => {
     const id = tournamentId || selectedTournament || getLatestTournamentId(tournaments)
     if (!id) {
       alert(t('Velg en turnering først.', 'Select a tournament first.'))
@@ -776,20 +789,24 @@ export default function AdminPage() {
     setIsExportingAccountingPdf(true)
     try {
       const response = await apiFetch(
-        `/api/admin/accounting-report?tournament_id=${encodeURIComponent(id)}`,
+        `/api/admin/accounting-report?tournament_id=${encodeURIComponent(id)}&format=${format}`,
         { credentials: 'include' }
       )
 
       if (!response.ok) {
         const err = await response.json().catch(() => ({}))
-        alert(err.error || t('Kunne ikke generere PDF.', 'Could not generate PDF.'))
+        alert(err.error || t('Kunne ikke generere rapport.', 'Could not generate report.'))
         return
       }
 
       const blob = await response.blob()
       const disposition = response.headers.get('Content-Disposition')
       const filenameMatch = disposition?.match(/filename="([^"]+)"/)
-      const filename = filenameMatch?.[1] || `PRO11_regnskap_${id}.pdf`
+      const defaultName =
+        format === 'csv'
+          ? `PRO11_betalingsrapport_${id}.csv`
+          : `PRO11_betalingsrapport_${id}.pdf`
+      const filename = filenameMatch?.[1] || defaultName
       const url = window.URL.createObjectURL(blob)
       const a = document.createElement('a')
       a.href = url
@@ -797,11 +814,81 @@ export default function AdminPage() {
       a.click()
       window.URL.revokeObjectURL(url)
     } catch {
-      alert(t('Noe gikk galt ved nedlasting av PDF.', 'Something went wrong downloading the PDF.'))
+      alert(t('Noe gikk galt ved nedlasting.', 'Something went wrong downloading the file.'))
     } finally {
       setIsExportingAccountingPdf(false)
     }
   }
+
+  const loadPaymentRecords = async () => {
+    setPaymentsLoading(true)
+    try {
+      const params = new URLSearchParams()
+      if (selectedTournament) params.set('tournament_id', selectedTournament)
+      if (paymentMethodFilter !== 'all') params.set('payment_method', paymentMethodFilter)
+      const response = await apiFetch(`/api/admin/payments?${params.toString()}`, { credentials: 'include' })
+      if (!response.ok) {
+        setPaymentRecords([])
+        return
+      }
+      const data = await response.json()
+      setPaymentRecords(data.payments || [])
+    } catch {
+      setPaymentRecords([])
+    } finally {
+      setPaymentsLoading(false)
+    }
+  }
+
+  const openPaymentEditor = (payment: any) => {
+    setSelectedPaymentId(payment.id)
+    setPaymentEditForm({
+      feeAmount: payment.feeAmount != null ? String(payment.feeAmount) : '',
+      feeSource: payment.feeSourceRaw || 'manual',
+      payoutId: payment.payoutId || '',
+      providerTransactionId: payment.providerTransactionId || payment.providerOrderId || '',
+      accountingNote: payment.accountingNote && payment.accountingNote !== '-' ? payment.accountingNote : '',
+      reconciled: Boolean(payment.reconciled)
+    })
+  }
+
+  const savePaymentEdits = async () => {
+    if (!selectedPaymentId) return
+    setPaymentSaving(true)
+    try {
+      const response = await apiFetch('/api/admin/payments', {
+        method: 'PUT',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: selectedPaymentId,
+          feeAmount: paymentEditForm.feeAmount === '' ? null : Number(paymentEditForm.feeAmount),
+          feeSource: paymentEditForm.feeSource || 'manual',
+          payoutId: paymentEditForm.payoutId || null,
+          providerTransactionId: paymentEditForm.providerTransactionId || null,
+          accountingNote: paymentEditForm.accountingNote || null,
+          reconciled: paymentEditForm.reconciled
+        })
+      })
+      const data = await response.json()
+      if (!response.ok) {
+        alert(data.error || t('Kunne ikke lagre betaling.', 'Could not save payment.'))
+        return
+      }
+      setSelectedPaymentId(null)
+      await loadPaymentRecords()
+    } catch {
+      alert(t('Noe gikk galt ved lagring.', 'Something went wrong while saving.'))
+    } finally {
+      setPaymentSaving(false)
+    }
+  }
+
+  useEffect(() => {
+    if (isAuthenticated && activeTab === 'payments') {
+      loadPaymentRecords()
+    }
+  }, [isAuthenticated, activeTab, selectedTournament, paymentMethodFilter])
 
   const demoTournaments = tournaments.filter(tournament =>
     isDemoTournament({ title: tournament.title, description: tournament.description })
@@ -2033,6 +2120,7 @@ PRO11 Team`)
     { id: 'tournaments' as const, label: t('Turneringer', 'Tournaments'), icon: Trophy, badge: activeTournaments.length > 0 ? activeTournaments.length : undefined },
     { id: 'messages' as const, label: t('Meldinger', 'Messages'), icon: MessageSquare, badge: unreadMessagesCount > 0 ? unreadMessagesCount : undefined },
     { id: 'prizes' as const, label: t('Premier', 'Prizes'), icon: Award },
+    { id: 'payments' as const, label: t('Betalinger', 'Payments'), icon: CreditCard },
     { id: 'statistics' as const, label: t('Statistikk', 'Statistics'), icon: BarChart3 },
     { id: 'settings' as const, label: t('Innstillinger', 'Settings'), icon: Settings }
   ]
@@ -2537,8 +2625,8 @@ PRO11 Team`)
                             <FileText className="w-4 h-4" />
                             <span>
                               {isExportingAccountingPdf
-                                ? t('Genererer PDF...', 'Generating PDF...')
-                                : t('Regnskaps-PDF', 'Accounting PDF')}
+                                ? t('Genererer...', 'Generating...')
+                                : t('Betalingsrapport PDF', 'Payment report PDF')}
                             </span>
                           </button>
                         )}
@@ -2862,6 +2950,214 @@ PRO11 Team`)
               </div>
             )}
 
+            {activeTab === 'payments' && (
+              <div className="space-y-5">
+                <div>
+                  <h2 className="text-2xl font-bold">{t('Betalinger', 'Payments')}</h2>
+                  <p className="text-slate-400 text-sm mt-1">
+                    {t(
+                      'Påmeldingsinntekter, transaksjons-ID og avstemming mot PayPal/Vipps.',
+                      'Registration income, transaction IDs and reconciliation against PayPal/Vipps.'
+                    )}
+                  </p>
+                </div>
+
+                <div className="flex flex-wrap gap-3 items-end">
+                  <div>
+                    <label className="block text-xs text-slate-400 mb-1">{t('Turnering', 'Tournament')}</label>
+                    <select
+                      value={selectedTournament || getLatestTournamentId(tournaments)}
+                      onChange={(e) => setSelectedTournament(e.target.value)}
+                      className="pro11-input text-sm min-w-[16rem]"
+                    >
+                      <option value="">{t('Alle turneringer', 'All tournaments')}</option>
+                      {tournaments.map(tournament => (
+                        <option key={tournament.id} value={tournament.id}>
+                          {tournament.title}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs text-slate-400 mb-1">{t('Metode', 'Method')}</label>
+                    <select
+                      value={paymentMethodFilter}
+                      onChange={(e) => setPaymentMethodFilter(e.target.value as typeof paymentMethodFilter)}
+                      className="pro11-input text-sm"
+                    >
+                      <option value="all">{t('Alle', 'All')}</option>
+                      <option value="paypal">PayPal</option>
+                      <option value="vipps">Vipps</option>
+                      <option value="free">{t('Gratis', 'Free')}</option>
+                    </select>
+                  </div>
+                  <button
+                    onClick={() => downloadAccountingPdf(undefined, 'pdf')}
+                    disabled={isExportingAccountingPdf || tournaments.length === 0}
+                    className="pro11-button flex items-center space-x-2 text-sm disabled:opacity-50"
+                  >
+                    <FileText className="w-4 h-4" />
+                    <span>{t('Betalingsrapport PDF', 'Payment report PDF')}</span>
+                  </button>
+                  <button
+                    onClick={() => downloadAccountingPdf(undefined, 'csv')}
+                    disabled={isExportingAccountingPdf || tournaments.length === 0}
+                    className="pro11-button-secondary flex items-center space-x-2 text-sm disabled:opacity-50"
+                  >
+                    <Download className="w-4 h-4" />
+                    <span>{t('Betalingsrapport CSV', 'Payment report CSV')}</span>
+                  </button>
+                </div>
+
+                {paymentsLoading ? (
+                  <div className="text-center py-12">
+                    <div className="w-8 h-8 border-2 border-blue-400 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+                    <p className="text-slate-300">{t('Laster betalinger...', 'Loading payments...')}</p>
+                  </div>
+                ) : paymentRecords.length === 0 ? (
+                  <div className="pro11-card p-6 text-center text-slate-400">
+                    {t('Ingen betalte påmeldinger i dette filteret.', 'No paid registrations in this filter.')}
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto rounded-lg border border-slate-700">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b border-slate-700 bg-slate-800/50 text-xs uppercase text-slate-400">
+                          <th className="py-3 px-3 text-left">{t('Lag', 'Team')}</th>
+                          <th className="py-3 px-3 text-left">{t('Turnering', 'Tournament')}</th>
+                          <th className="py-3 px-3 text-left">{t('Betalt', 'Paid')}</th>
+                          <th className="py-3 px-3 text-left">{t('Metode', 'Method')}</th>
+                          <th className="py-3 px-3 text-right">{t('Brutto', 'Gross')}</th>
+                          <th className="py-3 px-3 text-right">{t('Gebyr', 'Fee')}</th>
+                          <th className="py-3 px-3 text-right">{t('Netto', 'Net')}</th>
+                          <th className="py-3 px-3 text-left">{t('Tx-ID', 'Tx ID')}</th>
+                          <th className="py-3 px-3 text-left">{t('Avstemt', 'Reconciled')}</th>
+                          <th className="py-3 px-3 text-right">{t('Handling', 'Action')}</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {paymentRecords.map(payment => (
+                          <tr key={payment.id} className="border-b border-slate-700/70 hover:bg-slate-800/30">
+                            <td className="py-3 px-3">
+                              <div className="font-medium">{payment.teamName}</div>
+                              <div className="text-xs text-slate-500">{payment.captainEmail}</div>
+                            </td>
+                            <td className="py-3 px-3 text-slate-300">{payment.tournamentTitle}</td>
+                            <td className="py-3 px-3 text-slate-300">
+                              {payment.paidAt ? new Date(payment.paidAt).toLocaleDateString('nb-NO') : '-'}
+                            </td>
+                            <td className="py-3 px-3">{payment.method}</td>
+                            <td className="py-3 px-3 text-right">{payment.grossAmount} kr</td>
+                            <td className="py-3 px-3 text-right">{payment.feeAmount != null ? `${payment.feeAmount} kr` : '-'}</td>
+                            <td className="py-3 px-3 text-right">{payment.netAmount != null ? `${payment.netAmount} kr` : '-'}</td>
+                            <td className="py-3 px-3 font-mono text-xs truncate max-w-[10rem]" title={payment.providerTransactionId || payment.providerOrderId || ''}>
+                              {payment.providerTransactionId || payment.providerOrderId || '-'}
+                            </td>
+                            <td className="py-3 px-3">{payment.reconciledLabel}</td>
+                            <td className="py-3 px-3 text-right">
+                              <button
+                                type="button"
+                                onClick={() => openPaymentEditor(payment)}
+                                className="p-1.5 rounded hover:bg-slate-700 text-blue-400"
+                                title={t('Rediger avstemming', 'Edit reconciliation')}
+                              >
+                                <Edit className="w-4 h-4" />
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+
+                {selectedPaymentId && (
+                  <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
+                    <div className="bg-slate-800 rounded-xl shadow-xl max-w-lg w-full p-6 border border-slate-700">
+                      <h3 className="text-lg font-semibold text-white mb-4">
+                        {t('Avstem betaling', 'Reconcile payment')}
+                      </h3>
+                      <div className="grid gap-3">
+                        <div>
+                          <label className="block text-sm text-slate-300 mb-1">{t('Gebyr (kr)', 'Fee (NOK)')}</label>
+                          <input
+                            type="number"
+                            value={paymentEditForm.feeAmount}
+                            onChange={e => setPaymentEditForm(f => ({ ...f, feeAmount: e.target.value }))}
+                            className="pro11-input w-full"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm text-slate-300 mb-1">{t('Gebyrkilde', 'Fee source')}</label>
+                          <select
+                            value={paymentEditForm.feeSource}
+                            onChange={e => setPaymentEditForm(f => ({ ...f, feeSource: e.target.value }))}
+                            className="pro11-input w-full"
+                          >
+                            <option value="manual">manual</option>
+                            <option value="estimated">estimated</option>
+                            <option value="provider_capture">provider_capture</option>
+                            <option value="settlement_report">settlement_report</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label className="block text-sm text-slate-300 mb-1">{t('Transaksjons-ID', 'Transaction ID')}</label>
+                          <input
+                            type="text"
+                            value={paymentEditForm.providerTransactionId}
+                            onChange={e => setPaymentEditForm(f => ({ ...f, providerTransactionId: e.target.value }))}
+                            className="pro11-input w-full"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm text-slate-300 mb-1">Payout-ID</label>
+                          <input
+                            type="text"
+                            value={paymentEditForm.payoutId}
+                            onChange={e => setPaymentEditForm(f => ({ ...f, payoutId: e.target.value }))}
+                            className="pro11-input w-full"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm text-slate-300 mb-1">{t('Notat', 'Note')}</label>
+                          <textarea
+                            value={paymentEditForm.accountingNote}
+                            onChange={e => setPaymentEditForm(f => ({ ...f, accountingNote: e.target.value }))}
+                            className="pro11-input w-full min-h-[4rem]"
+                          />
+                        </div>
+                        <label className="flex items-center gap-2 text-sm text-slate-300">
+                          <input
+                            type="checkbox"
+                            checked={paymentEditForm.reconciled}
+                            onChange={e => setPaymentEditForm(f => ({ ...f, reconciled: e.target.checked }))}
+                          />
+                          {t('Markert som avstemt', 'Marked as reconciled')}
+                        </label>
+                      </div>
+                      <div className="flex justify-end gap-2 mt-5">
+                        <button
+                          type="button"
+                          onClick={() => setSelectedPaymentId(null)}
+                          className="pro11-button-secondary text-sm"
+                        >
+                          {t('Avbryt', 'Cancel')}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={savePaymentEdits}
+                          disabled={paymentSaving}
+                          className="pro11-button text-sm disabled:opacity-50"
+                        >
+                          {paymentSaving ? t('Lagrer...', 'Saving...') : t('Lagre', 'Save')}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
             {activeTab === 'statistics' && (
               <div className="space-y-5">
                 <div>
@@ -2916,7 +3212,7 @@ PRO11 Team`)
                 <div className="mt-4 flex flex-wrap gap-3 items-end">
                   <div>
                     <label className="block text-xs text-slate-400 mb-1">
-                      {t('Turnering for regnskaps-PDF', 'Tournament for accounting PDF')}
+                      {t('Turnering for betalingsrapport', 'Tournament for payment report')}
                     </label>
                     <select
                       value={selectedTournament || getLatestTournamentId(tournaments)}
@@ -2931,16 +3227,24 @@ PRO11 Team`)
                     </select>
                   </div>
                   <button
-                    onClick={() => downloadAccountingPdf()}
+                    onClick={() => downloadAccountingPdf(undefined, 'pdf')}
                     disabled={isExportingAccountingPdf || tournaments.length === 0}
                     className="pro11-button flex items-center space-x-2 text-sm disabled:opacity-50"
                   >
                     <FileText className="w-4 h-4" />
                     <span>
                       {isExportingAccountingPdf
-                        ? t('Genererer PDF...', 'Generating PDF...')
-                        : t('Last ned regnskaps-PDF', 'Download accounting PDF')}
+                        ? t('Genererer...', 'Generating...')
+                        : t('Betalingsrapport PDF', 'Payment report PDF')}
                     </span>
+                  </button>
+                  <button
+                    onClick={() => downloadAccountingPdf(undefined, 'csv')}
+                    disabled={isExportingAccountingPdf || tournaments.length === 0}
+                    className="pro11-button-secondary flex items-center space-x-2 text-sm disabled:opacity-50"
+                  >
+                    <Download className="w-4 h-4" />
+                    <span>{t('Betalingsrapport CSV', 'Payment report CSV')}</span>
                   </button>
                   <button
                     onClick={exportTeams}

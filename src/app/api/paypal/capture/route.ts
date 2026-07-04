@@ -3,7 +3,8 @@ import { getSupabaseAdmin } from '@/lib/supabase'
 import {
   amountsMatch,
   capturePayPalOrder,
-  getCapturedAmount
+  getCapturedAmount,
+  getPayPalCaptureDetails
 } from '@/lib/paypal'
 import {
   getCaptainSession,
@@ -74,6 +75,23 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'PayPal amount does not match tournament fee' }, { status: 400 })
     }
 
+    const captureDetails = getPayPalCaptureDetails(order)
+    const paidAt = new Date().toISOString()
+    const paymentPayload = {
+      status: 'completed',
+      amount: entryFee,
+      gross_amount: captureDetails.grossAmount ?? entryFee,
+      fee_amount: captureDetails.feeAmount,
+      net_amount: captureDetails.netAmount,
+      payment_method: 'paypal',
+      payment_provider: 'paypal',
+      provider_order_id: captureDetails.orderId,
+      provider_transaction_id: captureDetails.captureId,
+      stripe_payment_intent_id: orderId,
+      paid_at: paidAt,
+      fee_source: captureDetails.feeAmount != null ? 'provider_capture' : null
+    }
+
     let paymentId = existingPayment?.id as string | undefined
 
     if (!paymentId) {
@@ -81,11 +99,8 @@ export async function POST(request: NextRequest) {
         .from('payments')
         .insert({
           team_id: teamId,
-          amount: entryFee,
           currency: 'nok',
-          status: 'completed',
-          payment_method: 'paypal',
-          stripe_payment_intent_id: orderId
+          ...paymentPayload
         })
         .select('id')
         .single()
@@ -97,11 +112,7 @@ export async function POST(request: NextRequest) {
     } else {
       const { error: paymentError } = await supabase
         .from('payments')
-        .update({
-          status: 'completed',
-          amount: entryFee,
-          payment_method: 'paypal'
-        })
+        .update(paymentPayload)
         .eq('id', paymentId)
 
       if (paymentError) {

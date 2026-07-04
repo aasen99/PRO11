@@ -51,6 +51,11 @@ export interface PayPalOrder {
         id?: string
         status?: string
         amount?: { currency_code?: string; value?: string }
+        seller_receivable_breakdown?: {
+          gross_amount?: { currency_code?: string; value?: string }
+          paypal_fee?: { currency_code?: string; value?: string }
+          net_amount?: { currency_code?: string; value?: string }
+        }
       }>
     }
   }>
@@ -117,4 +122,37 @@ export function getCapturedAmount(order: PayPalOrder): { value: number; currency
 
 export function amountsMatch(expected: number, paid: number): boolean {
   return Math.abs(expected - paid) < 0.01
+}
+
+export function getPayPalCaptureDetails(order: PayPalOrder): {
+  orderId: string
+  captureId: string | null
+  grossAmount: number | null
+  feeAmount: number | null
+  netAmount: number | null
+} {
+  const capture = order.purchase_units?.[0]?.payments?.captures?.[0]
+  const breakdown = capture?.seller_receivable_breakdown
+  const parseMoney = (value?: string) => {
+    if (!value) return null
+    const parsed = parseFloat(value)
+    return Number.isFinite(parsed) ? Math.round(parsed) : null
+  }
+
+  const captured = getCapturedAmount(order)
+  const grossAmount =
+    parseMoney(breakdown?.gross_amount?.value) ??
+    (captured ? Math.round(captured.value) : null)
+  const feeAmount = parseMoney(breakdown?.paypal_fee?.value)
+  const netAmount =
+    parseMoney(breakdown?.net_amount?.value) ??
+    (grossAmount != null && feeAmount != null ? grossAmount - feeAmount : null)
+
+  return {
+    orderId: order.id,
+    captureId: capture?.id || null,
+    grossAmount,
+    feeAmount,
+    netAmount
+  }
 }
