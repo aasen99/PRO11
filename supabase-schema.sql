@@ -32,6 +32,12 @@ CREATE TABLE teams (
   expected_players INTEGER NOT NULL DEFAULT 11,
   status VARCHAR(50) NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'approved', 'rejected', 'paid')),
   payment_status VARCHAR(50) NOT NULL DEFAULT 'pending' CHECK (payment_status IN ('pending', 'completed', 'failed')),
+  prize_payout_type VARCHAR(20) CHECK (prize_payout_type IN ('norwegian', 'international')),
+  prize_bank_account VARCHAR(20),
+  prize_iban VARCHAR(34),
+  prize_swift_bic VARCHAR(11),
+  prize_account_holder VARCHAR(255),
+  prize_payout_submitted_at TIMESTAMP WITH TIME ZONE,
   generated_password VARCHAR(255) NOT NULL,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()

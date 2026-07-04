@@ -9,6 +9,31 @@ import {
   setCaptainSessionCookie
 } from '@/lib/session'
 import { isDemoTournament } from '@/lib/demo-tournament'
+import { isTeamTournamentWinner, type MatchForWinner } from '@/lib/tournament-winner'
+import {
+  getTournamentPrizeAmount,
+  normalizeIban,
+  normalizeNorwegianBankAccount,
+  type PrizePayoutInput,
+  validatePrizePayoutInput
+} from '@/lib/prize-payout'
+
+function mapPrizePayoutFields(team: any) {
+  return {
+    prizePayoutType: team.prize_payout_type || null,
+    prize_payout_type: team.prize_payout_type || null,
+    prizeBankAccount: team.prize_bank_account || null,
+    prize_bank_account: team.prize_bank_account || null,
+    prizeIban: team.prize_iban || null,
+    prize_iban: team.prize_iban || null,
+    prizeSwiftBic: team.prize_swift_bic || null,
+    prize_swift_bic: team.prize_swift_bic || null,
+    prizeAccountHolder: team.prize_account_holder || null,
+    prize_account_holder: team.prize_account_holder || null,
+    prizePayoutSubmittedAt: team.prize_payout_submitted_at || null,
+    prize_payout_submitted_at: team.prize_payout_submitted_at || null
+  }
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -336,7 +361,8 @@ export async function GET(request: NextRequest) {
       paymentStatus: team.payment_status,
       payment_status: team.payment_status,
       created_at: team.created_at,
-      tournament: team.tournaments
+      tournament: team.tournaments,
+      ...mapPrizePayoutFields(team)
     }))
 
     return NextResponse.json({ teams: transformedTeams })
@@ -350,7 +376,7 @@ export async function GET(request: NextRequest) {
 export async function PUT(request: NextRequest) {
   try {
     const body = await request.json()
-    const { id, status, discordUsername, checkedIn, currentPassword, newPassword } = body
+    const { id, status, discordUsername, checkedIn, currentPassword, newPassword, prizePayout } = body
 
     if (!id) {
       return NextResponse.json({ error: 'Team ID is required' }, { status: 400 })
@@ -373,7 +399,7 @@ export async function PUT(request: NextRequest) {
       if (!captain || captain.teamId !== id) {
         if (!admin) return unauthorizedResponse()
       }
-    } else if (!admin) {
+    } else if (prizePayout === undefined && !admin) {
       return unauthorizedResponse()
     }
 
@@ -386,6 +412,87 @@ export async function PUT(request: NextRequest) {
     if (status) updateData.status = status
     if (discordUsername !== undefined) updateData.discord_username = discordUsername || null
     if (checkedIn !== undefined) updateData.checked_in = Boolean(checkedIn)
+
+    if (prizePayout !== undefined) {
+      const { data: existingTeam, error: existingTeamError } = await supabase
+        .from('teams')
+        .select('id, team_name, captain_email, tournament_id, prize_payout_submitted_at')
+        .eq('id', id)
+        .single()
+
+      if (existingTeamError || !existingTeam) {
+        return NextResponse.json({ error: 'Team not found' }, { status: 404 })
+      }
+
+      if (
+        !admin &&
+        (!captain ||
+          captain.captainEmail.toLowerCase() !== String(existingTeam.captain_email || '').toLowerCase() ||
+          captain.teamName.toLowerCase() !== String(existingTeam.team_name || '').toLowerCase())
+      ) {
+        return unauthorizedResponse()
+      }
+
+      const tournamentId = String(existingTeam.tournament_id || '')
+      if (!tournamentId) {
+        return NextResponse.json({ error: 'Tournament not found' }, { status: 404 })
+      }
+
+      const { data: tournament, error: tournamentError } = await supabase
+        .from('tournaments')
+        .select('id, prize_pool, entry_fee, description, current_teams')
+        .eq('id', tournamentId)
+        .single()
+
+      if (tournamentError || !tournament) {
+        return NextResponse.json({ error: 'Tournament not found' }, { status: 404 })
+      }
+
+      const { data: matches, error: matchesError } = await supabase
+        .from('matches')
+        .select('team1_name, team2_name, round, status, score1, score2')
+        .eq('tournament_id', tournamentId)
+
+      if (matchesError) {
+        return NextResponse.json({ error: 'Could not verify tournament winner' }, { status: 400 })
+      }
+
+      if (!isTeamTournamentWinner(String(existingTeam.team_name || ''), (matches || []) as MatchForWinner[])) {
+        return NextResponse.json({ error: 'Only the tournament winner can submit prize payout details.' }, { status: 403 })
+      }
+
+      const prizeAmount = getTournamentPrizeAmount({
+        prizePool: tournament.prize_pool as number | null,
+        entryFee: tournament.entry_fee as number | null,
+        description: tournament.description as string | null,
+        eligibleTeams: tournament.current_teams as number | null
+      })
+
+      if (prizeAmount <= 0) {
+        return NextResponse.json({ error: 'This tournament has no prize payout.' }, { status: 400 })
+      }
+
+      const payoutInput = prizePayout as PrizePayoutInput
+      const validation = validatePrizePayoutInput(payoutInput, false)
+      if (!validation.valid) {
+        return NextResponse.json({ error: validation.error || 'Invalid payout information' }, { status: 400 })
+      }
+
+      updateData.prize_payout_type = payoutInput.type
+      updateData.prize_payout_submitted_at = new Date().toISOString()
+
+      if (payoutInput.type === 'norwegian') {
+        updateData.prize_bank_account = normalizeNorwegianBankAccount(payoutInput.bankAccount || '')
+        updateData.prize_iban = null
+        updateData.prize_swift_bic = null
+        updateData.prize_account_holder = null
+      } else {
+        updateData.prize_bank_account = null
+        updateData.prize_iban = normalizeIban(payoutInput.iban || '')
+        updateData.prize_swift_bic = (payoutInput.swiftBic || '').replace(/\s/g, '').toUpperCase()
+        updateData.prize_account_holder = (payoutInput.accountHolder || '').trim()
+      }
+    }
 
     if (typeof currentPassword === 'string' && typeof newPassword === 'string') {
       const { data: teamRow } = await supabase
@@ -438,6 +545,12 @@ export async function PUT(request: NextRequest) {
       }, { status: 400 })
     }
 
+    if (error && typeof error.message === 'string' && error.message.includes('prize_')) {
+      return NextResponse.json({
+        error: 'Database mangler premie-felt. Kjør migrering: ADD_PRIZE_PAYOUT_FIELDS.sql'
+      }, { status: 400 })
+    }
+
     if (error && typeof error.message === 'string' && error.message.includes('cannot coerce the result to a single JSON object')) {
       const result = await supabase
         .from('teams')
@@ -470,7 +583,8 @@ export async function PUT(request: NextRequest) {
       checked_in: team.checked_in ?? false,
       status: team.status,
       paymentStatus: team.payment_status,
-      payment_status: team.payment_status
+      payment_status: team.payment_status,
+      ...mapPrizePayoutFields(team)
     }
 
     return NextResponse.json({ success: true, team: teamData })

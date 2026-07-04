@@ -1,6 +1,7 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { Copy, Check, Edit, Save, X } from 'lucide-react'
 import { formatCaptainDiscordDisplay } from '@/lib/discord'
 
@@ -60,8 +61,49 @@ function TeamNameWithDiscord({
 }) {
   const [open, setOpen] = useState(false)
   const [copied, setCopied] = useState(false)
+  const [popupStyle, setPopupStyle] = useState<React.CSSProperties>({})
+  const buttonRef = useRef<HTMLButtonElement>(null)
+  const popupRef = useRef<HTMLDivElement>(null)
   const t = (noText: string, enText: string) => (isEnglish ? enText : noText)
   const discord = getTeamDiscord(teamName, teamDiscordByName)
+
+  useLayoutEffect(() => {
+    if (!open || !buttonRef.current) return
+
+    const updatePosition = () => {
+      const trigger = buttonRef.current
+      if (!trigger) return
+
+      const rect = trigger.getBoundingClientRect()
+      const popupHeight = popupRef.current?.offsetHeight ?? 72
+      const popupWidth = popupRef.current?.offsetWidth ?? 176
+      const gap = 6
+      const spaceBelow = window.innerHeight - rect.bottom
+      const openAbove = spaceBelow < popupHeight + gap + 8
+
+      let top = openAbove ? rect.top - popupHeight - gap : rect.bottom + gap
+      let left = align === 'right' ? rect.right - popupWidth : rect.left
+
+      left = Math.max(8, Math.min(left, window.innerWidth - popupWidth - 8))
+      top = Math.max(8, Math.min(top, window.innerHeight - popupHeight - 8))
+
+      setPopupStyle({ top, left, width: Math.max(rect.width, 176) })
+    }
+
+    updatePosition()
+    const frame = requestAnimationFrame(updatePosition)
+    window.addEventListener('resize', updatePosition)
+    window.addEventListener('scroll', updatePosition, true)
+    return () => {
+      cancelAnimationFrame(frame)
+      window.removeEventListener('resize', updatePosition)
+      window.removeEventListener('scroll', updatePosition, true)
+    }
+  }, [open, align])
+
+  useEffect(() => {
+    if (!open) setPopupStyle({})
+  }, [open])
 
   const handleCopy = async (e: React.MouseEvent) => {
     e.stopPropagation()
@@ -72,11 +114,24 @@ function TeamNameWithDiscord({
   }
 
   return (
-    <span className={`relative block min-w-0 ${align === 'right' ? 'text-right' : 'text-left'}`}>
+    <>
       <button
+        ref={buttonRef}
         type="button"
         onClick={e => {
           e.stopPropagation()
+          if (!open && buttonRef.current) {
+            const rect = buttonRef.current.getBoundingClientRect()
+            const estimatedHeight = 72
+            const width = Math.max(rect.width, 176)
+            const gap = 6
+            const openAbove = window.innerHeight - rect.bottom < estimatedHeight + gap + 8
+            let top = openAbove ? rect.top - estimatedHeight - gap : rect.bottom + gap
+            let left = align === 'right' ? rect.right - width : rect.left
+            left = Math.max(8, Math.min(left, window.innerWidth - width - 8))
+            top = Math.max(8, Math.min(top, window.innerHeight - estimatedHeight - 8))
+            setPopupStyle({ top, left, width })
+          }
           setOpen(prev => !prev)
         }}
         className={`truncate font-medium w-full hover:text-[#949cf0] hover:underline cursor-pointer ${
@@ -86,49 +141,52 @@ function TeamNameWithDiscord({
       >
         {teamName}
       </button>
-      {open && (
-        <>
-          <button
-            type="button"
-            className="fixed inset-0 z-10 cursor-default"
-            aria-label={t('Lukk', 'Close')}
-            onClick={() => setOpen(false)}
-          />
-          <div
-            className={`absolute z-20 top-full mt-1 min-w-[11rem] max-w-[16rem] p-2.5 rounded-lg border border-[#5865F2]/40 bg-slate-900 shadow-lg ${
-              align === 'right' ? 'right-0' : 'left-0'
-            }`}
-          >
-            <p className="text-[10px] text-slate-400 mb-1 truncate" title={teamName}>
-              {teamName}
-            </p>
-            {discord ? (
-              <div className="flex items-center justify-between gap-2">
-                <span className="text-sm font-medium text-[#949cf0] truncate">
-                  {formatCaptainDiscordDisplay(discord, isEnglish)}
-                </span>
-                <button
-                  type="button"
-                  onClick={handleCopy}
-                  className="shrink-0 p-1 rounded hover:bg-[#5865F2]/25 text-[#949cf0]"
-                  title={t('Kopier', 'Copy')}
-                >
-                  {copied ? (
-                    <Check className="w-3.5 h-3.5 text-green-400" />
-                  ) : (
-                    <Copy className="w-3.5 h-3.5" />
-                  )}
-                </button>
-              </div>
-            ) : (
-              <p className="text-xs text-slate-500">
-                {formatCaptainDiscordDisplay(null, isEnglish)}
+      {open &&
+        typeof document !== 'undefined' &&
+        createPortal(
+          <>
+            <button
+              type="button"
+              className="fixed inset-0 z-[100] cursor-default bg-transparent"
+              aria-label={t('Lukk', 'Close')}
+              onClick={() => setOpen(false)}
+            />
+            <div
+              ref={popupRef}
+              style={popupStyle}
+              className="fixed z-[101] p-2.5 rounded-lg border border-[#5865F2]/40 bg-slate-900 shadow-xl max-w-[16rem]"
+            >
+              <p className="text-[10px] text-slate-400 mb-1 truncate" title={teamName}>
+                {teamName}
               </p>
-            )}
-          </div>
-        </>
-      )}
-    </span>
+              {discord ? (
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-sm font-medium text-[#949cf0] truncate">
+                    {formatCaptainDiscordDisplay(discord, isEnglish)}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={handleCopy}
+                    className="shrink-0 p-1 rounded hover:bg-[#5865F2]/25 text-[#949cf0]"
+                    title={t('Kopier', 'Copy')}
+                  >
+                    {copied ? (
+                      <Check className="w-3.5 h-3.5 text-green-400" />
+                    ) : (
+                      <Copy className="w-3.5 h-3.5" />
+                    )}
+                  </button>
+                </div>
+              ) : (
+                <p className="text-xs text-slate-500">
+                  {formatCaptainDiscordDisplay(null, isEnglish)}
+                </p>
+              )}
+            </div>
+          </>,
+          document.body
+        )}
+    </>
   )
 }
 

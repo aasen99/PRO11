@@ -35,6 +35,18 @@ interface Team {
   tournament_id?: string
   paymentStatus?: 'pending' | 'paid' | 'refunded'
   payment_status?: 'pending' | 'completed' | 'failed'
+  prizePayoutType?: 'norwegian' | 'international' | null
+  prize_payout_type?: 'norwegian' | 'international' | null
+  prizeBankAccount?: string | null
+  prize_bank_account?: string | null
+  prizeIban?: string | null
+  prize_iban?: string | null
+  prizeSwiftBic?: string | null
+  prize_swift_bic?: string | null
+  prizeAccountHolder?: string | null
+  prize_account_holder?: string | null
+  prizePayoutSubmittedAt?: string | null
+  prize_payout_submitted_at?: string | null
 }
 
 interface Match {
@@ -3186,6 +3198,69 @@ PRO11 Team`)
                   </div>
                 </div>
               </div>
+
+              {(selectedTeam.prizePayoutSubmittedAt ||
+                selectedTeam.prize_payout_submitted_at ||
+                selectedTeam.prizeBankAccount ||
+                selectedTeam.prize_bank_account ||
+                selectedTeam.prizeIban ||
+                selectedTeam.prize_iban) && (
+                <div>
+                  <h3 className="font-semibold mb-2 text-xs">{t('Premieutbetaling', 'Prize payout')}</h3>
+                  <div className="grid grid-cols-1 gap-2 text-xs bg-slate-800/50 rounded p-2">
+                    <div>
+                      <p className="text-slate-400">{t('Type', 'Type')}</p>
+                      <p className="font-medium">
+                        {(selectedTeam.prizePayoutType || selectedTeam.prize_payout_type) === 'international'
+                          ? t('Utenlandsk (IBAN)', 'International (IBAN)')
+                          : t('Norsk konto', 'Norwegian account')}
+                      </p>
+                    </div>
+                    {(selectedTeam.prizeBankAccount || selectedTeam.prize_bank_account) && (
+                      <div>
+                        <p className="text-slate-400">{t('Kontonummer', 'Account number')}</p>
+                        <p className="font-medium font-mono">
+                          {selectedTeam.prizeBankAccount || selectedTeam.prize_bank_account}
+                        </p>
+                      </div>
+                    )}
+                    {(selectedTeam.prizeIban || selectedTeam.prize_iban) && (
+                      <div>
+                        <p className="text-slate-400">IBAN</p>
+                        <p className="font-medium font-mono break-all">
+                          {selectedTeam.prizeIban || selectedTeam.prize_iban}
+                        </p>
+                      </div>
+                    )}
+                    {(selectedTeam.prizeSwiftBic || selectedTeam.prize_swift_bic) && (
+                      <div>
+                        <p className="text-slate-400">SWIFT/BIC</p>
+                        <p className="font-medium font-mono">
+                          {selectedTeam.prizeSwiftBic || selectedTeam.prize_swift_bic}
+                        </p>
+                      </div>
+                    )}
+                    {(selectedTeam.prizeAccountHolder || selectedTeam.prize_account_holder) && (
+                      <div>
+                        <p className="text-slate-400">{t('Kontoinnehaver', 'Account holder')}</p>
+                        <p className="font-medium">
+                          {selectedTeam.prizeAccountHolder || selectedTeam.prize_account_holder}
+                        </p>
+                      </div>
+                    )}
+                    {(selectedTeam.prizePayoutSubmittedAt || selectedTeam.prize_payout_submitted_at) && (
+                      <div>
+                        <p className="text-slate-400">{t('Registrert', 'Submitted')}</p>
+                        <p className="font-medium">
+                          {new Date(
+                            selectedTeam.prizePayoutSubmittedAt || selectedTeam.prize_payout_submitted_at || ''
+                          ).toLocaleString(isEnglish ? 'en-US' : 'nb-NO')}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
 
               <div>
                 <h3 className="font-semibold mb-2 text-xs">Spillere ({(selectedTeam.players?.length || 0)})</h3>

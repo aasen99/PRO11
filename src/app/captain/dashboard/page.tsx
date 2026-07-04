@@ -16,6 +16,9 @@ import {
 import GroupStandingsTable from '@/components/GroupStandingsTable'
 import { calculateGroupStandings, toStandingsMatchInputs } from '@/lib/group-standings'
 import { formatCaptainDiscordDisplay } from '@/lib/discord'
+import { isTeamTournamentWinner } from '@/lib/tournament-winner'
+import { getTournamentPrizeAmount, type PrizePayoutRecord } from '@/lib/prize-payout'
+import PrizePayoutForm from '@/components/captain/PrizePayoutForm'
 
 interface Team {
   id: string
@@ -68,6 +71,11 @@ interface Tournament {
   checkInOpen?: boolean
   captainCheckedIn?: boolean
   captainTeamId?: string
+  winnerInfo?: {
+    teamId: string
+    prizeAmount: number
+    payout: PrizePayoutRecord
+  } | null
 }
 
 interface TeamStats {
@@ -296,6 +304,7 @@ export default function CaptainDashboardPage() {
               let teamDiscordByName: Record<string, string> = {}
               let captainTeamId: string | null = null
               let captainCheckedIn = false
+              let matchingTeamRecord: any = null
               
               if (tournamentResponse.ok) {
                 const data = await tournamentResponse.json()
@@ -319,6 +328,7 @@ export default function CaptainDashboardPage() {
                   return name === parsedTeam.teamName && email === parsedTeam.captainEmail && teamTournamentId === tournamentId
                 })
                 if (matchingTeam) {
+                  matchingTeamRecord = matchingTeam
                   captainTeamId = matchingTeam.id
                   captainCheckedIn = matchingTeam.checkedIn ?? matchingTeam.checked_in ?? false
                 }
@@ -436,7 +446,7 @@ export default function CaptainDashboardPage() {
                 }).filter((match: Match | null): match is Match => match !== null)
               }
               
-              return tournament ? { tournament, matches, allMatches, captainTeamId, captainCheckedIn } : null
+              return tournament ? { tournament, matches, allMatches, captainTeamId, captainCheckedIn, matchingTeam: matchingTeamRecord } : null
             } catch (error) {
               console.error(`Error loading tournament ${tournamentId}:`, error)
               return null
@@ -468,6 +478,39 @@ export default function CaptainDashboardPage() {
               const filteredMatches = shouldShowKnockout 
                 ? t.matches || []
                 : (t.matches || []).filter((m: Match) => m.round === 'Gruppespill')
+
+              const winnerCheckMatches = allMatches.map((match: Match) => ({
+                team1_name: match.team1,
+                team2_name: match.team2,
+                round: match.round,
+                status: match.status,
+                score1: match.score1,
+                score2: match.score2
+              }))
+              const prizeAmount = getTournamentPrizeAmount({
+                prizePool: tournament.prize_pool,
+                entryFee: tournament.entry_fee,
+                description: tournament.description,
+                eligibleTeams: tournament.current_teams
+              })
+              const isWinner = isTeamTournamentWinner(parsedTeam.teamName, winnerCheckMatches)
+              const matchingTeam = t.matchingTeam
+              const winnerInfo =
+                isWinner && prizeAmount > 0 && t.captainTeamId
+                  ? {
+                      teamId: t.captainTeamId,
+                      prizeAmount,
+                      payout: {
+                        type: matchingTeam?.prizePayoutType || matchingTeam?.prize_payout_type || null,
+                        bankAccount: matchingTeam?.prizeBankAccount || matchingTeam?.prize_bank_account || null,
+                        iban: matchingTeam?.prizeIban || matchingTeam?.prize_iban || null,
+                        swiftBic: matchingTeam?.prizeSwiftBic || matchingTeam?.prize_swift_bic || null,
+                        accountHolder: matchingTeam?.prizeAccountHolder || matchingTeam?.prize_account_holder || null,
+                        submittedAt:
+                          matchingTeam?.prizePayoutSubmittedAt || matchingTeam?.prize_payout_submitted_at || null
+                      }
+                    }
+                  : null
               
               return {
                 id: tournament.id,
@@ -481,7 +524,8 @@ export default function CaptainDashboardPage() {
                 allMatches,
                 checkInOpen: tournament.check_in_open ?? false,
                 captainCheckedIn: t.captainCheckedIn ?? false,
-                captainTeamId: t.captainTeamId ?? undefined
+                captainTeamId: t.captainTeamId ?? undefined,
+                winnerInfo
               }
           })
           
@@ -1257,6 +1301,28 @@ export default function CaptainDashboardPage() {
               </div>
             </div>
           </div>
+
+          {tournaments
+            .filter(tournamentItem => tournamentItem.winnerInfo)
+            .map(tournamentItem => (
+              <PrizePayoutForm
+                key={`prize-${tournamentItem.id}`}
+                teamId={tournamentItem.winnerInfo!.teamId}
+                tournamentTitle={tournamentItem.title}
+                prizeAmount={tournamentItem.winnerInfo!.prizeAmount}
+                initialPayout={tournamentItem.winnerInfo!.payout}
+                isEnglish={isEnglish}
+                onSaved={record => {
+                  setTournaments(prev =>
+                    prev.map(item =>
+                      item.id === tournamentItem.id && item.winnerInfo
+                        ? { ...item, winnerInfo: { ...item.winnerInfo, payout: record } }
+                        : item
+                    )
+                  )
+                }}
+              />
+            ))}
 
           {tournaments.length === 0 && (
             <div className="pro11-card p-6 mb-6 border border-blue-600/40 bg-blue-900/10">
