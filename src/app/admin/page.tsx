@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react'
 import Link from 'next/link'
-import { Shield, Users, Trophy, Calendar, Download, CheckCircle, XCircle, Eye, Plus, Settings, Lock, Edit, Trash2, Mail, Key, BarChart3, LogOut, LayoutDashboard, MessageSquare, Radio, Filter, ChevronRight, Award } from 'lucide-react'
+import { Shield, Users, Trophy, Calendar, Download, CheckCircle, XCircle, Eye, Plus, Settings, Lock, Edit, Trash2, Mail, Key, BarChart3, LogOut, LayoutDashboard, MessageSquare, Radio, Filter, ChevronRight, Award, FileText } from 'lucide-react'
 import { useLanguage } from '@/components/LanguageProvider'
 import { apiFetch } from '@/lib/client-fetch'
 import { isDemoTournament, DEMO_PASSWORD } from '@/lib/demo-tournament'
@@ -234,6 +234,7 @@ export default function AdminPage() {
   const [demoTeamCount, setDemoTeamCount] = useState(8)
   const [demoNumGroups, setDemoNumGroups] = useState(2)
   const [demoLoading, setDemoLoading] = useState(false)
+  const [isExportingAccountingPdf, setIsExportingAccountingPdf] = useState(false)
   const [demoDeletingId, setDemoDeletingId] = useState('')
   const [demoError, setDemoError] = useState('')
   const [demoResult, setDemoResult] = useState<{
@@ -751,6 +752,43 @@ export default function AdminPage() {
     a.download = `lag_${selectedTournament || 'alle'}_${new Date().toISOString().split('T')[0]}.csv`
     a.click()
     window.URL.revokeObjectURL(url)
+  }
+
+  const downloadAccountingPdf = async (tournamentId?: string) => {
+    const id = tournamentId || selectedTournament || getLatestTournamentId(tournaments)
+    if (!id) {
+      alert(t('Velg en turnering først.', 'Select a tournament first.'))
+      return
+    }
+
+    setIsExportingAccountingPdf(true)
+    try {
+      const response = await apiFetch(
+        `/api/admin/accounting-report?tournament_id=${encodeURIComponent(id)}`,
+        { credentials: 'include' }
+      )
+
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({}))
+        alert(err.error || t('Kunne ikke generere PDF.', 'Could not generate PDF.'))
+        return
+      }
+
+      const blob = await response.blob()
+      const disposition = response.headers.get('Content-Disposition')
+      const filenameMatch = disposition?.match(/filename="([^"]+)"/)
+      const filename = filenameMatch?.[1] || `PRO11_regnskap_${id}.pdf`
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = filename
+      a.click()
+      window.URL.revokeObjectURL(url)
+    } catch {
+      alert(t('Noe gikk galt ved nedlasting av PDF.', 'Something went wrong downloading the PDF.'))
+    } finally {
+      setIsExportingAccountingPdf(false)
+    }
   }
 
   const demoTournaments = tournaments.filter(tournament =>
@@ -2470,13 +2508,29 @@ PRO11 Team`)
                       <p className="text-xs text-slate-500">
                         {t(`Viser ${filteredTeams.length} av ${visibleTeams.length} lag`, `Showing ${filteredTeams.length} of ${visibleTeams.length} teams`)}
                       </p>
-                      <button
-                        onClick={exportTeams}
-                        className="pro11-button-secondary flex items-center space-x-2 text-sm"
-                      >
-                        <Download className="w-4 h-4" />
-                        <span>{t('Eksporter CSV', 'Export CSV')}</span>
-                      </button>
+                      <div className="flex flex-wrap gap-2">
+                        {selectedTournament && (
+                          <button
+                            onClick={() => downloadAccountingPdf(selectedTournament)}
+                            disabled={isExportingAccountingPdf}
+                            className="pro11-button-secondary flex items-center space-x-2 text-sm disabled:opacity-50"
+                          >
+                            <FileText className="w-4 h-4" />
+                            <span>
+                              {isExportingAccountingPdf
+                                ? t('Genererer PDF...', 'Generating PDF...')
+                                : t('Regnskaps-PDF', 'Accounting PDF')}
+                            </span>
+                          </button>
+                        )}
+                        <button
+                          onClick={exportTeams}
+                          className="pro11-button-secondary flex items-center space-x-2 text-sm"
+                        >
+                          <Download className="w-4 h-4" />
+                          <span>{t('Eksporter CSV', 'Export CSV')}</span>
+                        </button>
+                      </div>
                     </div>
                   </>
                 )}
@@ -2840,13 +2894,41 @@ PRO11 Team`)
                   </div>
                 </div>
 
-                <div className="mt-4">
+                <div className="mt-4 flex flex-wrap gap-3 items-end">
+                  <div>
+                    <label className="block text-xs text-slate-400 mb-1">
+                      {t('Turnering for regnskaps-PDF', 'Tournament for accounting PDF')}
+                    </label>
+                    <select
+                      value={selectedTournament || getLatestTournamentId(tournaments)}
+                      onChange={(e) => setSelectedTournament(e.target.value)}
+                      className="pro11-input text-sm min-w-[16rem]"
+                    >
+                      {tournaments.map(tournament => (
+                        <option key={tournament.id} value={tournament.id}>
+                          {tournament.title}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <button
+                    onClick={() => downloadAccountingPdf()}
+                    disabled={isExportingAccountingPdf || tournaments.length === 0}
+                    className="pro11-button flex items-center space-x-2 text-sm disabled:opacity-50"
+                  >
+                    <FileText className="w-4 h-4" />
+                    <span>
+                      {isExportingAccountingPdf
+                        ? t('Genererer PDF...', 'Generating PDF...')
+                        : t('Last ned regnskaps-PDF', 'Download accounting PDF')}
+                    </span>
+                  </button>
                   <button
                     onClick={exportTeams}
-                    className="pro11-button flex items-center space-x-2 text-sm"
+                    className="pro11-button-secondary flex items-center space-x-2 text-sm"
                   >
                     <Download className="w-3 h-3" />
-                    <span>{t('Eksporter fullstendig rapport', 'Export full report')}</span>
+                    <span>{t('Eksporter lag CSV', 'Export teams CSV')}</span>
                   </button>
                 </div>
               </div>

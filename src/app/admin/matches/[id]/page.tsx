@@ -134,6 +134,7 @@ export default function TournamentMatchesPage() {
   const [showBulkTool, setShowBulkTool] = useState(false)
   const [matchFilter, setMatchFilter] = useState<'all' | 'attention' | 'live' | 'pending'>('all')
   const [matchLog, setMatchLog] = useState<Array<{ id?: string; action: string; actor_type?: string; actor_name?: string; old_score1?: number | null; old_score2?: number | null; new_score1?: number | null; new_score2?: number | null; created_at: string }>>([])
+  const [teamDiscordByName, setTeamDiscordByName] = useState<Record<string, string>>({})
   const previousMatchesRef = useRef<Match[]>([])
   const autoKnockoutInProgressRef = useRef(false)
   const groupRoundBackfillRef = useRef(false)
@@ -355,8 +356,26 @@ export default function TournamentMatchesPage() {
         // Load matches
         const matchesUrl = `/api/matches?tournament_id=${tournamentId}`
         console.log('Fetching matches from:', matchesUrl)
-        const matchesResponse = await apiFetch(matchesUrl)
+        const [matchesResponse, teamsResponse] = await Promise.all([
+          apiFetch(matchesUrl),
+          apiFetch(`/api/teams?tournamentId=${tournamentId}`)
+        ])
         console.log('Matches API response status:', matchesResponse.status)
+
+        if (teamsResponse.ok) {
+          const teamsData = await teamsResponse.json()
+          const discordMap = (teamsData.teams || []).reduce(
+            (acc: Record<string, string>, team: { teamName?: string; team_name?: string; discordUsername?: string; discord_username?: string }) => {
+              const name = team.teamName || team.team_name
+              if (name) {
+                acc[name] = team.discordUsername || team.discord_username || ''
+              }
+              return acc
+            },
+            {}
+          )
+          setTeamDiscordByName(discordMap)
+        }
         
         if (matchesResponse.ok) {
           const matchesData = await matchesResponse.json()
@@ -1491,6 +1510,7 @@ export default function TournamentMatchesPage() {
           key={match.id}
           match={match}
           metaLine={getMetaLine ? getMetaLine(match) : null}
+          teamDiscordByName={teamDiscordByName}
           isEditing={editingMatch === match.id}
           editForm={editForm}
           setEditForm={setEditForm}

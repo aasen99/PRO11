@@ -1,7 +1,7 @@
 'use client'
 
-import React from 'react'
-import { Edit, Save, X } from 'lucide-react'
+import React, { useState } from 'react'
+import { Copy, Check, Edit, Save, X } from 'lucide-react'
 
 export interface AdminMatchCardMatch {
   id: string
@@ -38,9 +38,101 @@ interface EditForm {
   status?: string
 }
 
+function getTeamDiscord(teamName: string, teamDiscordByName: Record<string, string>): string {
+  if (teamDiscordByName[teamName]) return teamDiscordByName[teamName]
+  const key = Object.keys(teamDiscordByName).find(
+    name => name.toLowerCase() === teamName.toLowerCase()
+  )
+  return key ? teamDiscordByName[key] : ''
+}
+
+function TeamNameWithDiscord({
+  teamName,
+  teamDiscordByName,
+  align = 'left',
+  isEnglish
+}: {
+  teamName: string
+  teamDiscordByName: Record<string, string>
+  align?: 'left' | 'right'
+  isEnglish: boolean
+}) {
+  const [open, setOpen] = useState(false)
+  const [copied, setCopied] = useState(false)
+  const t = (noText: string, enText: string) => (isEnglish ? enText : noText)
+  const discord = getTeamDiscord(teamName, teamDiscordByName)
+
+  const handleCopy = async (e: React.MouseEvent) => {
+    e.stopPropagation()
+    if (!discord) return
+    await navigator.clipboard.writeText(discord)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
+  }
+
+  return (
+    <span className={`relative block min-w-0 ${align === 'right' ? 'text-right' : 'text-left'}`}>
+      <button
+        type="button"
+        onClick={e => {
+          e.stopPropagation()
+          setOpen(prev => !prev)
+        }}
+        className={`truncate font-medium w-full hover:text-[#949cf0] hover:underline cursor-pointer ${
+          align === 'right' ? 'text-right' : 'text-left'
+        }`}
+        title={t(`Klikk for Discord (${teamName})`, `Click for Discord (${teamName})`)}
+      >
+        {teamName}
+      </button>
+      {open && (
+        <>
+          <button
+            type="button"
+            className="fixed inset-0 z-10 cursor-default"
+            aria-label={t('Lukk', 'Close')}
+            onClick={() => setOpen(false)}
+          />
+          <div
+            className={`absolute z-20 top-full mt-1 min-w-[11rem] max-w-[16rem] p-2.5 rounded-lg border border-[#5865F2]/40 bg-slate-900 shadow-lg ${
+              align === 'right' ? 'right-0' : 'left-0'
+            }`}
+          >
+            <p className="text-[10px] text-slate-400 mb-1 truncate" title={teamName}>
+              {teamName}
+            </p>
+            {discord ? (
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-sm font-medium text-[#949cf0] truncate">@{discord}</span>
+                <button
+                  type="button"
+                  onClick={handleCopy}
+                  className="shrink-0 p-1 rounded hover:bg-[#5865F2]/25 text-[#949cf0]"
+                  title={t('Kopier', 'Copy')}
+                >
+                  {copied ? (
+                    <Check className="w-3.5 h-3.5 text-green-400" />
+                  ) : (
+                    <Copy className="w-3.5 h-3.5" />
+                  )}
+                </button>
+              </div>
+            ) : (
+              <p className="text-xs text-slate-500">
+                {t('Discord ikke registrert', 'Discord not registered')}
+              </p>
+            )}
+          </div>
+        </>
+      )}
+    </span>
+  )
+}
+
 interface AdminMatchCardProps {
   match: AdminMatchCardMatch
   metaLine?: string | null
+  teamDiscordByName?: Record<string, string>
   isEditing: boolean
   editForm: EditForm
   setEditForm: React.Dispatch<React.SetStateAction<EditForm>>
@@ -88,6 +180,7 @@ function ProofLinks({ match }: { match: AdminMatchCardMatch }) {
 export default function AdminMatchCard({
   match,
   metaLine,
+  teamDiscordByName = {},
   isEditing,
   editForm,
   setEditForm,
@@ -250,14 +343,23 @@ export default function AdminMatchCard({
               className="h-3.5 w-3.5 shrink-0"
               aria-label={t('Velg', 'Select')}
             />
-            <span className="w-[28%] sm:w-[22%] min-w-0 truncate text-right font-medium" title={match.team1_name}>
-              {match.team1_name}
+            <span className="w-[28%] sm:w-[22%] min-w-0">
+              <TeamNameWithDiscord
+                teamName={match.team1_name}
+                teamDiscordByName={teamDiscordByName}
+                align="right"
+                isEnglish={isEnglish}
+              />
             </span>
             <span className="w-5 text-center font-bold tabular-nums text-slate-200">{score1 ?? '·'}</span>
             <span className="text-slate-600">-</span>
             <span className="w-5 text-center font-bold tabular-nums text-slate-200">{score2 ?? '·'}</span>
-            <span className="w-[28%] sm:w-[22%] min-w-0 truncate font-medium" title={match.team2_name}>
-              {match.team2_name}
+            <span className="w-[28%] sm:w-[22%] min-w-0">
+              <TeamNameWithDiscord
+                teamName={match.team2_name}
+                teamDiscordByName={teamDiscordByName}
+                isEnglish={isEnglish}
+              />
             </span>
             <span
               className={`shrink-0 px-1.5 py-0.5 rounded text-[10px] font-medium whitespace-nowrap ${getStatusColor(match.status)}`}
