@@ -17,7 +17,6 @@ interface PaymentData {
   teamId?: string
   amount: number
   generatedPassword?: string
-  clubLogoDataUrl?: string
 }
 
 interface VippsPendingPayment {
@@ -512,23 +511,6 @@ export default function PaymentPage() {
                 <span>{isEnglish ? 'Team information' : 'Laginformasjon'}</span>
               </h2>
               <div className="space-y-4">
-                {paymentData.clubLogoDataUrl && (
-                  <div className="flex items-center gap-4 rounded-lg bg-slate-800/50 p-4">
-                    <img
-                      src={paymentData.clubLogoDataUrl}
-                      alt={isEnglish ? 'Club logo' : 'Klubblogo'}
-                      className="h-16 w-16 rounded-lg border border-slate-600 object-contain bg-slate-900"
-                    />
-                    <div>
-                      <label className="block text-sm font-medium text-slate-400 mb-1">
-                        {isEnglish ? 'Club logo' : 'Klubblogo'}
-                      </label>
-                      <p className="text-sm text-slate-300">
-                        {isEnglish ? 'Uploaded during registration' : 'Lastet opp ved registrering'}
-                      </p>
-                    </div>
-                  </div>
-                )}
                 <div>
                   <label className="block text-sm font-medium text-slate-400 mb-1">{isEnglish ? 'Team name' : 'Lagnavn'}</label>
                   <p className="text-lg font-semibold">{paymentData.teamName}</p>
@@ -611,11 +593,12 @@ export default function PaymentPage() {
               {isEnglish ? 'Safe and secure payment' : 'Trygg og sikker betaling'}
             </p>
 
+            <div className="mx-auto flex w-full max-w-[300px] flex-col items-stretch">
             <button
               type="button"
               onClick={handleVippsPayment}
               disabled={isProcessing || vippsLoading || !vippsConfigured}
-              className="mb-4 flex w-full items-center justify-center gap-2.5 rounded-full bg-[#ff5b24] px-5 py-3.5 text-white transition-colors hover:bg-[#e6511f] disabled:cursor-not-allowed disabled:opacity-50"
+              className="mb-4 flex w-full items-center justify-center gap-2 rounded-full bg-[#ff5b24] px-4 py-2.5 text-white transition-colors hover:bg-[#e6511f] disabled:cursor-not-allowed disabled:opacity-50"
             >
               {vippsLoading ? (
                 <span className="text-sm font-semibold">
@@ -630,7 +613,7 @@ export default function PaymentPage() {
                   <span className="text-sm font-semibold">
                     {isEnglish ? 'Pay with' : 'Betal med'}
                   </span>
-                  <VippsLogo height={22} />
+                  <VippsLogo height={18} />
                 </>
               )}
             </button>
@@ -672,9 +655,9 @@ export default function PaymentPage() {
               </div>
             )}
 
-            <div className="text-center">
+            <div className="w-full text-center">
               {paypalLoading ? (
-                <div className="p-8">
+                <div className="py-4">
                   <p className="text-slate-300">{isEnglish ? 'Loading PayPal configuration...' : 'Laster PayPal-konfigurasjon...'}</p>
                 </div>
               ) : paypalClientId ? (
@@ -685,38 +668,41 @@ export default function PaymentPage() {
                     intent: 'capture'
                   }}
                 >
-                  <PayPalButtons
-                    disabled={isProcessing}
-                    createOrder={(data, actions) => {
-                      return actions.order.create({
-                        intent: 'CAPTURE',
-                        purchase_units: [{
-                          amount: {
-                            value: paymentData.amount.toString(),
-                            currency_code: 'NOK'
-                          },
-                          description: `PRO11 Turnering - ${paymentData.teamName}`
-                        }]
-                      })
-                    }}
-                    onApprove={(data) => {
-                      if (!data.orderID) {
-                        handlePaymentError(new Error('Missing PayPal order ID'))
-                        return Promise.resolve()
-                      }
-                      return handlePaymentSuccess(data.orderID)
-                    }}
-                    onError={handlePaymentError}
-                    style={{
-                      layout: 'vertical',
-                      color: 'blue',
-                      shape: 'rect',
-                      label: 'paypal'
-                    }}
-                  />
+                  <div className="payment-paypal-wrapper flex w-full justify-center">
+                    <PayPalButtons
+                      disabled={isProcessing}
+                      createOrder={(data, actions) => {
+                        return actions.order.create({
+                          intent: 'CAPTURE',
+                          purchase_units: [{
+                            amount: {
+                              value: paymentData.amount.toString(),
+                              currency_code: 'NOK'
+                            },
+                            description: `PRO11 Turnering - ${paymentData.teamName}`
+                          }]
+                        })
+                      }}
+                      onApprove={(data) => {
+                        if (!data.orderID) {
+                          handlePaymentError(new Error('Missing PayPal order ID'))
+                          return Promise.resolve()
+                        }
+                        return handlePaymentSuccess(data.orderID)
+                      }}
+                      onError={handlePaymentError}
+                      style={{
+                        layout: 'vertical',
+                        color: 'blue',
+                        shape: 'rect',
+                        label: 'paypal',
+                        height: 42
+                      }}
+                    />
+                  </div>
                 </PayPalScriptProvider>
               ) : (
-                <div className="p-8 bg-yellow-900/20 border border-yellow-600/30 rounded-lg">
+                <div className="rounded-lg border border-yellow-600/30 bg-yellow-900/20 p-6">
                   <p className="text-yellow-400 mb-4 font-semibold">
                     ⚠️ {isEnglish ? 'PayPal is not configured yet' : 'PayPal er ikke konfigurert ennå'}
                   </p>
@@ -738,6 +724,7 @@ export default function PaymentPage() {
                   ? 'Payment is verified on our server before your team is approved'
                   : 'Betalingen verifiseres på serveren før laget ditt godkjennes'}
               </p>
+            </div>
             </div>
           </div>
           )}

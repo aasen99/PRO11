@@ -25,6 +25,16 @@ body {
   padding: 0 1rem;
 }
 
+.payment-paypal-wrapper {
+  width: 100%;
+}
+
+.payment-paypal-wrapper > div {
+  width: 100%;
+  max-width: 300px;
+  margin: 0 auto;
+}
+
 /* PRO11 Design System */
 .pro11-card {
   background-color: #121826;
