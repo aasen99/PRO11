@@ -35,6 +35,7 @@ export default function RegisterPage() {
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [passwordError, setPasswordError] = useState('')
+  const [clubLogoPreview, setClubLogoPreview] = useState<string | null>(null)
   const [tournament, setTournament] = useState<any>(null)
   const [isLoadingTournament, setIsLoadingTournament] = useState(true)
   const { language } = useLanguage()
@@ -111,6 +112,25 @@ export default function RegisterPage() {
   const handleLogoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0] || null
     setFormData({ ...formData, clubLogo: file })
+
+    if (!file) {
+      setClubLogoPreview(null)
+      return
+    }
+
+    if (file.size > 2 * 1024 * 1024) {
+      alert(isEnglish ? 'Logo must be 2MB or smaller.' : 'Logo må være 2 MB eller mindre.')
+      e.target.value = ''
+      setFormData({ ...formData, clubLogo: null })
+      setClubLogoPreview(null)
+      return
+    }
+
+    const reader = new FileReader()
+    reader.onload = () => {
+      setClubLogoPreview(typeof reader.result === 'string' ? reader.result : null)
+    }
+    reader.readAsDataURL(file)
   }
 
   const isDemo = Boolean(tournament?.isDemo || isDemoTournament(tournament))
@@ -186,8 +206,13 @@ export default function RegisterPage() {
       if (response.ok) {
         const result = await response.json()
         const registrationData = {
-          ...formData,
+          teamName: formData.teamName,
           captainName: captainNameValidation.fullName,
+          captainEmail: formData.captainEmail,
+          discordUsername: formData.discordUsername,
+          expectedPlayers: formData.expectedPlayers,
+          tournamentId: formData.tournamentId,
+          clubLogoDataUrl: clubLogoPreview || undefined,
           teamId: result.team.id,
           password: undefined,
           userChosePassword: true,
@@ -324,7 +349,7 @@ export default function RegisterPage() {
         captainEmail: registrationPayload.captainEmail,
         discordUsername: registrationPayload.discordUsername,
         expectedPlayers: registrationPayload.expectedPlayers,
-        clubLogo: null,
+        clubLogoDataUrl: clubLogoPreview || undefined,
         tournamentId: formData.tournamentId,
         teamId: result.team.id,
         password: undefined,
@@ -375,7 +400,7 @@ export default function RegisterPage() {
         captainEmail: registrationPayload.captainEmail,
         discordUsername: registrationPayload.discordUsername,
         expectedPlayers: registrationPayload.expectedPlayers,
-        clubLogo: null,
+        clubLogoDataUrl: clubLogoPreview || undefined,
         tournamentId: formData.tournamentId,
         teamId: result.team.id,
         password: undefined,
@@ -677,8 +702,13 @@ export default function RegisterPage() {
                 <p className="text-slate-400 text-sm mt-2">
                   {isEnglish ? 'PNG, JPG or GIF. Maximum size: 2MB' : 'PNG, JPG eller GIF. Maksimal størrelse: 2MB'}
                 </p>
-                {formData.clubLogo && (
-                  <div className="mt-4 p-4 bg-slate-800/50 rounded-lg">
+                {formData.clubLogo && clubLogoPreview && (
+                  <div className="mt-4 flex items-center gap-4 rounded-lg bg-slate-800/50 p-4">
+                    <img
+                      src={clubLogoPreview}
+                      alt={isEnglish ? 'Club logo preview' : 'Forhåndsvisning av klubblogo'}
+                      className="h-16 w-16 rounded-lg border border-slate-600 object-contain bg-slate-900"
+                    />
                     <p className="text-sm text-green-400">
                       ✓ {isEnglish ? 'Logo selected' : 'Logo valgt'}: {formData.clubLogo.name}
                     </p>

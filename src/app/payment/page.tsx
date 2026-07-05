@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { Shield, CreditCard, CheckCircle, ArrowLeft, Mail } from 'lucide-react'
 import { PayPalScriptProvider, PayPalButtons } from '@paypal/react-paypal-js'
 import { useLanguage } from '@/components/LanguageProvider'
+import VippsLogo from '@/components/VippsLogo'
 import { apiFetch } from '@/lib/client-fetch'
 
 interface PaymentData {
@@ -16,6 +17,7 @@ interface PaymentData {
   teamId?: string
   amount: number
   generatedPassword?: string
+  clubLogoDataUrl?: string
 }
 
 interface VippsPendingPayment {
@@ -510,6 +512,23 @@ export default function PaymentPage() {
                 <span>{isEnglish ? 'Team information' : 'Laginformasjon'}</span>
               </h2>
               <div className="space-y-4">
+                {paymentData.clubLogoDataUrl && (
+                  <div className="flex items-center gap-4 rounded-lg bg-slate-800/50 p-4">
+                    <img
+                      src={paymentData.clubLogoDataUrl}
+                      alt={isEnglish ? 'Club logo' : 'Klubblogo'}
+                      className="h-16 w-16 rounded-lg border border-slate-600 object-contain bg-slate-900"
+                    />
+                    <div>
+                      <label className="block text-sm font-medium text-slate-400 mb-1">
+                        {isEnglish ? 'Club logo' : 'Klubblogo'}
+                      </label>
+                      <p className="text-sm text-slate-300">
+                        {isEnglish ? 'Uploaded during registration' : 'Lastet opp ved registrering'}
+                      </p>
+                    </div>
+                  </div>
+                )}
                 <div>
                   <label className="block text-sm font-medium text-slate-400 mb-1">{isEnglish ? 'Team name' : 'Lagnavn'}</label>
                   <p className="text-lg font-semibold">{paymentData.teamName}</p>
@@ -596,16 +615,24 @@ export default function PaymentPage() {
               type="button"
               onClick={handleVippsPayment}
               disabled={isProcessing || vippsLoading || !vippsConfigured}
-              className="w-full py-3 px-4 rounded-lg bg-[#ff5b24] hover:bg-[#e6511f] disabled:opacity-50 disabled:cursor-not-allowed text-white border border-[#ff5b24] flex items-center justify-center gap-2 mb-4 transition-colors"
+              className="mb-4 flex w-full items-center justify-center gap-2.5 rounded-full bg-[#ff5b24] px-5 py-3.5 text-white transition-colors hover:bg-[#e6511f] disabled:cursor-not-allowed disabled:opacity-50"
             >
-              <span className="font-bold tracking-wide">Vipps</span>
               {vippsLoading ? (
-                <span className="text-xs opacity-90">{isEnglish ? 'Loading...' : 'Laster...'}</span>
+                <span className="text-sm font-semibold">
+                  {isEnglish ? 'Loading Vipps...' : 'Laster Vipps...'}
+                </span>
               ) : !vippsConfigured ? (
-                <span className="text-xs opacity-90">{isEnglish ? 'Not configured' : 'Ikke konfigurert'}</span>
-              ) : isProcessing ? (
-                <span className="text-xs opacity-90">{isEnglish ? 'Starting...' : 'Starter...'}</span>
-              ) : null}
+                <span className="text-sm font-semibold">
+                  {isEnglish ? 'Vipps not available' : 'Vipps ikke tilgjengelig'}
+                </span>
+              ) : (
+                <>
+                  <span className="text-sm font-semibold">
+                    {isEnglish ? 'Pay with' : 'Betal med'}
+                  </span>
+                  <VippsLogo height={22} />
+                </>
+              )}
             </button>
 
             {(vippsVerifyError || vippsPending) && !paymentComplete && (
@@ -631,7 +658,20 @@ export default function PaymentPage() {
                 </button>
               </div>
             )}
-            
+
+            {vippsConfigured && paypalClientId && !paypalLoading && (
+              <div className="relative my-6">
+                <div className="absolute inset-0 flex items-center">
+                  <div className="w-full border-t border-slate-600" />
+                </div>
+                <div className="relative flex justify-center">
+                  <span className="bg-[#121826] px-4 text-sm text-slate-400">
+                    {isEnglish ? 'or' : 'eller'}
+                  </span>
+                </div>
+              </div>
+            )}
+
             <div className="text-center">
               {paypalLoading ? (
                 <div className="p-8">
