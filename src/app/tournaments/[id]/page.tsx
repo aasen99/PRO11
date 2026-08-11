@@ -295,6 +295,21 @@ export default function TournamentDetailPage() {
     return roundMap
   }
 
+  const tournamentWinner = useMemo(() => {
+    if (!tournament || tournament.status !== 'completed') return null
+    const finalMatch =
+      matches.find((m: any) => (m.round === 'Finale' || m.round === 'Final') && m.status === 'completed') ||
+      null
+
+    if (!finalMatch) return null
+    const s1 = typeof finalMatch.score1 === 'number' ? finalMatch.score1 : finalMatch.score1 ?? null
+    const s2 = typeof finalMatch.score2 === 'number' ? finalMatch.score2 : finalMatch.score2 ?? null
+    if (s1 === null || s2 === null) return null
+    if (s1 > s2) return finalMatch.team1_name
+    if (s2 > s1) return finalMatch.team2_name
+    return finalMatch.team1_name
+  }, [tournament, matches])
+
   if (isLoading || !tournament) {
     return (
       <div className="min-h-screen flex flex-col">
@@ -353,22 +368,6 @@ export default function TournamentDetailPage() {
     (m: any) => m.status === 'pending_confirmation' || m.status === 'pending_result'
   ).length
   const matchProgress = matches.length > 0 ? Math.round((completedCount / matches.length) * 100) : 0
-
-  const tournamentWinner = useMemo(() => {
-    if (!tournament || tournament.status !== 'completed') return null
-    const finalMatch =
-      matches.find((m: any) => (m.round === 'Finale' || m.round === 'Final') && m.status === 'completed') ||
-      null
-
-    if (!finalMatch) return null
-    const s1 = typeof finalMatch.score1 === 'number' ? finalMatch.score1 : finalMatch.score1 ?? null
-    const s2 = typeof finalMatch.score2 === 'number' ? finalMatch.score2 : finalMatch.score2 ?? null
-    if (s1 === null || s2 === null) return null
-    if (s1 > s2) return finalMatch.team1_name
-    if (s2 > s1) return finalMatch.team2_name
-    // If draw: fall back to team1 to keep it deterministic.
-    return finalMatch.team1_name
-  }, [tournament, matches])
 
   const groupRoundMaps: Record<string, Record<string, number>> = {}
   const groupedGroupMatches = matches
