@@ -1,9 +1,9 @@
 'use client'
 
-import React, { useState, useEffect, useCallback, useRef } from 'react'
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import Link from 'next/link'
 import { useParams } from 'next/navigation'
-import { Trophy, Users, Calendar, Clock, CheckCircle, XCircle, ExternalLink, Plus, Radio } from 'lucide-react'
+import { Trophy, Users, Calendar, Clock, CheckCircle, XCircle, ExternalLink, Plus, Radio, Share2, User } from 'lucide-react'
 import { fetchTournamentById } from '../../../lib/tournaments'
 import { useLanguage } from '@/components/LanguageProvider'
 import Header from '@/components/Header'
@@ -73,6 +73,15 @@ export default function TournamentDetailPage() {
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null)
   const matchesSignatureRef = useRef<string | null>(null)
 
+  const followTeamStorageKey = `pro11_follow_team_${tournamentId}`
+  const [followTeam, setFollowTeam] = useState<string | null>(null)
+  const [followTeamDraft, setFollowTeamDraft] = useState<string>('')
+  const [groupFilter, setGroupFilter] = useState<'all' | string>('all')
+
+  const registeredTeamNames = registeredTeams
+    .map((t: any) => t.teamName || t.team_name)
+    .filter((name: any) => typeof name === 'string' && name.trim().length > 0)
+
   useEffect(() => {
     const loadTournament = async () => {
       const t = await fetchTournamentById(tournamentId)
@@ -136,6 +145,54 @@ export default function TournamentDetailPage() {
   }, [tournamentId, loadTeams, loadMatches])
 
   useEffect(() => {
+    // Load followed team from localStorage (per tournament).
+    try {
+      const saved = window.localStorage.getItem(followTeamStorageKey)
+      if (saved && typeof saved === 'string' && saved.trim()) {
+        setFollowTeam(saved)
+        setFollowTeamDraft(saved)
+      }
+    } catch {
+      // Ignore storage issues (private mode etc.)
+    }
+  }, [followTeamStorageKey])
+
+  useEffect(() => {
+    // Persist followed team selection.
+    try {
+      if (followTeam && followTeam.trim()) {
+        window.localStorage.setItem(followTeamStorageKey, followTeam)
+      } else {
+        window.localStorage.removeItem(followTeamStorageKey)
+      }
+    } catch {
+      // Ignore storage issues
+    }
+  }, [followTeam, followTeamStorageKey])
+
+  useEffect(() => {
+    // Ensure followed team still exists in current tournament data.
+    if (followTeam && registeredTeamNames.length > 0 && !registeredTeamNames.includes(followTeam)) {
+      setFollowTeam(null)
+      setFollowTeamDraft('')
+    }
+  }, [followTeam, registeredTeamNames])
+
+  useEffect(() => {
+    const groupNames = Object.keys(groupStandings)
+    if (groupFilter !== 'all' && !groupNames.includes(groupFilter)) {
+      setGroupFilter('all')
+    }
+  }, [groupStandings, groupFilter])
+
+  useEffect(() => {
+    // Pick a sensible default draft when user opens this page for the first time.
+    if (!followTeam && !followTeamDraft && registeredTeamNames.length > 0) {
+      setFollowTeamDraft(registeredTeamNames[0])
+    }
+  }, [followTeam, followTeamDraft, registeredTeamNames])
+
+  useEffect(() => {
     if (!tournamentId) return
     const pollMs = tournament?.status === 'ongoing' ? 12000 : 30000
     const interval = setInterval(loadMatches, pollMs)
@@ -148,6 +205,31 @@ export default function TournamentDetailPage() {
       initialTabSetRef.current = true
     }
   }, [tournament?.status, matches.length])
+
+  const handleShare = async () => {
+    try {
+      const url = `${window.location.origin}/tournaments/${tournamentId}`
+      const title = tournament?.title || 'PRO11'
+      if (navigator.share) {
+        await navigator.share({ title, url })
+        return
+      }
+      await navigator.clipboard.writeText(url)
+      alert(t(isEnglish ? 'Link copied.' : 'Lenke kopiert.', 'Link copied.'))
+    } catch {
+      alert(t(isEnglish ? 'Could not share link.' : 'Kunne ikke dele lenken.', 'Could not share link.'))
+    }
+  }
+
+  const handleFollowTeam = () => {
+    const selected = followTeamDraft.trim()
+    if (!selected) return
+    setFollowTeam(selected)
+  }
+
+  const handleClearFollowTeam = () => {
+    setFollowTeam(null)
+  }
 
   const buildGroupRoundMap = (groupMatches: any[]) => {
     const teamSet = new Set<string>()
@@ -201,9 +283,20 @@ export default function TournamentDetailPage() {
       <div className="min-h-screen flex flex-col">
         <Header backButton backHref="/tournaments" title={t('Pro Clubs Turneringer', 'Pro Clubs Tournaments')} />
         <main className="flex-1 flex items-center justify-center px-4 py-8">
-          <div className="flex flex-col items-center gap-4">
-            <div className="w-10 h-10 border-2 border-blue-400 border-t-transparent rounded-full animate-spin" />
-            <p className="text-slate-400 text-sm">{t('Laster turnering...', 'Loading tournament...')}</p>
+          <div className="w-full max-w-3xl animate-pulse">
+            <div className="h-10 bg-slate-800/70 rounded-lg mb-4" />
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
+              <div className="h-8 bg-slate-800/70 rounded-lg" />
+              <div className="h-8 bg-slate-800/70 rounded-lg" />
+              <div className="h-8 bg-slate-800/70 rounded-lg" />
+              <div className="h-8 bg-slate-800/70 rounded-lg" />
+            </div>
+            <div className="h-10 bg-slate-800/70 rounded-lg mb-4" />
+            <div className="h-6 bg-slate-800/70 rounded-lg w-2/3 mb-3" />
+            <div className="h-6 bg-slate-800/70 rounded-lg w-1/2" />
+            <p className="mt-6 text-slate-400 text-sm">
+              {t('Laster turnering...', 'Loading tournament...')}
+            </p>
           </div>
         </main>
       </div>
@@ -243,6 +336,22 @@ export default function TournamentDetailPage() {
     (m: any) => m.status === 'pending_confirmation' || m.status === 'pending_result'
   ).length
   const matchProgress = matches.length > 0 ? Math.round((completedCount / matches.length) * 100) : 0
+
+  const tournamentWinner = useMemo(() => {
+    if (!tournament || tournament.status !== 'completed') return null
+    const finalMatch =
+      matches.find((m: any) => (m.round === 'Finale' || m.round === 'Final') && m.status === 'completed') ||
+      null
+
+    if (!finalMatch) return null
+    const s1 = typeof finalMatch.score1 === 'number' ? finalMatch.score1 : finalMatch.score1 ?? null
+    const s2 = typeof finalMatch.score2 === 'number' ? finalMatch.score2 : finalMatch.score2 ?? null
+    if (s1 === null || s2 === null) return null
+    if (s1 > s2) return finalMatch.team1_name
+    if (s2 > s1) return finalMatch.team2_name
+    // If draw: fall back to team1 to keep it deterministic.
+    return finalMatch.team1_name
+  }, [tournament, matches])
 
   const groupRoundMaps: Record<string, Record<string, number>> = {}
   const groupedGroupMatches = matches
@@ -439,10 +548,14 @@ export default function TournamentDetailPage() {
   const renderMatchRow = (match: Match, meta?: string) => {
     const showScore = match.status === 'completed' || match.status === 'live'
     const metaLine = meta ?? getMatchMeta(match)
+    const isFollow = Boolean(followTeam) && (match.homeTeam === followTeam || match.awayTeam === followTeam)
     return (
       <div
         key={match.id}
-        className={match.status === 'live' ? 'bg-red-950/10' : ''}
+        className={[
+          match.status === 'live' ? 'bg-red-950/10' : '',
+          isFollow ? 'bg-blue-950/15' : ''
+        ].join(' ')}
       >
         <div className="flex items-center gap-1.5 sm:gap-2 px-2 py-1.5 text-xs sm:text-sm min-h-[2rem]">
           <span
@@ -637,6 +750,62 @@ export default function TournamentDetailPage() {
                 </Link>
               )}
             </div>
+
+            <div className="mt-4 flex flex-wrap items-center justify-center gap-3">
+              <button
+                type="button"
+                onClick={handleShare}
+                className="inline-flex items-center gap-1.5 text-sm text-blue-400 hover:text-blue-300"
+              >
+                <Share2 className="w-4 h-4" />
+                {t('Del turnering', 'Share tournament')}
+              </button>
+
+              {tournament.status === 'completed' && (
+                <Link
+                  href="/hall-of-fame"
+                  className="inline-flex items-center gap-1.5 text-sm text-blue-400 hover:text-blue-300"
+                >
+                  <ExternalLink className="w-4 h-4" />
+                  {t('Hall of Fame', 'Hall of Fame')}
+                </Link>
+              )}
+            </div>
+
+            {registeredTeamNames.length > 0 && (
+              <div className="mt-3 flex flex-col sm:flex-row items-center justify-center gap-3">
+                <div className="flex items-center gap-2 text-sm text-slate-300">
+                  <User className="w-4 h-4 text-blue-300" />
+                  {t('Følger lag', 'Following team')}:
+                </div>
+
+                <div className="flex flex-wrap items-center justify-center gap-2 w-full sm:w-auto">
+                  <select
+                    value={followTeamDraft}
+                    onChange={(e) => {
+                      setFollowTeamDraft(e.target.value)
+                      setFollowTeam(e.target.value)
+                    }}
+                    className="bg-slate-900/60 border border-slate-700/60 rounded-lg px-3 py-2 text-sm text-slate-200 outline-none"
+                  >
+                    {registeredTeamNames.map(name => (
+                      <option key={name} value={name}>
+                        {name}
+                      </option>
+                    ))}
+                  </select>
+
+                  <button
+                    type="button"
+                    onClick={handleClearFollowTeam}
+                    disabled={!followTeam}
+                    className="pro11-button-secondary text-sm px-4 py-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {t('Slutt å følge', 'Unfollow')}
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
 
           {matches.length > 0 && (
@@ -671,6 +840,25 @@ export default function TournamentDetailPage() {
                   style={{ width: `${matchProgress}%` }}
                 />
               </div>
+            </div>
+          )}
+
+          {tournament.status === 'completed' && tournamentWinner && (
+            <div className="pro11-card p-6 mb-6 text-center border border-yellow-600/30 bg-yellow-900/10">
+              <div className="flex items-center justify-center gap-2 mb-2">
+                <Trophy className="w-5 h-5 text-yellow-400" />
+                <span className="text-xs font-semibold text-yellow-200 uppercase tracking-wide">
+                  {t('Vinner', 'Winner')}
+                </span>
+              </div>
+              <div className="text-2xl font-bold text-yellow-200 break-words">
+                {tournamentWinner}
+              </div>
+              {tournament.prize && (
+                <div className="mt-2 text-sm text-slate-300">
+                  {t('Premie', 'Prize')}: {tournament.prize}
+                </div>
+              )}
             </div>
           )}
 
@@ -722,14 +910,62 @@ export default function TournamentDetailPage() {
             {activeTab === 'standings' && (
               <div>
                 {Object.keys(groupStandings).length > 0 ? (
-                  <div className="grid md:grid-cols-2 gap-4">
-                    {Object.entries(groupStandings).map(([groupName, standings]) => (
-                      <div key={groupName} className="pro11-card p-4">
-                        <h3 className="font-semibold mb-3 text-lg">{groupName}</h3>
-                        <GroupStandingsTable rows={standings} isEnglish={isEnglish} />
-                      </div>
-                    ))}
-                  </div>
+                  <>
+                    <div className="flex gap-2 mb-4 overflow-x-auto pb-1">
+                      <button
+                        type="button"
+                        onClick={() => setGroupFilter('all')}
+                        className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors whitespace-nowrap ${
+                          groupFilter === 'all'
+                            ? 'bg-blue-600 text-white'
+                            : 'bg-slate-800 text-slate-300 hover:text-white'
+                        }`}
+                      >
+                        {t('Alle', 'All')}
+                      </button>
+                      {Object.keys(groupStandings)
+                        .sort()
+                        .map(groupName => {
+                          const chipLabel =
+                            groupName.startsWith('Gruppe')
+                              ? isEnglish
+                                ? groupName.replace('Gruppe', 'Group')
+                                : groupName
+                              : `${t('Gruppe', 'Group')} ${groupName}`
+
+                          return (
+                            <button
+                              key={groupName}
+                              type="button"
+                              onClick={() => setGroupFilter(groupName)}
+                              className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors whitespace-nowrap ${
+                                groupFilter === groupName
+                                  ? 'bg-blue-600 text-white'
+                                  : 'bg-slate-800 text-slate-300 hover:text-white'
+                              }`}
+                            >
+                              {chipLabel}
+                            </button>
+                          )
+                        })}
+                    </div>
+
+                    <div className="grid md:grid-cols-2 gap-4">
+                      {(groupFilter === 'all'
+                        ? Object.entries(groupStandings)
+                        : Object.entries(groupStandings).filter(([name]) => name === groupFilter)
+                      ).map(([groupName, standings]) => (
+                        <div key={groupName} className="pro11-card p-4">
+                          <h3 className="font-semibold mb-3 text-lg">{groupName}</h3>
+                          <GroupStandingsTable
+                            rows={standings}
+                            isEnglish={isEnglish}
+                            highlightTeam={followTeam ?? undefined}
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  </>
                 ) : (
                   <div className="text-center py-12">
                     <div className="text-slate-400 mb-4">
@@ -737,7 +973,12 @@ export default function TournamentDetailPage() {
                       <h3 className="text-xl font-semibold mb-2">
                         {t('Ingen kamper generert', 'No matches generated')}
                       </h3>
-                      <p>{t('Kamper må genereres før tabellen kan vises.', 'Matches must be generated before standings can be shown.')}</p>
+                      <p>
+                        {t(
+                          'Kamper må genereres før tabellen kan vises.',
+                          'Matches must be generated before standings can be shown.'
+                        )}
+                      </p>
                     </div>
                   </div>
                 )}
