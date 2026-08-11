@@ -61,6 +61,7 @@ export default function TournamentDetailPage() {
   const [activeTab, setActiveTab] = useState<'standings' | 'matches' | 'bracket' | 'streams' | 'info'>('standings')
   const [matchFilter, setMatchFilter] = useState<'all' | 'live' | 'completed' | 'upcoming' | 'pending'>('all')
   const initialTabSetRef = useRef(false)
+  const initialGroupFilterSetRef = useRef(false)
   const { language } = useLanguage()
   const isEnglish = language === 'en'
   const t = (noText: string, enText: string) => (isEnglish ? enText : noText)
@@ -270,10 +271,15 @@ export default function TournamentDetailPage() {
 
   useEffect(() => {
     const groupNames = Object.keys(groupStandings)
-    if (groupFilter !== 'all' && !groupNames.includes(groupFilter)) {
+    if (groupFilter !== 'all' && groupNames.length > 0 && !groupNames.includes(groupFilter)) {
       setGroupFilter('all')
     }
-  }, [groupStandings, groupFilter])
+    if (!initialGroupFilterSetRef.current && groupNames.length > 0) {
+      const sorted = [...groupNames].sort((a, b) => a.localeCompare(b, locale, { numeric: true }))
+      setGroupFilter(sorted[0])
+      initialGroupFilterSetRef.current = true
+    }
+  }, [groupStandings, groupFilter, locale])
 
   useEffect(() => {
     if (!tournamentId) return
@@ -515,14 +521,36 @@ export default function TournamentDetailPage() {
     }
   }
 
+  const getGroupShortLabel = (group: string) => {
+    const trimmed = (group || '').trim()
+    if (!trimmed) return t('Ukjent', 'Unknown')
+    const stripped = trimmed
+      .replace(/^gruppe\s*/i, '')
+      .replace(/^group\s*/i, '')
+      .trim()
+    return stripped || trimmed
+  }
+
+  const formatGroupLabel = (group: string) => {
+    const short = getGroupShortLabel(group)
+    return `${t('Gruppe', 'Group')} ${short}`
+  }
+
+  const sortGroupNames = (names: string[]) =>
+    [...names].sort((a, b) => {
+      const aKey = getGroupShortLabel(a)
+      const bKey = getGroupShortLabel(b)
+      const aNum = Number(aKey)
+      const bNum = Number(bKey)
+      if (!Number.isNaN(aNum) && !Number.isNaN(bNum)) return aNum - bNum
+      return aKey.localeCompare(bKey, locale, { numeric: true, sensitivity: 'base' })
+    })
+
   const getMatchMeta = (match: Match) => {
     const parts: string[] = []
     if (match.date && match.time) parts.push(`${match.date} ${match.time}`)
     if (match.group) {
-      const groupLabel = match.group.startsWith('Gruppe')
-        ? (isEnglish ? match.group.replace('Gruppe', 'Group') : match.group)
-        : `${t('Gruppe', 'Group')} ${match.group}`
-      parts.push(groupLabel)
+      parts.push(formatGroupLabel(match.group))
     }
     if (match.round && match.round !== 'Gruppespill') parts.push(translateRoundName(match.round))
     if (match.round === 'Gruppespill' && match.group) {
@@ -554,11 +582,6 @@ export default function TournamentDetailPage() {
     return ''
   }
 
-  const formatGroupLabel = (group: string) =>
-    group.startsWith('Gruppe')
-      ? (isEnglish ? group.replace('Gruppe', 'Group') : group)
-      : `${t('Gruppe', 'Group')} ${group}`
-
   const knockoutRoundOrder: Record<string, number> = {
     '16-delsfinaler': 1,
     'Åttendelsfinaler': 2,
@@ -568,7 +591,12 @@ export default function TournamentDetailPage() {
     'Sluttspill': 0
   }
 
-  type MatchListSection = { key: string; title: string; matches: Match[] }
+  type MatchListSection = {
+    key: string
+    title: string
+    matches: Match[]
+    kind: 'group' | 'knockout'
+  }
 
   const buildMatchListSections = (sourceMatches: Match[]): MatchListSection[] => {
     const groupByRound: Record<string, Record<number, Match[]>> = {}
@@ -576,6 +604,7 @@ export default function TournamentDetailPage() {
 
     sourceMatches.forEach(match => {
       if (match.round === 'Gruppespill' && match.group) {
+        if (groupFilter !== 'all' && match.group !== groupFilter) return
         const groupName = match.group
         const roundNo =
           match.groupRound ||
@@ -586,31 +615,35 @@ export default function TournamentDetailPage() {
         groupByRound[groupName][roundNo].push(match)
         return
       }
+      if (groupFilter !== 'all') return
       const roundKey = match.round || t('Annet', 'Other')
       if (!knockoutByRound[roundKey]) knockoutByRound[roundKey] = []
       knockoutByRound[roundKey].push(match)
     })
 
     const sections: MatchListSection[] = []
+    const singleGroupView = groupFilter !== 'all'
 
-    Object.keys(groupByRound)
-      .sort((a, b) => a.localeCompare(b, locale))
-      .forEach(groupName => {
-        const rounds = groupByRound[groupName]
-        Object.keys(rounds)
-          .map(Number)
-          .sort((a, b) => a - b)
-          .forEach(roundNo => {
-            sections.push({
-              key: `group-${groupName}-r${roundNo}`,
-              title:
-                roundNo > 0
-                  ? `${formatGroupLabel(groupName)} · ${t('Runde', 'Round')} ${roundNo}`
-                  : formatGroupLabel(groupName),
-              matches: rounds[roundNo]
-            })
+    sortGroupNames(Object.keys(groupByRound)).forEach(groupName => {
+      const rounds = groupByRound[groupName]
+      Object.keys(rounds)
+        .map(Number)
+        .sort((a, b) => a - b)
+        .forEach(roundNo => {
+          sections.push({
+            key: `group-${groupName}-r${roundNo}`,
+            title: singleGroupView
+              ? roundNo > 0
+                ? `${t('Runde', 'Round')} ${roundNo}`
+                : formatGroupLabel(groupName)
+              : roundNo > 0
+                ? `${formatGroupLabel(groupName)} · ${t('Runde', 'Round')} ${roundNo}`
+                : formatGroupLabel(groupName),
+            matches: rounds[roundNo],
+            kind: 'group'
           })
-      })
+        })
+    })
 
     Object.keys(knockoutByRound)
       .sort((a, b) => (knockoutRoundOrder[a] ?? 999) - (knockoutRoundOrder[b] ?? 999))
@@ -618,7 +651,8 @@ export default function TournamentDetailPage() {
         sections.push({
           key: `ko-${roundKey}`,
           title: translateRoundName(roundKey),
-          matches: knockoutByRound[roundKey]
+          matches: knockoutByRound[roundKey],
+          kind: 'knockout'
         })
       })
 
@@ -1106,7 +1140,7 @@ export default function TournamentDetailPage() {
                       <button
                         type="button"
                         onClick={() => setGroupFilter('all')}
-                        className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors whitespace-nowrap ${
+                        className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors whitespace-nowrap ${
                           groupFilter === 'all'
                             ? 'bg-blue-600 text-white'
                             : 'bg-slate-800 text-slate-300 hover:text-white'
@@ -1114,40 +1148,37 @@ export default function TournamentDetailPage() {
                       >
                         {t('Alle', 'All')}
                       </button>
-                      {Object.keys(groupStandings)
-                        .sort()
-                        .map(groupName => {
-                          const chipLabel =
-                            groupName.startsWith('Gruppe')
-                              ? isEnglish
-                                ? groupName.replace('Gruppe', 'Group')
-                                : groupName
-                              : `${t('Gruppe', 'Group')} ${groupName}`
-
-                          return (
-                            <button
-                              key={groupName}
-                              type="button"
-                              onClick={() => setGroupFilter(groupName)}
-                              className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors whitespace-nowrap ${
-                                groupFilter === groupName
-                                  ? 'bg-blue-600 text-white'
-                                  : 'bg-slate-800 text-slate-300 hover:text-white'
-                              }`}
-                            >
-                              {chipLabel}
-                            </button>
-                          )
-                        })}
+                      {sortGroupNames(Object.keys(groupStandings)).map(groupName => (
+                        <button
+                          key={groupName}
+                          type="button"
+                          onClick={() => setGroupFilter(groupName)}
+                          className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors whitespace-nowrap ${
+                            groupFilter === groupName
+                              ? 'bg-blue-600 text-white'
+                              : 'bg-slate-800 text-slate-300 hover:text-white'
+                          }`}
+                        >
+                          {getGroupShortLabel(groupName)}
+                        </button>
+                      ))}
                     </div>
 
-                    <div className="grid md:grid-cols-2 gap-4">
+                    <div
+                      className={
+                        groupFilter === 'all'
+                          ? 'grid md:grid-cols-2 gap-4'
+                          : 'space-y-4'
+                      }
+                    >
                       {(groupFilter === 'all'
-                        ? Object.entries(groupStandings)
+                        ? sortGroupNames(Object.keys(groupStandings)).map(
+                            name => [name, groupStandings[name]] as const
+                          )
                         : Object.entries(groupStandings).filter(([name]) => name === groupFilter)
                       ).map(([groupName, standings]) => (
                         <div key={groupName} className="pro11-card p-4">
-                          <h3 className="font-semibold mb-3 text-lg">{groupName}</h3>
+                          <h3 className="font-semibold mb-3 text-lg">{formatGroupLabel(groupName)}</h3>
                           <GroupStandingsTable
                             rows={standings}
                             isEnglish={isEnglish}
@@ -1178,6 +1209,35 @@ export default function TournamentDetailPage() {
 
             {activeTab === 'matches' && (
               <div>
+                {Object.keys(groupStandings).length > 0 && (
+                  <div className="flex gap-2 mb-3 overflow-x-auto pb-1">
+                    <button
+                      type="button"
+                      onClick={() => setGroupFilter('all')}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors whitespace-nowrap ${
+                        groupFilter === 'all'
+                          ? 'bg-blue-600 text-white'
+                          : 'bg-slate-800 text-slate-300 hover:text-white'
+                      }`}
+                    >
+                      {t('Alle', 'All')}
+                    </button>
+                    {sortGroupNames(Object.keys(groupStandings)).map(groupName => (
+                      <button
+                        key={groupName}
+                        type="button"
+                        onClick={() => setGroupFilter(groupName)}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors whitespace-nowrap ${
+                          groupFilter === groupName
+                            ? 'bg-blue-600 text-white'
+                            : 'bg-slate-800 text-slate-300 hover:text-white'
+                        }`}
+                      >
+                        {getGroupShortLabel(groupName)}
+                      </button>
+                    ))}
+                  </div>
+                )}
                 {sortedDisplayMatches.length > 0 && (
                   <div className="flex flex-wrap gap-2 mb-4">
                     {(
