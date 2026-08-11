@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import Link from 'next/link'
 import { useParams } from 'next/navigation'
-import { Trophy, Users, Calendar, Clock, CheckCircle, XCircle, ExternalLink, Plus, Radio, Share2, User } from 'lucide-react'
+import { Trophy, Users, Calendar, Clock, CheckCircle, XCircle, ExternalLink, Plus, Radio, Share2, User, ChevronDown, ChevronUp } from 'lucide-react'
 import { fetchTournamentById } from '../../../lib/tournaments'
 import { useLanguage } from '@/components/LanguageProvider'
 import Header from '@/components/Header'
@@ -82,6 +82,8 @@ export default function TournamentDetailPage() {
   const visitorIdRef = useRef<string>('')
   const [groupFilter, setGroupFilter] = useState<'all' | string>('all')
   const [teamStreams, setTeamStreams] = useState<TeamStream[]>([])
+  const [headerExpanded, setHeaderExpanded] = useState(true)
+  const headerExpandedStorageKey = `pro11_tournament_header_expanded_${tournamentId}`
 
   const registeredTeamNames = registeredTeams
     .map((t: any) => t.teamName || t.team_name)
@@ -188,6 +190,24 @@ export default function TournamentDetailPage() {
     },
     [tournamentId]
   )
+
+  useEffect(() => {
+    try {
+      const saved = window.localStorage.getItem(headerExpandedStorageKey)
+      if (saved === '0') setHeaderExpanded(false)
+      if (saved === '1') setHeaderExpanded(true)
+    } catch {
+      // Ignore storage issues
+    }
+  }, [headerExpandedStorageKey])
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(headerExpandedStorageKey, headerExpanded ? '1' : '0')
+    } catch {
+      // Ignore storage issues
+    }
+  }, [headerExpanded, headerExpandedStorageKey])
 
   useEffect(() => {
     let savedFollow: string | null = null
@@ -871,8 +891,60 @@ export default function TournamentDetailPage() {
       <main className="w-full px-4 py-8 flex flex-col items-center">
         <div className="w-full max-w-none">
           {/* Tournament Header */}
-          <div className="pro11-card p-8 mb-8 text-center">
-            <h1 className="text-4xl font-bold mb-4">{tournament.title}</h1>
+          <div className={`pro11-card mb-8 text-center ${headerExpanded ? 'p-6 sm:p-8' : 'p-4 sm:p-5'}`}>
+            <div className="flex items-start justify-center gap-3 relative">
+              <h1 className={`font-bold flex-1 min-w-0 ${headerExpanded ? 'text-3xl sm:text-4xl mb-4' : 'text-xl sm:text-2xl mb-0'}`}>
+                {tournament.title}
+              </h1>
+              <button
+                type="button"
+                onClick={() => setHeaderExpanded(prev => !prev)}
+                className="shrink-0 inline-flex items-center gap-1 rounded-lg border border-slate-600/60 bg-slate-900/50 px-2.5 py-1.5 text-xs text-slate-300 hover:text-white hover:border-slate-500 transition-colors"
+                aria-expanded={headerExpanded}
+                aria-label={headerExpanded ? t('Skjul info', 'Hide info') : t('Vis info', 'Show info')}
+              >
+                {headerExpanded ? (
+                  <>
+                    <ChevronUp className="w-4 h-4" />
+                    <span className="hidden sm:inline">{t('Skjul', 'Hide')}</span>
+                  </>
+                ) : (
+                  <>
+                    <ChevronDown className="w-4 h-4" />
+                    <span className="hidden sm:inline">{t('Info', 'Info')}</span>
+                  </>
+                )}
+              </button>
+            </div>
+
+            {!headerExpanded && (
+              <div className="mt-2 flex flex-wrap items-center justify-center gap-2 text-xs sm:text-sm text-slate-400">
+                <span
+                  className={`inline-block px-2 py-0.5 rounded-full text-xs font-semibold text-white ${
+                    tournament.status === 'ongoing' ? 'bg-red-600 animate-pulse' : getStatusColor(tournament.status)
+                  }`}
+                >
+                  {tournament.status === 'ongoing'
+                    ? 'LIVE'
+                    : tournament.status === 'open'
+                      ? t('Åpen', 'Open')
+                      : tournament.status === 'closed'
+                        ? t('Stengt', 'Closed')
+                        : t('Fullført', 'Completed')}
+                </span>
+                {followTeam && (
+                  <span className="text-blue-300">
+                    {t('Følger', 'Following')}: {followTeam}
+                  </span>
+                )}
+                <span>
+                  {tournament.registeredTeams}/{tournament.maxTeams} {t('lag', 'teams')}
+                </span>
+              </div>
+            )}
+
+            {headerExpanded && (
+              <>
             <div className="flex flex-wrap items-center justify-center gap-4 text-slate-300">
               <div className="flex items-center space-x-2">
                 <Calendar className="w-5 h-5 text-blue-400" />
@@ -1025,6 +1097,8 @@ export default function TournamentDetailPage() {
                   </div>
                 </div>
               </div>
+            )}
+              </>
             )}
           </div>
 
