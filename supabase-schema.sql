@@ -188,6 +188,18 @@ CREATE INDEX idx_team_streams_tournament_id ON team_streams(tournament_id);
 CREATE INDEX idx_team_streams_team_id ON team_streams(tournament_id, team_id);
 CREATE UNIQUE INDEX idx_team_streams_tournament_normalized_url ON team_streams(tournament_id, normalized_url);
 
+-- Anonymous team follows (follower counts)
+CREATE TABLE tournament_team_followers (
+  id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  tournament_id UUID REFERENCES tournaments(id) ON DELETE CASCADE NOT NULL,
+  visitor_id VARCHAR(64) NOT NULL,
+  team_name VARCHAR(255) NOT NULL,
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  UNIQUE (tournament_id, visitor_id)
+);
+CREATE INDEX idx_tournament_team_followers_team ON tournament_team_followers(tournament_id, team_name);
+
 -- Create updated_at trigger function
 CREATE OR REPLACE FUNCTION update_updated_at_column()
 RETURNS TRIGGER AS $$
@@ -223,6 +235,7 @@ ALTER TABLE admin_users ENABLE ROW LEVEL SECURITY;
 ALTER TABLE captain_messages ENABLE ROW LEVEL SECURITY;
 ALTER TABLE tournament_events ENABLE ROW LEVEL SECURITY;
 ALTER TABLE team_streams ENABLE ROW LEVEL SECURITY;
+ALTER TABLE tournament_team_followers ENABLE ROW LEVEL SECURITY;
 
 -- RLS Policies for tournaments
 CREATE POLICY "Public read access to tournaments" ON tournaments
@@ -247,6 +260,9 @@ CREATE POLICY "Public can read matches" ON matches
 
 -- RLS Policies for team_streams
 CREATE POLICY "Public can read team streams" ON team_streams
+  FOR SELECT USING (true);
+
+CREATE POLICY "Public can read tournament team followers" ON tournament_team_followers
   FOR SELECT USING (true);
 
 -- RLS Policies for admin_users (restrictive - only service role should access)

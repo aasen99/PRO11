@@ -77,6 +77,8 @@ export default function TournamentDetailPage() {
   const followTeamStorageKey = `pro11_follow_team_${tournamentId}`
   const [followTeam, setFollowTeam] = useState<string | null>(null)
   const [followTeamDraft, setFollowTeamDraft] = useState<string>('')
+  const [followCounts, setFollowCounts] = useState<Record<string, number>>({})
+  const visitorIdRef = useRef<string>('')
   const [groupFilter, setGroupFilter] = useState<'all' | string>('all')
   const [teamStreams, setTeamStreams] = useState<TeamStream[]>([])
 
@@ -158,18 +160,91 @@ export default function TournamentDetailPage() {
     loadTeamStreams()
   }, [tournamentId, loadTeams, loadMatches, loadTeamStreams])
 
+  const syncFollow = useCallback(
+    async (teamName: string | null) => {
+      if (!visitorIdRef.current || !tournamentId) return
+      try {
+        const response = await fetch('/api/follows', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            tournamentId,
+            visitorId: visitorIdRef.current,
+            teamName
+          })
+        })
+        if (!response.ok) return
+        const data = await response.json()
+        if (data.counts && typeof data.counts === 'object') {
+          setFollowCounts(data.counts)
+        }
+      } catch {
+        // Ignore network errors for follow sync
+      }
+    },
+    [tournamentId]
+  )
+
   useEffect(() => {
-    // Load followed team from localStorage (per tournament).
+    let savedFollow: string | null = null
     try {
+      let visitorId = window.localStorage.getItem('pro11_visitor_id')
+      if (!visitorId || visitorId.length < 8) {
+        visitorId =
+          typeof crypto !== 'undefined' && crypto.randomUUID
+            ? crypto.randomUUID().replace(/-/g, '')
+            : `v${Date.now().toString(36)}${Math.random().toString(36).slice(2, 10)}`
+        window.localStorage.setItem('pro11_visitor_id', visitorId)
+      }
+      visitorIdRef.current = visitorId
+
       const saved = window.localStorage.getItem(followTeamStorageKey)
       if (saved && typeof saved === 'string' && saved.trim()) {
-        setFollowTeam(saved)
-        setFollowTeamDraft(saved)
+        savedFollow = saved.trim()
+        setFollowTeam(savedFollow)
+        setFollowTeamDraft(savedFollow)
       }
     } catch {
       // Ignore storage issues (private mode etc.)
     }
-  }, [followTeamStorageKey])
+
+    const loadFollowCounts = async () => {
+      try {
+        const response = await fetch(`/api/follows?tournament_id=${tournamentId}`)
+        if (!response.ok) return
+        const data = await response.json()
+        if (data.counts && typeof data.counts === 'object') {
+          setFollowCounts(data.counts)
+        }
+      } catch {
+        // Ignore
+      }
+    }
+
+    const syncSavedFollow = async () => {
+      if (!savedFollow || !visitorIdRef.current) return
+      try {
+        const response = await fetch('/api/follows', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            tournamentId,
+            visitorId: visitorIdRef.current,
+            teamName: savedFollow
+          })
+        })
+        if (!response.ok) return
+        const data = await response.json()
+        if (data.counts && typeof data.counts === 'object') {
+          setFollowCounts(data.counts)
+        }
+      } catch {
+        // Ignore
+      }
+    }
+
+    loadFollowCounts().then(() => syncSavedFollow())
+  }, [followTeamStorageKey, tournamentId])
 
   useEffect(() => {
     // Persist followed team selection.
@@ -189,8 +264,9 @@ export default function TournamentDetailPage() {
     if (followTeam && registeredTeamNames.length > 0 && !registeredTeamNames.includes(followTeam)) {
       setFollowTeam(null)
       setFollowTeamDraft('')
+      syncFollow(null)
     }
-  }, [followTeam, registeredTeamNames])
+  }, [followTeam, registeredTeamNames, syncFollow])
 
   useEffect(() => {
     const groupNames = Object.keys(groupStandings)
@@ -200,18 +276,19 @@ export default function TournamentDetailPage() {
   }, [groupStandings, groupFilter])
 
   useEffect(() => {
-    // Pick a sensible default draft when user opens this page for the first time.
-    if (!followTeam && !followTeamDraft && registeredTeamNames.length > 0) {
-      setFollowTeamDraft(registeredTeamNames[0])
-    }
-  }, [followTeam, followTeamDraft, registeredTeamNames])
-
-  useEffect(() => {
     if (!tournamentId) return
     const pollMs = tournament?.status === 'ongoing' ? 12000 : 30000
     const interval = setInterval(() => {
       loadMatches()
       loadTeamStreams()
+      fetch(`/api/follows?tournament_id=${tournamentId}`)
+        .then(res => (res.ok ? res.json() : null))
+        .then(data => {
+          if (data?.counts && typeof data.counts === 'object') {
+            setFollowCounts(data.counts)
+          }
+        })
+        .catch(() => {})
     }, pollMs)
     return () => clearInterval(interval)
   }, [tournamentId, loadMatches, loadTeamStreams, tournament?.status])
@@ -238,15 +315,25 @@ export default function TournamentDetailPage() {
     }
   }
 
-  const handleFollowTeam = () => {
-    const selected = followTeamDraft.trim()
-    if (!selected) return
-    setFollowTeam(selected)
+  const handleFollowSelect = (value: string) => {
+    const next = value.trim()
+    setFollowTeamDraft(next)
+    setFollowTeam(next || null)
+    syncFollow(next || null)
   }
 
   const handleClearFollowTeam = () => {
     setFollowTeam(null)
+    setFollowTeamDraft('')
+    syncFollow(null)
   }
+
+  const topFollowedTeams = useMemo(() => {
+    return Object.entries(followCounts)
+      .filter(([, count]) => count > 0)
+      .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], locale))
+      .slice(0, 5)
+  }, [followCounts, locale])
 
   const buildGroupRoundMap = (groupMatches: any[]) => {
     const teamSet = new Set<string>()
@@ -822,37 +909,59 @@ export default function TournamentDetailPage() {
             </div>
 
             {registeredTeamNames.length > 0 && (
-              <div className="mt-3 flex flex-col sm:flex-row items-center justify-center gap-3">
-                <div className="flex items-center gap-2 text-sm text-slate-300">
-                  <User className="w-4 h-4 text-blue-300" />
-                  {t('Følger lag', 'Following team')}:
+              <div className="mt-3 flex flex-col items-center justify-center gap-2">
+                <div className="flex flex-col sm:flex-row items-center justify-center gap-3 w-full">
+                  <div className="flex items-center gap-2 text-sm text-slate-300">
+                    <User className="w-4 h-4 text-blue-300" />
+                    {t('Følger lag', 'Following team')}:
+                  </div>
+
+                  <div className="flex flex-wrap items-center justify-center gap-2 w-full sm:w-auto">
+                    <select
+                      value={followTeamDraft}
+                      onChange={(e) => handleFollowSelect(e.target.value)}
+                      className="bg-slate-900/60 border border-slate-700/60 rounded-lg px-3 py-2 text-sm text-slate-200 outline-none max-w-full"
+                    >
+                      <option value="">{t('Ingen valgt', 'None selected')}</option>
+                      {registeredTeamNames.map(name => {
+                        const count = followCounts[name] || 0
+                        return (
+                          <option key={name} value={name}>
+                            {count > 0 ? `${name} (${count})` : name}
+                          </option>
+                        )
+                      })}
+                    </select>
+
+                    <button
+                      type="button"
+                      onClick={handleClearFollowTeam}
+                      disabled={!followTeam}
+                      className="pro11-button-secondary text-sm px-4 py-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {t('Slutt å følge', 'Unfollow')}
+                    </button>
+                  </div>
                 </div>
 
-                <div className="flex flex-wrap items-center justify-center gap-2 w-full sm:w-auto">
-                  <select
-                    value={followTeamDraft}
-                    onChange={(e) => {
-                      setFollowTeamDraft(e.target.value)
-                      setFollowTeam(e.target.value)
-                    }}
-                    className="bg-slate-900/60 border border-slate-700/60 rounded-lg px-3 py-2 text-sm text-slate-200 outline-none"
-                  >
-                    {registeredTeamNames.map(name => (
-                      <option key={name} value={name}>
-                        {name}
-                      </option>
+                {topFollowedTeams.length > 0 && (
+                  <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-xs text-slate-400">
+                    <span className="text-slate-500">{t('Mest fulgt', 'Most followed')}:</span>
+                    {topFollowedTeams.map(([name, count], index) => (
+                      <span
+                        key={name}
+                        className={
+                          followTeam === name
+                            ? 'text-blue-300 font-medium'
+                            : 'text-slate-400'
+                        }
+                      >
+                        {index + 1}. {name}
+                        <span className="text-slate-500 ml-1">({count})</span>
+                      </span>
                     ))}
-                  </select>
-
-                  <button
-                    type="button"
-                    onClick={handleClearFollowTeam}
-                    disabled={!followTeam}
-                    className="pro11-button-secondary text-sm px-4 py-2 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    {t('Slutt å følge', 'Unfollow')}
-                  </button>
-                </div>
+                  </div>
+                )}
               </div>
             )}
           </div>
