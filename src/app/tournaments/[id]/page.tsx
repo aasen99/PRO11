@@ -952,24 +952,36 @@ export default function TournamentDetailPage() {
                   </div>
                 </div>
 
-                {topFollowedTeams.length > 0 && (
-                  <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-xs text-slate-400">
-                    <span className="text-slate-500">{t('Mest fulgt', 'Most followed')}:</span>
-                    {topFollowedTeams.map(([name, count], index) => (
-                      <span
-                        key={name}
-                        className={
-                          followTeam === name
-                            ? 'text-blue-300 font-medium'
-                            : 'text-slate-400'
-                        }
-                      >
-                        {index + 1}. {name}
-                        <span className="text-slate-500 ml-1">({count})</span>
+                <div className="w-full max-w-xl rounded-lg border border-slate-700/50 bg-slate-900/40 px-3 py-2 text-xs text-slate-300">
+                  <div className="flex flex-wrap items-center justify-center gap-x-1 gap-y-1">
+                    <span className="text-slate-400 font-medium mr-1">
+                      {t('Mest fulgt', 'Most followed')}:
+                    </span>
+                    {topFollowedTeams.length > 0 ? (
+                      topFollowedTeams.map(([name, count], index) => (
+                        <span
+                          key={name}
+                          className={
+                            followTeam === name
+                              ? 'text-blue-300 font-medium'
+                              : 'text-slate-300'
+                          }
+                        >
+                          {index > 0 && <span className="text-slate-600 mx-1">·</span>}
+                          {index + 1}. {name}
+                          <span className="text-slate-500 ml-1">({count})</span>
+                        </span>
+                      ))
+                    ) : (
+                      <span className="text-slate-500">
+                        {t(
+                          'Ingen følgere ennå — velg et lag for å starte.',
+                          'No followers yet — pick a team to start.'
+                        )}
                       </span>
-                    ))}
+                    )}
                   </div>
-                )}
+                </div>
               </div>
             )}
           </div>
