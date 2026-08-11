@@ -1340,6 +1340,7 @@ export default function CaptainDashboardPage() {
 
   return (
     <div className="min-h-screen">
+      <ToastContainer toasts={toasts} onRemove={removeToast} />
       {/* Header */}
       <header className="pro11-card mx-4 mt-4 min-h-24 p-4">
         <div className="flex items-center justify-between gap-4">
@@ -1365,7 +1366,6 @@ export default function CaptainDashboardPage() {
       </header>
 
       <main className="container mx-auto px-4 py-6 flex flex-col items-center">
-        <ToastContainer toasts={toasts} onRemove={removeToast} />
         <div className="max-w-6xl w-full">
           {needsCaptainNameUpdate && (
             <div className="pro11-card p-6 mb-6 border border-orange-600/40 bg-orange-900/10">
@@ -1694,11 +1694,11 @@ export default function CaptainDashboardPage() {
                                     {nextMatch.resultSubmissionBlockedReason}
                                   </p>
                                 )}
-                                <div className="grid grid-cols-2 gap-2 w-full sm:flex sm:flex-nowrap sm:justify-center">
+                                <div className="flex flex-wrap justify-center gap-2 w-full">
                                   {nextMatch.canSubmitResult && (
                                     <button
                                       onClick={() => openResultModal(nextMatch)}
-                                      className="pro11-button-secondary text-xs px-3 py-2 justify-center"
+                                      className="pro11-button-secondary text-xs px-4 py-2 flex items-center justify-center"
                                     >
                                       <Edit className="w-3 h-3 mr-1" />
                                       {t('Legg inn', 'Submit')}
@@ -1707,7 +1707,7 @@ export default function CaptainDashboardPage() {
                                   {nextMatch.canClaimWalkover && (
                                     <button
                                       onClick={() => claimWalkover(nextMatch)}
-                                      className="bg-slate-700 hover:bg-slate-600 text-white px-3 py-2 rounded text-xs font-medium transition-colors justify-center"
+                                      className="bg-slate-700 hover:bg-slate-600 text-white px-3 py-2 rounded text-xs font-medium transition-colors flex items-center justify-center"
                                     >
                                       {t('Krev WO', 'Claim walkover')}
                                     </button>
@@ -1717,14 +1717,14 @@ export default function CaptainDashboardPage() {
                                       <button
                                         onClick={() => confirmResult(nextMatch)}
                                         disabled={confirmingMatchId === nextMatch.id}
-                                        className="bg-green-600 hover:bg-green-700 text-white px-3 py-2 rounded text-xs font-medium transition-colors disabled:opacity-50 justify-center"
+                                        className="bg-green-600 hover:bg-green-700 text-white px-3 py-2 rounded text-xs font-medium transition-colors disabled:opacity-50 flex items-center justify-center"
                                       >
                                         {confirmingMatchId === nextMatch.id ? t('Bekrefter...', 'Confirming...') : t('Bekreft', 'Confirm')}
                                       </button>
                                       {nextMatch.canSubmitAlternativeResult && (
                                         <button
                                           onClick={() => openResultModal(nextMatch, { requireProof: true, prefillOpponent: true })}
-                                          className="bg-orange-600 hover:bg-orange-700 text-white px-3 py-2 rounded text-xs font-medium transition-colors justify-center"
+                                          className="bg-orange-600 hover:bg-orange-700 text-white px-3 py-2 rounded text-xs font-medium transition-colors flex items-center justify-center"
                                         >
                                           {t('Annet resultat', 'Different result')}
                                         </button>
@@ -1732,7 +1732,7 @@ export default function CaptainDashboardPage() {
                                       {nextMatch.submittedBy && nextMatch.submittedBy !== team.teamName && (
                                         <button
                                           onClick={() => rejectResult(nextMatch)}
-                                          className="bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded text-xs font-medium transition-colors"
+                                          className="bg-red-600 hover:bg-red-700 text-white px-3 py-2 rounded text-xs font-medium transition-colors flex items-center justify-center"
                                         >
                                           {t('Avvis', 'Reject')}
                                         </button>
