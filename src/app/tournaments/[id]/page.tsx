@@ -9,6 +9,7 @@ import { useLanguage } from '@/components/LanguageProvider'
 import Header from '@/components/Header'
 import { PrizePoolText, formatTournamentPrize } from '@/components/PrizePoolText'
 import GroupStandingsTable, { type StandingsRow } from '@/components/GroupStandingsTable'
+import TeamStreamPanel, { getStreamsForTeamName, type TeamStream } from '@/components/TeamStreamPanel'
 import { calculateGroupStandings, toStandingsMatchInputs } from '@/lib/group-standings'
 import { buildKnockoutBracketPreview, type BracketPreviewRound } from '@/lib/knockout-bracket'
 
@@ -57,7 +58,7 @@ const getFormatFromDescription = (description?: string) => {
 export default function TournamentDetailPage() {
   const params = useParams()
   const tournamentId = params.id as string
-  const [activeTab, setActiveTab] = useState<'standings' | 'matches' | 'bracket' | 'info'>('standings')
+  const [activeTab, setActiveTab] = useState<'standings' | 'matches' | 'bracket' | 'streams' | 'info'>('standings')
   const [matchFilter, setMatchFilter] = useState<'all' | 'live' | 'completed' | 'upcoming' | 'pending'>('all')
   const initialTabSetRef = useRef(false)
   const { language } = useLanguage()
@@ -77,6 +78,7 @@ export default function TournamentDetailPage() {
   const [followTeam, setFollowTeam] = useState<string | null>(null)
   const [followTeamDraft, setFollowTeamDraft] = useState<string>('')
   const [groupFilter, setGroupFilter] = useState<'all' | string>('all')
+  const [teamStreams, setTeamStreams] = useState<TeamStream[]>([])
 
   const registeredTeamNames = registeredTeams
     .map((t: any) => t.teamName || t.team_name)
@@ -138,11 +140,23 @@ export default function TournamentDetailPage() {
     }
   }, [tournamentId])
 
+  const loadTeamStreams = useCallback(async () => {
+    try {
+      const response = await fetch(`/api/streams?tournament_id=${tournamentId}`)
+      if (!response.ok) return
+      const data = await response.json()
+      setTeamStreams(data.streams || [])
+    } catch {
+      // Ignore stream load errors (table may not exist yet)
+    }
+  }, [tournamentId])
+
   useEffect(() => {
     if (!tournamentId) return
     loadTeams()
     loadMatches()
-  }, [tournamentId, loadTeams, loadMatches])
+    loadTeamStreams()
+  }, [tournamentId, loadTeams, loadMatches, loadTeamStreams])
 
   useEffect(() => {
     // Load followed team from localStorage (per tournament).
@@ -195,9 +209,12 @@ export default function TournamentDetailPage() {
   useEffect(() => {
     if (!tournamentId) return
     const pollMs = tournament?.status === 'ongoing' ? 12000 : 30000
-    const interval = setInterval(loadMatches, pollMs)
+    const interval = setInterval(() => {
+      loadMatches()
+      loadTeamStreams()
+    }, pollMs)
     return () => clearInterval(interval)
-  }, [tournamentId, loadMatches, tournament?.status])
+  }, [tournamentId, loadMatches, loadTeamStreams, tournament?.status])
 
   useEffect(() => {
     if (tournament?.status === 'ongoing' && matches.length > 0 && !initialTabSetRef.current) {
@@ -545,10 +562,37 @@ export default function TournamentDetailPage() {
 
   const matchListSections = buildMatchListSections(filteredDisplayMatches)
 
+  const renderMatchStreams = (teamName: string) => {
+    const teamStreamLinks = getStreamsForTeamName(teamStreams, teamName)
+    if (teamStreamLinks.length === 0) return null
+
+    return (
+      <div className="flex flex-wrap gap-1 px-2 pb-1.5">
+        {teamStreamLinks.map(stream => (
+          <a
+            key={stream.id}
+            href={stream.streamUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-red-900/40 text-red-200 border border-red-700/40 hover:bg-red-900/60"
+            title={stream.displayName || teamName}
+          >
+            <Radio className="w-3 h-3" />
+            {stream.displayName || teamName}
+            <ExternalLink className="w-2.5 h-2.5 opacity-70" />
+          </a>
+        ))}
+      </div>
+    )
+  }
+
   const renderMatchRow = (match: Match, meta?: string) => {
     const showScore = match.status === 'completed' || match.status === 'live'
     const metaLine = meta ?? getMatchMeta(match)
     const isFollow = Boolean(followTeam) && (match.homeTeam === followTeam || match.awayTeam === followTeam)
+    const homeStreams = getStreamsForTeamName(teamStreams, match.homeTeam)
+    const awayStreams = getStreamsForTeamName(teamStreams, match.awayTeam)
+    const hasStreams = homeStreams.length > 0 || awayStreams.length > 0
     return (
       <div
         key={match.id}
@@ -602,6 +646,12 @@ export default function TournamentDetailPage() {
         {metaLine && (
           <div className="sm:hidden px-2 pb-1.5 text-[10px] text-slate-500 truncate" title={metaLine}>
             {metaLine}
+          </div>
+        )}
+        {hasStreams && (
+          <div className="border-t border-slate-700/30">
+            {homeStreams.length > 0 && renderMatchStreams(match.homeTeam)}
+            {awayStreams.length > 0 && renderMatchStreams(match.awayTeam)}
           </div>
         )}
       </div>
@@ -894,6 +944,19 @@ export default function TournamentDetailPage() {
                 }`}
               >
                 {t('Sluttspill', 'Knockout')}
+              </button>
+              <button
+                onClick={() => setActiveTab('streams')}
+                className={`px-3 py-2 sm:px-4 rounded-lg font-medium transition-colors ${
+                  activeTab === 'streams'
+                    ? 'bg-red-600 text-white'
+                    : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                {t('Streams', 'Streams')}
+                {teamStreams.length > 0 && (
+                  <span className="ml-1 opacity-80">({teamStreams.length})</span>
+                )}
               </button>
               <button
                 onClick={() => setActiveTab('info')}
@@ -1292,6 +1355,15 @@ export default function TournamentDetailPage() {
                 </div>
               )
              })()}
+
+            {activeTab === 'streams' && (
+              <TeamStreamPanel
+                tournamentId={tournamentId}
+                teams={registeredTeams}
+                isEnglish={isEnglish}
+                onStreamsChange={setTeamStreams}
+              />
+            )}
 
              {activeTab === 'info' && (() => {
                 const desc = isEnglish && tournament.description_en ? tournament.description_en : tournament.description

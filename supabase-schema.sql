@@ -171,6 +171,23 @@ CREATE INDEX idx_matches_status ON matches(status);
 CREATE INDEX idx_captain_messages_tournament_id ON captain_messages(tournament_id);
 CREATE INDEX idx_captain_messages_status ON captain_messages(status);
 
+-- Team streams (player-submitted links per team)
+CREATE TABLE team_streams (
+  id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  tournament_id UUID REFERENCES tournaments(id) ON DELETE CASCADE NOT NULL,
+  team_id UUID REFERENCES teams(id) ON DELETE CASCADE NOT NULL,
+  team_name VARCHAR(255) NOT NULL,
+  service VARCHAR(20) NOT NULL CHECK (service IN ('twitch', 'youtube', 'kick')),
+  stream_url TEXT NOT NULL,
+  normalized_url TEXT NOT NULL,
+  display_name VARCHAR(100),
+  delete_token_hash VARCHAR(128) NOT NULL,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+CREATE INDEX idx_team_streams_tournament_id ON team_streams(tournament_id);
+CREATE INDEX idx_team_streams_team_id ON team_streams(tournament_id, team_id);
+CREATE UNIQUE INDEX idx_team_streams_tournament_normalized_url ON team_streams(tournament_id, normalized_url);
+
 -- Create updated_at trigger function
 CREATE OR REPLACE FUNCTION update_updated_at_column()
 RETURNS TRIGGER AS $$
@@ -205,6 +222,7 @@ ALTER TABLE matches ENABLE ROW LEVEL SECURITY;
 ALTER TABLE admin_users ENABLE ROW LEVEL SECURITY;
 ALTER TABLE captain_messages ENABLE ROW LEVEL SECURITY;
 ALTER TABLE tournament_events ENABLE ROW LEVEL SECURITY;
+ALTER TABLE team_streams ENABLE ROW LEVEL SECURITY;
 
 -- RLS Policies for tournaments
 CREATE POLICY "Public read access to tournaments" ON tournaments
@@ -226,6 +244,10 @@ CREATE POLICY "Public can read matches" ON matches
 -- No public access; API uses service role
 
 -- tournament_events: RLS enabled, no anon/authenticated policies (service role only)
+
+-- RLS Policies for team_streams
+CREATE POLICY "Public can read team streams" ON team_streams
+  FOR SELECT USING (true);
 
 -- RLS Policies for admin_users (restrictive - only service role should access)
 CREATE POLICY "No public access to admin users" ON admin_users
