@@ -84,16 +84,16 @@ export default function GroupStandingsTable({
                 key={row.team}
                 className={`standings-row border-b border-slate-700/70 ${
                   isOwnTeam
-                    ? 'standings-row-own bg-blue-900/25'
+                    ? 'standings-row-own bg-blue-600/20 border-l-2 border-l-blue-400'
                     : inQualifyZone
-                      ? 'standings-row-qualify bg-emerald-950/20'
-                      : 'hover:bg-slate-800/30'
+                      ? 'standings-row-qualify bg-emerald-950/20 border-l-2 border-l-transparent'
+                      : 'hover:bg-slate-800/30 border-l-2 border-l-transparent'
                 }`}
               >
                 <td className="py-2 sm:py-2.5 pl-1 sm:pl-2 pr-0.5 text-slate-400 font-medium tabular-nums">{index + 1}</td>
                 <td
                   className={`py-2 sm:py-2.5 px-1 sm:px-2 font-medium max-w-0 ${
-                    isOwnTeam ? 'text-blue-300' : 'text-slate-100'
+                    isOwnTeam ? 'text-blue-300 font-semibold' : 'text-slate-100'
                   }`}
                   title={row.team}
                 >

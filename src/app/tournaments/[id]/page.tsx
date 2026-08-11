@@ -676,6 +676,8 @@ export default function TournamentDetailPage() {
     const showScore = match.status === 'completed' || match.status === 'live'
     const metaLine = meta ?? getMatchMeta(match)
     const isFollow = Boolean(followTeam) && (match.homeTeam === followTeam || match.awayTeam === followTeam)
+    const homeIsFollow = Boolean(followTeam) && match.homeTeam === followTeam
+    const awayIsFollow = Boolean(followTeam) && match.awayTeam === followTeam
     const homeStreams = getStreamsForTeamName(teamStreams, match.homeTeam)
     const awayStreams = getStreamsForTeamName(teamStreams, match.awayTeam)
     const hasStreams = homeStreams.length > 0 || awayStreams.length > 0
@@ -683,13 +685,17 @@ export default function TournamentDetailPage() {
       <div
         key={match.id}
         className={[
-          match.status === 'live' ? 'bg-red-950/10' : '',
-          isFollow ? 'bg-blue-950/15' : ''
+          match.status === 'live' ? 'bg-red-950/20' : '',
+          isFollow
+            ? 'bg-blue-600/15 border-l-2 border-l-blue-400'
+            : 'border-l-2 border-l-transparent'
         ].join(' ')}
       >
         <div className="flex items-center gap-1.5 sm:gap-2 px-2 py-1.5 text-xs sm:text-sm min-h-[2rem]">
           <span
-            className="w-[28%] sm:w-[22%] min-w-0 truncate text-right font-medium"
+            className={`w-[28%] sm:w-[22%] min-w-0 truncate text-right font-medium ${
+              homeIsFollow ? 'text-blue-300 font-semibold' : ''
+            }`}
             title={match.homeTeam}
           >
             {match.homeTeam}
@@ -710,7 +716,9 @@ export default function TournamentDetailPage() {
             {showScore ? match.awayScore : '·'}
           </span>
           <span
-            className="w-[28%] sm:w-[22%] min-w-0 truncate font-medium"
+            className={`w-[28%] sm:w-[22%] min-w-0 truncate font-medium ${
+              awayIsFollow ? 'text-blue-300 font-semibold' : ''
+            }`}
             title={match.awayTeam}
           >
             {match.awayTeam}
