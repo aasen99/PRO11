@@ -7,6 +7,7 @@ import { Trophy, Users, Calendar, Clock, CheckCircle, XCircle, ExternalLink, Plu
 import { fetchTournamentById } from '../../../lib/tournaments'
 import { useLanguage } from '@/components/LanguageProvider'
 import Header from '@/components/Header'
+import { PrizePoolText, formatTournamentPrize } from '@/components/PrizePoolText'
 import GroupStandingsTable, { type StandingsRow } from '@/components/GroupStandingsTable'
 import { calculateGroupStandings, toStandingsMatchInputs } from '@/lib/group-standings'
 import { buildKnockoutBracketPreview, type BracketPreviewRound } from '@/lib/knockout-bracket'
@@ -548,9 +549,13 @@ export default function TournamentDetailPage() {
                 <Calendar className="w-5 h-5 text-blue-400" />
                 <span className="text-sm sm:text-base">{tournament.date} - {tournament.time}</span>
               </div>
-              <div className="flex items-center space-x-2">
-                <Trophy className="w-5 h-5 text-yellow-400" />
-                <span className="text-sm sm:text-base">{t('Premie', 'Prize')}: {tournament.prize}</span>
+              <div className="flex items-start space-x-2">
+                <Trophy className="w-5 h-5 text-yellow-400 mt-0.5 shrink-0" />
+                <PrizePoolText
+                  tournament={tournament}
+                  isEnglish={isEnglish}
+                  className="text-sm sm:text-base text-left"
+                />
               </div>
               <div className="flex items-center space-x-2">
                 <Users className="w-5 h-5 text-green-400" />
@@ -981,15 +986,24 @@ export default function TournamentDetailPage() {
                 <div>
                   <h3 className="text-xl font-semibold mb-4">{t('Premier', 'Prizes')}</h3>
                   <div className="pro11-card p-4">
-                    <p className="text-slate-300">
-                      {t(
-                        'Premiepotten oppgis av admin og oppdateres ved behov.',
-                        'The prize pool is provided by admin and updated as needed.'
-                      )}
-                    </p>
-                    {tournament.prize && (
-                      <p className="text-slate-300 mt-2">
-                        {t('Premie', 'Prize')}: {tournament.prize}
+                    {tournament.isDynamicPrize ? (
+                      <p className="text-slate-300">
+                        {t(
+                          'Premiepotten er live og øker med antall påmeldte lag. Tallet viser nåværende pott av maks pott ved fullt felt.',
+                          'The prize pool is live and grows with registered teams. The number shows current pot of max pot at a full field.'
+                        )}
+                      </p>
+                    ) : (
+                      <p className="text-slate-300">
+                        {t(
+                          'Premiepotten oppgis av admin og oppdateres ved behov.',
+                          'The prize pool is provided by admin and updated as needed.'
+                        )}
+                      </p>
+                    )}
+                    {(tournament.prize || typeof tournament.prizeAmount === 'number') && (
+                      <p className="text-slate-300 mt-2 font-medium">
+                        {t('Premiepott', 'Prize pool')}: {formatTournamentPrize(tournament, isEnglish)}
                       </p>
                     )}
                   </div>

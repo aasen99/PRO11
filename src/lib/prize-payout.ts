@@ -40,6 +40,36 @@ export function getTournamentPrizeAmount(params: {
   return Math.max(0, Number(params.prizePool) || 0)
 }
 
+/** Max prize pool when pot grows per team (perTeamPot × maxTeams). Null for fixed pots. */
+export function getTournamentMaxPrizeAmount(params: {
+  prizePool?: number | null
+  description?: string | null
+  maxTeams?: number | null
+}): number | null {
+  const perTeamPot = getPerTeamPotFromDescription(params.description)
+  if (perTeamPot === null) return null
+  const maxTeams = Math.max(0, Number(params.maxTeams) || 0)
+  return perTeamPot * maxTeams
+}
+
+export function formatPrizeNok(amount: number, locale: string = 'nb-NO'): string {
+  return `${Math.max(0, amount).toLocaleString(locale)} NOK`
+}
+
+/** e.g. "0 / 32 000 NOK" when dynamic, otherwise just the current amount. */
+export function formatPrizePoolLabel(params: {
+  current: number
+  max?: number | null
+  locale?: string
+  separator?: string
+}): string {
+  const locale = params.locale ?? 'nb-NO'
+  const currentLabel = formatPrizeNok(params.current, locale)
+  if (params.max == null || params.max <= 0) return currentLabel
+  const sep = params.separator ?? '/'
+  return `${params.current.toLocaleString(locale)} ${sep} ${params.max.toLocaleString(locale)} NOK`
+}
+
 export function tournamentHasConfiguredPrize(params: {
   prizePool?: number | null
   description?: string | null

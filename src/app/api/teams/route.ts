@@ -403,8 +403,12 @@ export async function PUT(request: NextRequest) {
         return unauthorizedResponse()
       }
     } else if (discordUsername !== undefined || captainName !== undefined || (currentPassword && newPassword)) {
-      if (!captain || captain.teamId !== id) {
-        if (!admin) return unauthorizedResponse()
+      if (captain) {
+        if (captainName === undefined && discordUsername === undefined && captain.teamId !== id) {
+          if (!admin) return unauthorizedResponse()
+        }
+      } else if (!admin) {
+        return unauthorizedResponse()
       }
     } else if (prizePayout === undefined && !admin) {
       return unauthorizedResponse()
@@ -425,7 +429,68 @@ export async function PUT(request: NextRequest) {
       if (!captainValidation.valid) {
         return NextResponse.json({ error: captainValidation.error || 'Invalid captain name' }, { status: 400 })
       }
-      updateData.captain_name = captainValidation.fullName || normalizeCaptainName(String(captainName))
+      const normalizedCaptainName =
+        captainValidation.fullName || normalizeCaptainName(String(captainName))
+
+      if (captain && !admin) {
+        const captainEmail = String(captain.captainEmail || '').trim()
+        if (!captainEmail) {
+          return NextResponse.json({ error: 'Captain email missing from session.' }, { status: 400 })
+        }
+
+        const { data: updatedTeams, error: nameUpdateError } = await supabase
+          .from('teams')
+          .update({ captain_name: normalizedCaptainName })
+          .ilike('captain_email', captainEmail)
+          .select()
+
+        if (nameUpdateError) {
+          console.error('Captain name update error:', nameUpdateError)
+          return NextResponse.json(
+            { error: 'Failed to update captain name: ' + nameUpdateError.message },
+            { status: 400 }
+          )
+        }
+
+        const sessionTeam =
+          updatedTeams?.find((row) => row.id === captain.teamId) ||
+          updatedTeams?.[0] ||
+          null
+
+        if (!sessionTeam) {
+          return NextResponse.json(
+            {
+              error:
+                'Fant ikke laget ditt. Logg ut og inn igjen — session kan være utdatert etter demo-reset.'
+            },
+            { status: 404 }
+          )
+        }
+
+        const teamData = {
+          id: sessionTeam.id,
+          tournamentId: sessionTeam.tournament_id,
+          tournament_id: sessionTeam.tournament_id,
+          teamName: sessionTeam.team_name,
+          team_name: sessionTeam.team_name,
+          captainName: sessionTeam.captain_name,
+          captain_name: sessionTeam.captain_name,
+          captainEmail: sessionTeam.captain_email,
+          captain_email: sessionTeam.captain_email,
+          discordUsername: sessionTeam.discord_username || '',
+          discord_username: sessionTeam.discord_username || '',
+          checkedIn: sessionTeam.checked_in ?? false,
+          checked_in: sessionTeam.checked_in ?? false,
+          status: sessionTeam.status,
+          paymentStatus: sessionTeam.payment_status,
+          payment_status: sessionTeam.payment_status,
+          ...mapPrizePayoutFields(sessionTeam)
+        }
+
+        return NextResponse.json({ success: true, team: teamData })
+      }
+
+      updateData.captain_name = normalizedCaptainName
     }
 
     if (prizePayout !== undefined) {
@@ -540,12 +605,14 @@ export async function PUT(request: NextRequest) {
     let error: any = null
 
     const updateRequest = async (data: any) => {
+      const targetId = captain && !admin ? captain.teamId : id
+
       if (Object.keys(data).length === 0) {
         const result = await supabase
           .from('teams')
           .select()
-          .eq('id', id)
-          .single()
+          .eq('id', targetId)
+          .maybeSingle()
         team = result.data
         error = result.error
         return
@@ -554,9 +621,9 @@ export async function PUT(request: NextRequest) {
       const result = await supabase
         .from('teams')
         .update(data)
-        .eq('id', id)
+        .eq('id', targetId)
         .select()
-        .single()
+        .maybeSingle()
       team = result.data
       error = result.error
     }
@@ -576,13 +643,24 @@ export async function PUT(request: NextRequest) {
     }
 
     if (error && typeof error.message === 'string' && error.message.includes('cannot coerce the result to a single JSON object')) {
+      const targetId = captain && !admin ? captain.teamId : id
       const result = await supabase
         .from('teams')
         .select()
-        .eq('id', id)
-        .single()
+        .eq('id', targetId)
+        .maybeSingle()
       team = result.data
       error = result.error
+    }
+
+    if (!team && !error) {
+      return NextResponse.json(
+        {
+          error:
+            'Fant ikke laget. Logg ut og inn igjen — spesielt etter demo-reset eller ny påmelding.'
+        },
+        { status: 404 }
+      )
     }
 
     if (error) {

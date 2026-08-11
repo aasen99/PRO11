@@ -1,4 +1,10 @@
 import { isDemoTournament } from './demo-tournament'
+import {
+  formatPrizePoolLabel,
+  getPerTeamPotFromDescription,
+  getTournamentMaxPrizeAmount,
+  getTournamentPrizeAmount
+} from './prize-payout'
 
 export interface Tournament {
   id: string
@@ -6,6 +12,11 @@ export interface Tournament {
   date: string
   time: string
   prize: string
+  /** Current prize pool in NOK (grows with eligible teams when dynamic). */
+  prizeAmount: number
+  /** Max prize if pot is per-team × maxTeams; null for fixed pots. */
+  maxPrizeAmount: number | null
+  isDynamicPrize: boolean
   entryFee: number
   registeredTeams: number
   maxTeams: number
@@ -33,14 +44,6 @@ interface DatabaseTournament {
   entry_fee: number
   created_at: string
   updated_at: string
-}
-
-const POT_PER_TEAM_TAG_REGEX = /\[POT_PER_TEAM:(\d+)\]/i
-
-const getPerTeamPotFromDescription = (description?: string | null) => {
-  const match = description?.match(POT_PER_TEAM_TAG_REGEX)
-  const value = match?.[1]
-  return value ? Number(value) : null
 }
 
 // Helper function to format date
@@ -99,17 +102,30 @@ function getStatusText(status: 'open' | 'ongoing' | 'closed' | 'completed'): str
 function transformTournament(dbTournament: DatabaseTournament): Tournament {
   const { date, time } = formatDate(dbTournament.start_date)
   const status = mapStatus(dbTournament.status)
-  const perTeamPot = getPerTeamPotFromDescription(dbTournament.description)
   const eligibleTeams = dbTournament.eligible_teams ?? dbTournament.current_teams
-  const computedPrizePool =
-    perTeamPot !== null ? perTeamPot * (eligibleTeams || 0) : dbTournament.prize_pool
-  
+  const prizeParams = {
+    prizePool: dbTournament.prize_pool,
+    description: dbTournament.description,
+    eligibleTeams,
+    currentTeams: dbTournament.current_teams,
+    maxTeams: dbTournament.max_teams
+  }
+  const prizeAmount = getTournamentPrizeAmount(prizeParams)
+  const maxPrizeAmount = getTournamentMaxPrizeAmount(prizeParams)
+  const isDynamicPrize = getPerTeamPotFromDescription(dbTournament.description) !== null
+
   return {
     id: dbTournament.id,
     title: dbTournament.title,
     date,
     time,
-    prize: `${computedPrizePool.toLocaleString('nb-NO')} NOK`,
+    prize: formatPrizePoolLabel({
+      current: prizeAmount,
+      max: isDynamicPrize ? maxPrizeAmount : null
+    }),
+    prizeAmount,
+    maxPrizeAmount,
+    isDynamicPrize,
     entryFee: dbTournament.entry_fee,
     registeredTeams: dbTournament.current_teams ?? eligibleTeams ?? 0,
     maxTeams: dbTournament.max_teams,

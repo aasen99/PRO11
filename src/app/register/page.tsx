@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { Shield, Users, User, Mail, Gamepad2, Plus, Trash2 } from 'lucide-react'
 import Header from '../../components/Header'
+import { PrizePoolText } from '@/components/PrizePoolText'
 import { fetchTournamentById } from '../../lib/tournaments'
 import { useLanguage } from '@/components/LanguageProvider'
 import { validatePasswordClient } from '@/lib/utils'
@@ -508,14 +509,17 @@ export default function RegisterPage() {
                       {isEnglish ? 'Demo tournament — registration closed' : 'Demo-turnering — påmelding stengt'}
                     </p>
                   )}
-                  <p className="text-slate-400 text-sm">
-                    {isEnglish ? 'Prize' : 'Premie'}: {tournament?.prize} | {isEnglish ? 'Entry fee' : 'Påmeldingsgebyr'}:{' '}
-                    {tournament?.entryFee === 0 ? (
-                      <span className="text-green-400 font-semibold">{isEnglish ? 'FREE' : 'GRATIS'}</span>
-                    ) : (
-                      <span>{tournament?.entryFee} NOK</span>
-                    )}
-                  </p>
+                  <div className="text-slate-400 text-sm space-y-1">
+                    <PrizePoolText tournament={tournament} isEnglish={isEnglish} />
+                    <p>
+                      {isEnglish ? 'Entry fee' : 'Påmeldingsgebyr'}:{' '}
+                      {tournament?.entryFee === 0 ? (
+                        <span className="text-green-400 font-semibold">{isEnglish ? 'FREE' : 'GRATIS'}</span>
+                      ) : (
+                        <span>{tournament?.entryFee} NOK</span>
+                      )}
+                    </p>
+                  </div>
                 </>
               )}
             </div>

@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { Trophy, Users, Calendar, ExternalLink, Info, Banknote } from 'lucide-react'
 import { fetchTournaments } from '../lib/tournaments'
 import Header from '@/components/Header'
+import { PrizePoolText } from '@/components/PrizePoolText'
 import { useLanguage } from '@/components/LanguageProvider'
 
 const GEN_TAG_REGEX = /\[GEN:\s*(NEW GEN|OLD GEN|BOTH)\]/gi
@@ -175,7 +176,7 @@ export default function HomePage() {
                   </div>
                   <div className="flex items-center justify-center gap-3 flex-wrap">
                     <Trophy className="w-5 h-5 text-yellow-400 shrink-0" />
-                    <span className="break-words">{isEnglish ? 'Prize' : 'Premie'}: {nextTournament.prize}</span>
+                    <PrizePoolText tournament={nextTournament} isEnglish={isEnglish} className="text-left sm:text-center" />
                   </div>
                   <div className="flex items-center justify-center gap-3 flex-wrap">
                     <Users className="w-5 h-5 text-green-400 shrink-0" />

@@ -119,7 +119,7 @@ export async function POST(request: NextRequest) {
     const teamsPayload = teamNames.map((name, index) => ({
       tournament_id: tournament.id,
       team_name: name,
-      captain_name: `Demo Kaptein ${index + 1}`,
+      captain_name: `Demo Kaptein ${String(index + 1).padStart(2, '0')}`,
       captain_email: getDemoCaptainEmail(index),
       captain_phone: null,
       discord_username: `demo${index + 1}`,

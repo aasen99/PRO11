@@ -223,45 +223,65 @@ export default function CaptainDashboardPage() {
     let refreshInterval: ReturnType<typeof setInterval> | null = null
 
     const init = async () => {
+      let sessionTeam: any = null
       try {
         const sessionRes = await apiFetch('/api/captain/session', { credentials: 'include' })
         if (!sessionRes.ok) {
           window.location.href = '/captain/login'
           return
         }
+        const sessionData = await sessionRes.json()
+        sessionTeam = sessionData.team
       } catch {
         window.location.href = '/captain/login'
         return
       }
 
       const teamData = localStorage.getItem('captainTeam')
-      if (!teamData) {
+      const parsedTeam = teamData ? JSON.parse(teamData) : {}
+      const mergedTeam = {
+        ...parsedTeam,
+        ...sessionTeam,
+        id: sessionTeam?.id || parsedTeam.id,
+        teamName: sessionTeam?.teamName || sessionTeam?.team_name || parsedTeam.teamName,
+        captainName: sessionTeam?.captainName || sessionTeam?.captain_name || parsedTeam.captainName,
+        captainEmail: sessionTeam?.captainEmail || sessionTeam?.captain_email || parsedTeam.captainEmail,
+        tournaments: sessionTeam?.tournaments || parsedTeam.tournaments || [],
+        tournamentId:
+          sessionTeam?.tournamentId ||
+          sessionTeam?.tournament_id ||
+          parsedTeam.tournamentId ||
+          parsedTeam.tournaments?.[0] ||
+          ''
+      }
+
+      if (!mergedTeam.id) {
         window.location.href = '/captain/login'
         return
       }
 
-      const parsedTeam = JSON.parse(teamData)
-      setTeam(parsedTeam)
-      setDiscordUsername(parsedTeam.discordUsername || '')
-      setShowDiscordEditor(!parsedTeam.discordUsername)
-      const nameParts = splitCaptainName(parsedTeam.captainName)
+      setTeam(mergedTeam)
+      localStorage.setItem('captainTeam', JSON.stringify(mergedTeam))
+      setDiscordUsername(mergedTeam.discordUsername || '')
+      setShowDiscordEditor(!mergedTeam.discordUsername)
+      const nameParts = splitCaptainName(mergedTeam.captainName)
       setCaptainFirstName(nameParts.firstName)
       setCaptainLastName(nameParts.lastName)
 
       const refreshPaymentStatus = async () => {
-        if (parsedTeam.paymentStatus) return
+        if (mergedTeam.paymentStatus) return
         try {
           const response = await apiFetch('/api/teams')
           if (!response.ok) return
           const data = await response.json()
-          const freshTeam = (data.teams || []).find((t: any) => t.id === parsedTeam.id)
+          const freshTeam = (data.teams || []).find((t: any) => t.id === mergedTeam.id)
           if (!freshTeam) return
 
           const updatedTeam = {
-            ...parsedTeam,
-            paymentStatus: freshTeam.paymentStatus || freshTeam.payment_status || parsedTeam.paymentStatus,
-            expectedPlayers: freshTeam.expectedPlayers || freshTeam.expected_players || parsedTeam.expectedPlayers || 0,
-            tournamentId: freshTeam.tournamentId || freshTeam.tournament_id || parsedTeam.tournamentId || parsedTeam.tournaments?.[0] || ''
+            ...mergedTeam,
+            paymentStatus: freshTeam.paymentStatus || freshTeam.payment_status || mergedTeam.paymentStatus,
+            expectedPlayers: freshTeam.expectedPlayers || freshTeam.expected_players || mergedTeam.expectedPlayers || 0,
+            tournamentId: freshTeam.tournamentId || freshTeam.tournament_id || mergedTeam.tournamentId || mergedTeam.tournaments?.[0] || ''
           }
 
           setTeam(updatedTeam)
@@ -275,7 +295,7 @@ export default function CaptainDashboardPage() {
       const loadTournaments = async () => {
         try {
           // Hent turneringer som laget er registrert på
-          const tournamentIds = parsedTeam.tournaments || []
+          const tournamentIds = mergedTeam.tournaments || []
           
           if (tournamentIds.length === 0) {
             setTournaments([])
@@ -347,7 +367,7 @@ export default function CaptainDashboardPage() {
                 const matchingTeam = (teamsData.teams || []).find((team: any) => {
                   const email = String(team.captainEmail || team.captain_email || '').trim().toLowerCase()
                   const teamTournamentId = team.tournamentId || team.tournament_id
-                  const captainEmail = String(parsedTeam.captainEmail || '').trim().toLowerCase()
+                  const captainEmail = String(mergedTeam.captainEmail || '').trim().toLowerCase()
                   return email === captainEmail && teamTournamentId === tournamentId
                 })
                 if (matchingTeam) {
@@ -394,8 +414,8 @@ export default function CaptainDashboardPage() {
                 }))
 
                 matches = rawMatches.map((m: any) => {
-                  const isTeam1 = m.team1_name === parsedTeam.teamName
-                  const isTeam2 = m.team2_name === parsedTeam.teamName
+                  const isTeam1 = m.team1_name === mergedTeam.teamName
+                  const isTeam2 = m.team2_name === mergedTeam.teamName
                   const isMyMatch = isTeam1 || isTeam2
                   
                   if (!isMyMatch) return null
@@ -531,7 +551,7 @@ export default function CaptainDashboardPage() {
               }
               const prizeAmount = getTournamentPrizeAmount(prizeParams)
               const teamNameForTournament =
-                t.matchingTeam?.teamName || t.matchingTeam?.team_name || parsedTeam.teamName
+                t.matchingTeam?.teamName || t.matchingTeam?.team_name || mergedTeam.teamName
               const isWinner = isTeamTournamentWinner(teamNameForTournament, winnerCheckMatches)
               const matchingTeam = t.matchingTeam
               const winnerInfo =
@@ -585,11 +605,11 @@ export default function CaptainDashboardPage() {
             const previousMatch = previousMatches.find(pm => pm.id === match.id)
             if (match.canConfirmResult && (!previousMatch || !previousMatch.canConfirmResult)) {
               // Opponent has just submitted a result
-              const opponentName = match.team1 === parsedTeam.teamName ? match.team2 : match.team1
-              const opponentScore = match.team1 === parsedTeam.teamName 
+              const opponentName = match.team1 === mergedTeam.teamName ? match.team2 : match.team1
+              const opponentScore = match.team1 === mergedTeam.teamName 
                 ? (match.opponentSubmittedScore2 || 0) 
                 : (match.opponentSubmittedScore1 || 0)
-              const myScore = match.team1 === parsedTeam.teamName 
+              const myScore = match.team1 === mergedTeam.teamName 
                 ? (match.opponentSubmittedScore1 || 0) 
                 : (match.opponentSubmittedScore2 || 0)
               
@@ -606,7 +626,7 @@ export default function CaptainDashboardPage() {
           previousMatchesRef.current = allMatches
           
           // Beregn lagstatistikk (foreløpig tom siden vi ikke har matches)
-          const stats = calculateTeamStats(transformedTournaments, parsedTeam.teamName)
+          const stats = calculateTeamStats(transformedTournaments, mergedTeam.teamName)
       setTeamStats(stats)
         } catch (error) {
           console.error('Error loading tournaments:', error)
@@ -985,7 +1005,11 @@ export default function CaptainDashboardPage() {
 
       const result = await response.json()
       const updatedCaptainName = result.team?.captainName || result.team?.captain_name || validation.fullName
-      const updatedTeam = { ...team, captainName: updatedCaptainName }
+      const updatedTeam = {
+        ...team,
+        id: result.team?.id || team.id,
+        captainName: updatedCaptainName
+      }
       setTeam(updatedTeam)
       localStorage.setItem('captainTeam', JSON.stringify(updatedTeam))
       addToast({ message: t('Navn oppdatert.', 'Name updated.'), type: 'success' })

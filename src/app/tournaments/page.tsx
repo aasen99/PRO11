@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { Shield, Trophy, Users, Calendar, Clock, CheckCircle, XCircle, ExternalLink } from 'lucide-react'
 import Header from '../../components/Header'
+import { PrizePoolText } from '@/components/PrizePoolText'
 import { fetchTournaments, Tournament } from '../../lib/tournaments'
 import { useLanguage } from '@/components/LanguageProvider'
 
@@ -135,11 +136,13 @@ export default function TournamentsPage() {
                         <Calendar className="w-4 h-4 text-blue-400" />
                         <span className="text-slate-300">{tournament.date} - {tournament.time}</span>
                       </div>
-                      <div className="flex items-center space-x-2">
-                        <Trophy className="w-4 h-4 text-yellow-400" />
-                        <span className="text-slate-300">
-                          {isEnglish ? 'Prize' : 'Premie'}: {tournament.prize}
-                        </span>
+                      <div className="flex items-start space-x-2">
+                        <Trophy className="w-4 h-4 text-yellow-400 mt-0.5 shrink-0" />
+                        <PrizePoolText
+                          tournament={tournament}
+                          isEnglish={isEnglish}
+                          className="text-slate-300"
+                        />
                       </div>
                       <div className="flex items-center space-x-2">
                         <Users className="w-4 h-4 text-green-400" />
