@@ -174,13 +174,16 @@ export default function TournamentDetailPage() {
             teamName
           })
         })
-        if (!response.ok) return
-        const data = await response.json()
+        const data = await response.json().catch(() => ({}))
+        if (!response.ok) {
+          console.warn('Follow sync failed:', data.error || response.status)
+          return
+        }
         if (data.counts && typeof data.counts === 'object') {
           setFollowCounts(data.counts)
         }
-      } catch {
-        // Ignore network errors for follow sync
+      } catch (error) {
+        console.warn('Follow sync failed:', error)
       }
     },
     [tournamentId]
@@ -1008,10 +1011,15 @@ export default function TournamentDetailPage() {
                       ))
                     ) : (
                       <span className="text-slate-500">
-                        {t(
-                          'Ingen følgere ennå — velg et lag for å starte.',
-                          'No followers yet — pick a team to start.'
-                        )}
+                        {followTeam
+                          ? t(
+                              'Følging lagres ikke ennå — kjør SETUP_TOURNAMENT_FOLLOWERS.sql i Supabase.',
+                              'Follows are not saving yet — run SETUP_TOURNAMENT_FOLLOWERS.sql in Supabase.'
+                            )
+                          : t(
+                              'Ingen følgere ennå — velg et lag for å starte.',
+                              'No followers yet — pick a team to start.'
+                            )}
                       </span>
                     )}
                   </div>

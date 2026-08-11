@@ -113,7 +113,34 @@ export async function POST(request: NextRequest) {
       )
 
       if (upsertError) {
-        return NextResponse.json({ error: 'Failed to follow team: ' + upsertError.message }, { status: 400 })
+        // Fallback if upsert conflict target is unavailable: replace existing row.
+        await supabase
+          .from('tournament_team_followers')
+          .delete()
+          .eq('tournament_id', tournamentId)
+          .eq('visitor_id', visitorId)
+
+        const { error: insertError } = await supabase.from('tournament_team_followers').insert({
+          tournament_id: tournamentId,
+          visitor_id: visitorId,
+          team_name: teamName,
+          updated_at: new Date().toISOString()
+        })
+
+        if (insertError) {
+          const missing =
+            insertError.message?.includes('tournament_team_followers') ||
+            insertError.message?.includes('schema cache')
+          return NextResponse.json(
+            {
+              error: missing
+                ? 'Followers table is missing. Run SETUP_TOURNAMENT_FOLLOWERS.sql in Supabase.'
+                : 'Failed to follow team: ' + insertError.message,
+              tableMissing: missing
+            },
+            { status: missing ? 503 : 400 }
+          )
+        }
       }
     }
 
