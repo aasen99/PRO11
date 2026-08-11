@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react'
 import Link from 'next/link'
 import { useParams } from 'next/navigation'
-import { Trophy, Users, Calendar, Clock, CheckCircle, XCircle, ExternalLink, Plus } from 'lucide-react'
+import { Trophy, Users, Calendar, Clock, CheckCircle, XCircle, ExternalLink, Plus, Radio } from 'lucide-react'
 import { fetchTournamentById } from '../../../lib/tournaments'
 import { useLanguage } from '@/components/LanguageProvider'
 import Header from '@/components/Header'
@@ -58,6 +58,8 @@ export default function TournamentDetailPage() {
   const params = useParams()
   const tournamentId = params.id as string
   const [activeTab, setActiveTab] = useState<'standings' | 'matches' | 'bracket' | 'info'>('standings')
+  const [matchFilter, setMatchFilter] = useState<'all' | 'live' | 'completed' | 'upcoming' | 'pending'>('all')
+  const initialTabSetRef = useRef(false)
   const { language } = useLanguage()
   const isEnglish = language === 'en'
   const t = (noText: string, enText: string) => (isEnglish ? enText : noText)
@@ -139,6 +141,13 @@ export default function TournamentDetailPage() {
     const interval = setInterval(loadMatches, pollMs)
     return () => clearInterval(interval)
   }, [tournamentId, loadMatches, tournament?.status])
+
+  useEffect(() => {
+    if (tournament?.status === 'ongoing' && matches.length > 0 && !initialTabSetRef.current) {
+      setActiveTab('matches')
+      initialTabSetRef.current = true
+    }
+  }, [tournament?.status, matches.length])
 
   const buildGroupRoundMap = (groupMatches: any[]) => {
     const teamSet = new Set<string>()
@@ -349,11 +358,11 @@ export default function TournamentDetailPage() {
 
   type MatchListSection = { key: string; title: string; matches: Match[] }
 
-  const buildMatchListSections = (): MatchListSection[] => {
+  const buildMatchListSections = (sourceMatches: Match[]): MatchListSection[] => {
     const groupByRound: Record<string, Record<number, Match[]>> = {}
     const knockoutByRound: Record<string, Match[]> = {}
 
-    sortedDisplayMatches.forEach(match => {
+    sourceMatches.forEach(match => {
       if (match.round === 'Gruppespill' && match.group) {
         const groupName = match.group
         const roundNo =
@@ -404,7 +413,28 @@ export default function TournamentDetailPage() {
     return sections
   }
 
-  const matchListSections = buildMatchListSections()
+  const filteredDisplayMatches = sortedDisplayMatches.filter(match => {
+    if (matchFilter === 'all') return true
+    if (matchFilter === 'live') return match.status === 'live'
+    if (matchFilter === 'completed') return match.status === 'completed'
+    if (matchFilter === 'upcoming') return match.status === 'scheduled'
+    if (matchFilter === 'pending') {
+      return match.status === 'pending_result' || match.status === 'pending_confirmation'
+    }
+    return true
+  })
+
+  const matchFilterCounts = {
+    all: sortedDisplayMatches.length,
+    live: sortedDisplayMatches.filter(m => m.status === 'live').length,
+    completed: sortedDisplayMatches.filter(m => m.status === 'completed').length,
+    upcoming: sortedDisplayMatches.filter(m => m.status === 'scheduled').length,
+    pending: sortedDisplayMatches.filter(
+      m => m.status === 'pending_result' || m.status === 'pending_confirmation'
+    ).length
+  }
+
+  const matchListSections = buildMatchListSections(filteredDisplayMatches)
 
   const renderMatchRow = (match: Match, meta?: string) => {
     const showScore = match.status === 'completed' || match.status === 'live'
@@ -412,49 +442,54 @@ export default function TournamentDetailPage() {
     return (
       <div
         key={match.id}
-        className={`flex items-center gap-1.5 sm:gap-2 px-2 py-1.5 text-xs sm:text-sm min-h-[2rem] ${
-          match.status === 'live' ? 'bg-red-950/10' : ''
-        }`}
+        className={match.status === 'live' ? 'bg-red-950/10' : ''}
       >
-        <span
-          className="w-[28%] sm:w-[22%] min-w-0 truncate text-right font-medium"
-          title={match.homeTeam}
-        >
-          {match.homeTeam}
-        </span>
-        <span
-          className={`w-5 text-center font-bold tabular-nums ${
-            showScore && match.status === 'live' ? 'text-red-400' : 'text-slate-200'
-          }`}
-        >
-          {showScore ? match.homeScore : '·'}
-        </span>
-        <span className="text-slate-600">-</span>
-        <span
-          className={`w-5 text-center font-bold tabular-nums ${
-            showScore && match.status === 'live' ? 'text-red-400' : 'text-slate-200'
-          }`}
-        >
-          {showScore ? match.awayScore : '·'}
-        </span>
-        <span
-          className="w-[28%] sm:w-[22%] min-w-0 truncate font-medium"
-          title={match.awayTeam}
-        >
-          {match.awayTeam}
-        </span>
-        <span
-          className={`shrink-0 px-1.5 py-0.5 rounded text-[10px] font-medium whitespace-nowrap ${getStatusColor(match.status)}`}
-        >
-          {getStatusText(match.status)}
-        </span>
-        {metaLine && (
+        <div className="flex items-center gap-1.5 sm:gap-2 px-2 py-1.5 text-xs sm:text-sm min-h-[2rem]">
           <span
-            className="hidden sm:inline text-[10px] text-slate-500 truncate min-w-0 flex-1"
-            title={metaLine}
+            className="w-[28%] sm:w-[22%] min-w-0 truncate text-right font-medium"
+            title={match.homeTeam}
           >
-            {metaLine}
+            {match.homeTeam}
           </span>
+          <span
+            className={`w-5 text-center font-bold tabular-nums ${
+              showScore && match.status === 'live' ? 'text-red-400' : 'text-slate-200'
+            }`}
+          >
+            {showScore ? match.homeScore : '·'}
+          </span>
+          <span className="text-slate-600">-</span>
+          <span
+            className={`w-5 text-center font-bold tabular-nums ${
+              showScore && match.status === 'live' ? 'text-red-400' : 'text-slate-200'
+            }`}
+          >
+            {showScore ? match.awayScore : '·'}
+          </span>
+          <span
+            className="w-[28%] sm:w-[22%] min-w-0 truncate font-medium"
+            title={match.awayTeam}
+          >
+            {match.awayTeam}
+          </span>
+          <span
+            className={`shrink-0 px-1.5 py-0.5 rounded text-[10px] font-medium whitespace-nowrap ${getStatusColor(match.status)}`}
+          >
+            {getStatusText(match.status)}
+          </span>
+          {metaLine && (
+            <span
+              className="hidden sm:inline text-[10px] text-slate-500 truncate min-w-0 flex-1"
+              title={metaLine}
+            >
+              {metaLine}
+            </span>
+          )}
+        </div>
+        {metaLine && (
+          <div className="sm:hidden px-2 pb-1.5 text-[10px] text-slate-500 truncate" title={metaLine}>
+            {metaLine}
+          </div>
         )}
       </div>
     )
@@ -561,50 +596,81 @@ export default function TournamentDetailPage() {
                 <Users className="w-5 h-5 text-green-400" />
                 <span className="text-sm sm:text-base">{tournament.registeredTeams}/{tournament.maxTeams} {t('lag', 'teams')}</span>
               </div>
+              {typeof tournament.entryFee === 'number' && (
+                <div className="flex items-center space-x-2">
+                  <Clock className="w-5 h-5 text-slate-400" />
+                  <span className="text-sm sm:text-base">
+                    {t('Avgift', 'Fee')}:{' '}
+                    {tournament.entryFee === 0
+                      ? t('Gratis', 'Free')
+                      : `${tournament.entryFee} NOK`}
+                  </span>
+                </div>
+              )}
             </div>
-            <div className="mt-4 flex flex-wrap items-center gap-3">
-              <span className={`inline-block px-3 py-1 rounded-full text-sm font-semibold ${getStatusColor(tournament.status)}`}>
+            <div className="mt-4 flex flex-wrap items-center justify-center gap-3">
+              <span
+                className={`inline-block px-3 py-1 rounded-full text-sm font-semibold ${
+                  tournament.status === 'ongoing' ? 'bg-red-600 animate-pulse' : getStatusColor(tournament.status)
+                }`}
+              >
                 {tournament.status === 'open'
                   ? t('Åpen for påmelding', 'Open for registration')
                   : tournament.status === 'ongoing'
-                    ? t('Pågående', 'Ongoing')
+                    ? 'LIVE'
                     : tournament.status === 'closed'
                       ? t('Stengt', 'Closed')
                       : t('Fullført', 'Completed')}
               </span>
-              {tournament.status === 'open' && (
+              {tournament.isDemo && (
+                <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-purple-600/30 text-purple-200 border border-purple-500/40">
+                  DEMO
+                </span>
+              )}
+              {tournament.status === 'open' && !tournament.isDemo && (
                 <Link
-                  href={`/add-team?tournament=${encodeURIComponent(tournament.id)}`}
+                  href={`/register?tournament=${encodeURIComponent(tournament.id)}`}
                   className="inline-flex items-center gap-1.5 text-sm text-blue-400 hover:text-blue-300"
                 >
                   <Plus className="w-4 h-4" />
-                  {t('Legg til lag', 'Add team')}
+                  {t('Meld på lag', 'Register team')}
                 </Link>
               )}
             </div>
           </div>
 
           {matches.length > 0 && (
-            <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1 mb-6 text-sm text-slate-300">
-              <span>
-                <span className="font-semibold text-white">{completedCount}/{matches.length}</span>{' '}
-                {t('kamper', 'matches')}
-              </span>
-              <span className="text-blue-400 font-semibold">{matchProgress}%</span>
-              {liveCount > 0 && (
-                <span className="text-red-400 font-semibold">{liveCount} LIVE</span>
-              )}
-              {pendingCount > 0 && (
-                <span className="text-yellow-400">
-                  {pendingCount} {t('venter', 'pending')}
+            <div className="pro11-card p-4 sm:p-5 mb-6">
+              <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2 text-sm text-slate-300 mb-3">
+                {tournament.status === 'ongoing' && liveCount > 0 && (
+                  <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-red-600/20 text-red-400 font-semibold">
+                    <Radio className="w-3.5 h-3.5" />
+                    {liveCount} LIVE
+                  </span>
+                )}
+                <span>
+                  <span className="font-semibold text-white">{completedCount}/{matches.length}</span>{' '}
+                  {t('kamper', 'matches')}
                 </span>
-              )}
-              {lastUpdated && (
-                <span className="text-xs text-slate-500">
-                  {t('Oppdatert', 'Updated')}{' '}
-                  {lastUpdated.toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' })}
-                </span>
-              )}
+                <span className="text-blue-400 font-semibold">{matchProgress}%</span>
+                {pendingCount > 0 && (
+                  <span className="text-yellow-400">
+                    {pendingCount} {t('venter', 'pending')}
+                  </span>
+                )}
+                {lastUpdated && (
+                  <span className="text-xs text-slate-500">
+                    {t('Oppdatert', 'Updated')}{' '}
+                    {lastUpdated.toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' })}
+                  </span>
+                )}
+              </div>
+              <div className="w-full bg-slate-700/80 rounded-full h-2 overflow-hidden">
+                <div
+                  className="bg-gradient-to-r from-green-600 to-green-400 h-2 rounded-full transition-all duration-500"
+                  style={{ width: `${matchProgress}%` }}
+                />
+              </div>
             </div>
           )}
 
@@ -680,6 +746,41 @@ export default function TournamentDetailPage() {
 
             {activeTab === 'matches' && (
               <div>
+                {sortedDisplayMatches.length > 0 && (
+                  <div className="flex flex-wrap gap-2 mb-4">
+                    {(
+                      [
+                        ['all', t('Alle', 'All')],
+                        ['live', 'LIVE'],
+                        ['upcoming', t('Kommende', 'Upcoming')],
+                        ['pending', t('Venter', 'Pending')],
+                        ['completed', t('Ferdig', 'Done')]
+                      ] as const
+                    ).map(([key, label]) => {
+                      const count = matchFilterCounts[key]
+                      if (key !== 'all' && count === 0) return null
+                      return (
+                        <button
+                          key={key}
+                          type="button"
+                          onClick={() => setMatchFilter(key)}
+                          className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
+                            matchFilter === key
+                              ? key === 'live'
+                                ? 'bg-red-600 text-white'
+                                : 'bg-blue-600 text-white'
+                              : 'bg-slate-800 text-slate-300 hover:text-white'
+                          }`}
+                        >
+                          {label}
+                          {count > 0 && (
+                            <span className="ml-1 opacity-80">({count})</span>
+                          )}
+                        </button>
+                      )
+                    })}
+                  </div>
+                )}
                 {matchListSections.length > 0 ? (
                   <div className="space-y-4">
                     {matchListSections.map(section => (
@@ -690,6 +791,10 @@ export default function TournamentDetailPage() {
                         </div>
                       </div>
                     ))}
+                  </div>
+                ) : sortedDisplayMatches.length > 0 ? (
+                  <div className="text-center py-12 text-slate-400">
+                    <p>{t('Ingen kamper matcher filteret.', 'No matches match this filter.')}</p>
                   </div>
                 ) : (
                   <div className="text-center py-12">

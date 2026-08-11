@@ -49,7 +49,7 @@ export default function TournamentsPage() {
       case 'open':
         return 'bg-green-600'
       case 'ongoing':
-        return 'bg-blue-600'
+        return 'bg-red-600'
       case 'closed':
         return 'bg-yellow-600'
       case 'completed':
@@ -169,9 +169,12 @@ export default function TournamentsPage() {
                       </p>
                     )}
                     {tournament.status === 'ongoing' && (
-                      <button disabled className="pro11-button-secondary text-center opacity-50 cursor-not-allowed">
-                        {isEnglish ? 'Registration closed' : 'Påmelding stengt'}
-                      </button>
+                      <Link
+                        href={`/tournaments/${tournament.id}`}
+                        className="pro11-button text-center"
+                      >
+                        {isEnglish ? 'View live' : 'Se turnering'}
+                      </Link>
                     )}
                     
                     <Link 

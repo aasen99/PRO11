@@ -88,7 +88,7 @@ function getStatusText(status: 'open' | 'ongoing' | 'closed' | 'completed'): str
     case 'open':
       return 'Åpen for påmelding'
     case 'ongoing':
-      return 'Pågår'
+      return 'LIVE'
     case 'closed':
       return 'Stengt'
     case 'completed':
