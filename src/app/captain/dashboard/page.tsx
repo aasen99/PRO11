@@ -1316,7 +1316,6 @@ export default function CaptainDashboardPage() {
     if (!match.scheduledTime) return false
     const scheduledMs = new Date(match.scheduledTime).getTime()
     if (Number.isNaN(scheduledMs)) return false
-    if (match.status === 'completed') return false
     return Date.now() >= scheduledMs + 10 * 60 * 1000
   }
 
