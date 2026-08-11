@@ -71,7 +71,7 @@ export default function TeamStreamPanel({
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
   const [deletingId, setDeletingId] = useState<string | null>(null)
-  const [showForm, setShowForm] = useState(!compact)
+  const [showForm, setShowForm] = useState(false)
   const [teamId, setTeamId] = useState('')
   const [service, setService] = useState<StreamService>('twitch')
   const [streamUrl, setStreamUrl] = useState('')
@@ -185,6 +185,7 @@ export default function TeamStreamPanel({
 
       setStreamUrl('')
       setDisplayName('')
+      setShowForm(false)
       setToast({
         message: t(
           'Stream lagt til. Du kan slette den her så lenge du er på samme enhet/nettleser.',
@@ -261,30 +262,18 @@ export default function TeamStreamPanel({
         <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />
       )}
 
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h3 className="text-lg font-semibold flex items-center gap-2">
-            <Radio className="w-5 h-5 text-red-400" />
-            {t('Streams', 'Streams')}
-          </h3>
-          {!compact && (
-            <p className="text-sm text-slate-400 mt-1">
-              {t(
-                `Spillere kan legge inn én stream per lag (maks ${MAX_STREAMS_PER_TEAM}).`,
-                `Players can add one stream per team slot (max ${MAX_STREAMS_PER_TEAM}).`
-              )}
-            </p>
-          )}
-        </div>
-        {compact && (
-          <button
-            type="button"
-            onClick={() => setShowForm(prev => !prev)}
-            className="px-3 py-1.5 rounded-lg text-sm font-medium bg-red-600 hover:bg-red-500 text-white transition-colors"
-          >
-            {showForm ? t('Skjul skjema', 'Hide form') : t('Legg til stream', 'Add stream')}
-          </button>
-        )}
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+        <h3 className="text-lg font-semibold flex items-center gap-2">
+          <Radio className="w-5 h-5 text-red-400" />
+          {t('Streams', 'Streams')}
+        </h3>
+        <button
+          type="button"
+          onClick={() => setShowForm(prev => !prev)}
+          className="px-3 py-1.5 rounded-lg text-sm font-medium bg-red-600 hover:bg-red-500 text-white transition-colors"
+        >
+          {showForm ? t('Avbryt', 'Cancel') : t('Legg til stream', 'Add stream')}
+        </button>
       </div>
 
       {showForm && teamOptions.length > 0 && (
