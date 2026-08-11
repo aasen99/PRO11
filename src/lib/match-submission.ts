@@ -85,6 +85,9 @@ export function getSubmissionBlockReason(
 
 export const WALKOVER_GRACE_MS = 10 * 60 * 1000
 
+/** Matches where WO may be claimed if kickoff + grace has passed and no result submitted. */
+const WALKOVER_ELIGIBLE_STATUSES = new Set(['scheduled', 'live'])
+
 export interface WalkoverMatchContext extends MatchSubmissionContext {
   team1_submitted_score1?: number | null
   team2_submitted_score1?: number | null
@@ -102,11 +105,19 @@ export function canClaimWalkover(
     }
   }
 
-  if (match.status !== 'scheduled') {
+  if (match.status === 'completed') {
     return {
       allowed: false,
-      reasonNo: 'WO kan bare kreves for planlagte kamper uten resultat.',
-      reasonEn: 'Walkover can only be claimed for scheduled matches without a result.'
+      reasonNo: 'Kampen er allerede fullført.',
+      reasonEn: 'The match is already completed.'
+    }
+  }
+
+  if (!WALKOVER_ELIGIBLE_STATUSES.has(match.status)) {
+    return {
+      allowed: false,
+      reasonNo: 'WO kan ikke kreves når et resultat allerede venter på behandling.',
+      reasonEn: 'Walkover cannot be claimed while a result is pending.'
     }
   }
 

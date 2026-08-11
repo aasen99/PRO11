@@ -1312,6 +1312,7 @@ export default function CaptainDashboardPage() {
 
   const canShowWalkoverInModal = (match: Match) => {
     if (match.canClaimWalkover) return true
+    if (match.status !== 'scheduled' && match.status !== 'live') return false
     if (!match.scheduledTime) return false
     const scheduledMs = new Date(match.scheduledTime).getTime()
     if (Number.isNaN(scheduledMs)) return false

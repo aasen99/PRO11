@@ -270,7 +270,10 @@ export function buildAttentionItems(matches: MatchRow[]): AttentionItem[] {
       })
     }
 
-    if (match.status === 'scheduled' && match.scheduled_time) {
+    if (
+      (match.status === 'scheduled' || match.status === 'live') &&
+      match.scheduled_time
+    ) {
       const scheduledMs = new Date(match.scheduled_time).getTime()
       if (!Number.isNaN(scheduledMs)) {
         const overdueMs = now - scheduledMs
