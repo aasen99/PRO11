@@ -83,7 +83,10 @@ export default function RegisterPage() {
             const time = startDate.toLocaleTimeString('nb-NO', { hour: '2-digit', minute: '2-digit' })
             const perTeamPotMatch = String(t.description || '').match(/\[POT_PER_TEAM:(\d+)\]/i)
             const perTeamPot = perTeamPotMatch ? Number(perTeamPotMatch[1]) : null
-            const computedPrizePool = perTeamPot !== null ? perTeamPot * (t.current_teams || 0) : t.prize_pool
+            const computedPrizePool =
+              perTeamPot !== null
+                ? perTeamPot * (t.eligible_teams ?? t.current_teams ?? 0)
+                : t.prize_pool
             setTournament({
               id: t.id,
               title: t.title,

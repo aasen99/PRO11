@@ -102,12 +102,12 @@ function getStatusText(status: 'open' | 'ongoing' | 'closed' | 'completed'): str
 function transformTournament(dbTournament: DatabaseTournament): Tournament {
   const { date, time } = formatDate(dbTournament.start_date)
   const status = mapStatus(dbTournament.status)
-  const eligibleTeams = dbTournament.eligible_teams ?? dbTournament.current_teams
+  const eligibleTeams = dbTournament.eligible_teams ?? dbTournament.current_teams ?? 0
   const prizeParams = {
     prizePool: dbTournament.prize_pool,
     description: dbTournament.description,
     eligibleTeams,
-    currentTeams: dbTournament.current_teams,
+    currentTeams: eligibleTeams,
     maxTeams: dbTournament.max_teams
   }
   const prizeAmount = getTournamentPrizeAmount(prizeParams)
@@ -127,7 +127,7 @@ function transformTournament(dbTournament: DatabaseTournament): Tournament {
     maxPrizeAmount,
     isDynamicPrize,
     entryFee: dbTournament.entry_fee,
-    registeredTeams: dbTournament.current_teams ?? eligibleTeams ?? 0,
+    registeredTeams: eligibleTeams ?? 0,
     maxTeams: dbTournament.max_teams,
     status,
     statusText: getStatusText(status),

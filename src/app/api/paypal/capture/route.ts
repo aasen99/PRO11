@@ -12,6 +12,7 @@ import {
   unauthorizedResponse,
   forbiddenResponse
 } from '@/lib/session'
+import { recountTournamentRegisteredTeams } from '@/lib/tournament-team-count'
 
 export async function POST(request: NextRequest) {
   try {
@@ -135,6 +136,8 @@ export async function POST(request: NextRequest) {
     if (teamUpdateError) {
       return NextResponse.json({ error: teamUpdateError.message }, { status: 400 })
     }
+
+    await recountTournamentRegisteredTeams(supabase, team.tournament_id)
 
     return NextResponse.json({
       success: true,

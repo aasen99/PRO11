@@ -18,6 +18,10 @@ import {
   validatePrizePayoutInput
 } from '@/lib/prize-payout'
 import { normalizeCaptainName, validateCaptainFullName } from '@/lib/captain-name'
+import {
+  isTeamCountedAsRegistered,
+  recountTournamentRegisteredTeams
+} from '@/lib/tournament-team-count'
 
 function mapPrizePayoutFields(team: any) {
   return {
@@ -240,24 +244,10 @@ export async function POST(request: NextRequest) {
         })
     }
 
-    if (tournamentUuid) {
-      try {
-        const rpcResult = await supabase.rpc('increment_tournament_teams', { tournament_uuid: tournamentUuid })
-        if (rpcResult.error) throw rpcResult.error
-      } catch (rpcError) {
-        console.warn('RPC failed, using manual update:', rpcError)
-        const { data: tournament } = await supabase
-          .from('tournaments')
-          .select('current_teams')
-          .eq('id', tournamentUuid)
-          .single()
-        if (tournament) {
-          await supabase
-            .from('tournaments')
-            .update({ current_teams: (tournament.current_teams || 0) + 1 })
-            .eq('id', tournamentUuid)
-        }
-      }
+    // Only count paid/approved teams toward registered spots.
+    // Pending unpaid registrations stay visible in admin but do not occupy a spot.
+    if (tournamentUuid && paymentStatus === 'completed') {
+      await recountTournamentRegisteredTeams(supabase, tournamentUuid)
     }
 
     const teamData = {
@@ -532,9 +522,7 @@ export async function PUT(request: NextRequest) {
         .select('status, payment_status')
         .eq('tournament_id', tournamentId)
 
-      const eligibleTeams = (teamsForTournament || []).filter((team: any) =>
-        team.status === 'approved' || team.payment_status === 'completed'
-      ).length
+      const eligibleTeams = (teamsForTournament || []).filter(isTeamCountedAsRegistered).length
 
       const { data: matches, error: matchesError } = await supabase
         .from('matches')
@@ -554,7 +542,7 @@ export async function PUT(request: NextRequest) {
         entryFee: tournament.entry_fee as number | null,
         description: tournament.description as string | null,
         eligibleTeams,
-        currentTeams: tournament.current_teams as number | null
+        currentTeams: eligibleTeams
       }
 
       if (!tournamentHasConfiguredPrize(prizeParams)) {
@@ -666,6 +654,10 @@ export async function PUT(request: NextRequest) {
     if (error) {
       console.error('Database error:', error)
       return NextResponse.json({ error: 'Failed to update team: ' + error.message }, { status: 400 })
+    }
+
+    if (status !== undefined && team?.tournament_id) {
+      await recountTournamentRegisteredTeams(supabase, team.tournament_id)
     }
 
     // Return team data in both formats for compatibility

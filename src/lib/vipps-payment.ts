@@ -4,6 +4,7 @@ import {
   resolveVippsPspReference,
   waitForSuccessfulVippsPayment
 } from '@/lib/vipps'
+import { recountTournamentRegisteredTeams } from '@/lib/tournament-team-count'
 
 export interface CompleteVippsPaymentResult {
   success: boolean
@@ -24,7 +25,7 @@ export async function completeVippsPaymentForTeam(
 ): Promise<CompleteVippsPaymentResult> {
   const { data: team, error: teamError } = await supabase
     .from('teams')
-    .select('id, payment_status, team_name, tournaments(entry_fee)')
+    .select('id, payment_status, team_name, tournament_id, tournaments(entry_fee)')
     .eq('id', teamId)
     .single()
 
@@ -125,6 +126,8 @@ export async function completeVippsPaymentForTeam(
   if (teamUpdateError) {
     return { success: false, error: teamUpdateError.message }
   }
+
+  await recountTournamentRegisteredTeams(supabase, team.tournament_id)
 
   return {
     success: true,

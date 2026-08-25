@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSupabase, getSupabaseAdmin } from '@/lib/supabase'
 import { isUnauthorized, requireAdmin } from '@/lib/session'
+import {
+  isTeamCountedAsRegistered,
+  recountTournamentRegisteredTeams
+} from '@/lib/tournament-team-count'
 
 export async function GET(request: NextRequest) {
   try {
@@ -50,9 +54,13 @@ export async function GET(request: NextRequest) {
         .select('status, payment_status')
         .eq('tournament_id', id)
 
-      const eligibleTeamsCount = (teamsForTournament || []).filter((team: any) =>
-        team.status === 'approved' || team.payment_status === 'completed'
-      ).length
+      const eligibleTeamsCount = (teamsForTournament || []).filter(isTeamCountedAsRegistered).length
+
+      // Heal stale current_teams (e.g. pending unpaid teams previously counted).
+      if ((tournament.current_teams || 0) !== eligibleTeamsCount) {
+        await recountTournamentRegisteredTeams(supabase, tournament.id)
+        tournament.current_teams = eligibleTeamsCount
+      }
 
       return NextResponse.json({
         tournament: {
@@ -113,18 +121,23 @@ export async function GET(request: NextRequest) {
           .in('tournament_id', tournamentIds)
 
         eligibleTeamsByTournament = (allTeams || []).reduce((acc: Record<string, number>, team: any) => {
-          const isEligible = team.status === 'approved' || team.payment_status === 'completed'
-          if (!isEligible) return acc
+          if (!isTeamCountedAsRegistered(team)) return acc
           const tournamentId = team.tournament_id
           acc[tournamentId] = (acc[tournamentId] || 0) + 1
           return acc
         }, {})
       }
 
-      const enrichedTournaments = (tournaments || []).map((t: any) => ({
-        ...t,
-        eligible_teams: eligibleTeamsByTournament[t.id] || 0
-      }))
+      const enrichedTournaments = await Promise.all(
+        (tournaments || []).map(async (t: any) => {
+          const eligible = eligibleTeamsByTournament[t.id] || 0
+          if ((t.current_teams || 0) !== eligible) {
+            await recountTournamentRegisteredTeams(supabase, t.id)
+            return { ...t, current_teams: eligible, eligible_teams: eligible }
+          }
+          return { ...t, eligible_teams: eligible }
+        })
+      )
 
       return NextResponse.json({ tournaments: enrichedTournaments })
     }

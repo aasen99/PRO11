@@ -5,6 +5,7 @@ import {
   getCaptainSession,
   unauthorizedResponse
 } from '@/lib/session'
+import { recountTournamentRegisteredTeams } from '@/lib/tournament-team-count'
 
 export async function POST(request: NextRequest) {
   try {
@@ -136,6 +137,7 @@ export async function PUT(request: NextRequest) {
         // Don't fail the request, but log the error
       } else {
         console.log('Team status updated successfully:', updatedTeam)
+        await recountTournamentRegisteredTeams(supabase, updatedTeam.tournament_id)
       }
     }
 
