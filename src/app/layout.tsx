@@ -4,15 +4,37 @@ import './globals.css'
 import { LanguageProvider } from '@/components/LanguageProvider'
 import Footer from '@/components/Footer'
 import CookieConsentProvider from '@/components/CookieConsentProvider'
+import JsonLd from '@/components/JsonLd'
+import {
+  buildPageMetadata,
+  organizationJsonLd,
+  SEO_COPY,
+  websiteJsonLd
+} from '@/lib/seo'
+import { getSiteUrl } from '@/lib/site'
 
 const inter = Inter({ subsets: ['latin'] })
 
-const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://pro11.no'
+const siteUrl = getSiteUrl()
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
-  title: 'PRO11 - Pro Clubs Turneringer',
-  description: 'PRO11 er en turneringsplattform for Pro Clubs i FC 26. Gruppespill, sluttspill og kamper som betyr noe.',
+  ...buildPageMetadata({
+    path: '/',
+    titleNo: SEO_COPY.no.defaultTitle,
+    titleEn: SEO_COPY.en.defaultTitle,
+    descriptionNo: SEO_COPY.no.defaultDescription,
+    descriptionEn: SEO_COPY.en.defaultDescription
+  }),
+  title: {
+    default: SEO_COPY.no.defaultTitle,
+    template: '%s | PRO11'
+  },
+  applicationName: 'PRO11',
+  authors: [{ name: 'PRO11 / E-spårt AS' }],
+  creator: 'PRO11',
+  publisher: 'E-spårt AS',
+  category: 'sports',
   icons: {
     icon: [
       { url: '/favicon-32.png', type: 'image/png', sizes: '32x32' },
@@ -22,18 +44,9 @@ export const metadata: Metadata = {
     shortcut: '/favicon-64.png',
     apple: '/apple-icon.png'
   },
-  openGraph: {
-    title: 'PRO11 - Pro Clubs Turneringer',
-    description: 'PRO11 er en turneringsplattform for Pro Clubs i FC 26. Gruppespill, sluttspill og kamper som betyr noe.',
-    images: ['/icon.png'],
-    type: 'website'
-  },
-  twitter: {
-    card: 'summary',
-    title: 'PRO11 - Pro Clubs Turneringer',
-    description: 'PRO11 er en turneringsplattform for Pro Clubs i FC 26. Gruppespill, sluttspill og kamper som betyr noe.',
-    images: ['/icon.png']
-  }
+  verification: process.env.GOOGLE_SITE_VERIFICATION
+    ? { google: process.env.GOOGLE_SITE_VERIFICATION }
+    : undefined
 }
 
 export default function RootLayout({
@@ -42,8 +55,9 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="no">
+    <html lang="nb">
       <body className={`${inter.className} bg-slate-900 text-white min-h-screen`}>
+        <JsonLd data={[organizationJsonLd(), websiteJsonLd()]} />
         <LanguageProvider>
           <CookieConsentProvider>
           <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900 flex flex-col">
@@ -57,4 +71,4 @@ export default function RootLayout({
       </body>
     </html>
   )
-} 
+}

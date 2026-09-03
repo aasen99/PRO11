@@ -99,7 +99,7 @@ function getStatusText(status: 'open' | 'ongoing' | 'closed' | 'completed'): str
 }
 
 // Transform database tournament to frontend format
-function transformTournament(dbTournament: DatabaseTournament): Tournament {
+export function transformTournament(dbTournament: DatabaseTournament): Tournament {
   const { date, time } = formatDate(dbTournament.start_date)
   const status = mapStatus(dbTournament.status)
   const eligibleTeams = dbTournament.eligible_teams ?? dbTournament.current_teams ?? 0

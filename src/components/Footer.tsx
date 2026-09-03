@@ -15,6 +15,9 @@ export default function Footer() {
     <footer className="py-6 sm:py-8 px-4 text-xs text-slate-500 flex flex-col items-center justify-center w-full">
       <div className="max-w-2xl w-full mx-auto text-center">
         <div className="flex flex-col sm:flex-row flex-wrap items-center justify-center gap-3 sm:gap-4 mb-3">
+          <Link href="/tournaments" className="text-white hover:text-slate-200 transition-colors whitespace-nowrap">
+            {isEnglish ? 'Tournaments' : 'Turneringer'}
+          </Link>
           <Link href="/faq" className="text-white hover:text-slate-200 transition-colors whitespace-nowrap">FAQ</Link>
           <Link href="/rules" className="text-white hover:text-slate-200 transition-colors whitespace-nowrap">
             {isEnglish ? 'Rules' : 'Regler'}
