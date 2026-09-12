@@ -138,12 +138,11 @@ export function transformTournament(dbTournament: DatabaseTournament): Tournamen
   }
 }
 
-// Fetch tournaments from API
+// Fetch tournaments from API. The public list is CDN-cached by the route,
+// so do not force every browser visit to bypass the shared cache.
 export async function fetchTournaments(): Promise<Tournament[]> {
   try {
-    const response = await fetch('/api/tournaments', {
-      cache: 'no-store'
-    })
+    const response = await fetch('/api/tournaments')
     
     if (!response.ok) {
       throw new Error('Failed to fetch tournaments')
