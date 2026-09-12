@@ -6,6 +6,11 @@ import {
   recountTournamentRegisteredTeams
 } from '@/lib/tournament-team-count'
 
+const PUBLIC_LIST_CACHE_HEADERS = {
+  'Cache-Control': 'public, max-age=0, must-revalidate',
+  'Vercel-CDN-Cache-Control': 'public, s-maxage=60, stale-while-revalidate=300'
+}
+
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
@@ -139,7 +144,13 @@ export async function GET(request: NextRequest) {
         })
       )
 
-      return NextResponse.json({ tournaments: enrichedTournaments })
+      // The homepage and public listings do not need a fresh database/function run
+      // for every visitor. Vercel may serve this shared response for 60 seconds and
+      // revalidate it in the background for up to five minutes.
+      return NextResponse.json(
+        { tournaments: enrichedTournaments },
+        { headers: PUBLIC_LIST_CACHE_HEADERS }
+      )
     }
 
   } catch (error: any) {
@@ -311,7 +322,7 @@ export async function DELETE(request: NextRequest) {
     if (!supabase) {
       console.error('Failed to create Supabase admin client - SUPABASE_SERVICE_ROLE_KEY is missing!')
       return NextResponse.json({ 
-        error: 'Database connection failed: SUPABASE_SERVICE_ROLE_KEY is not set. Please add it to your environment variables.',
+        error: 'Database connection failed: SUPABASE_SERVICE_ROLE_KEY is not set. Please add it to .env.local (local) or Vercel environment variables.',
         hint: 'This key is required for admin operations. Add it to .env.local (local) or Vercel environment variables (production).'
       }, { status: 500 })
     }
