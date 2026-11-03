@@ -2,14 +2,15 @@ import Image from 'next/image'
 import Link from 'next/link'
 
 interface LogoProps {
+  href?: string
   priority?: boolean
   className?: string
 }
 
-export default function Logo({ priority = false, className = 'w-24 h-24' }: LogoProps) {
+export default function Logo({ priority = false, className = 'w-24 h-24', href = '/' }: LogoProps) {
   return (
     <Link
-      href="/"
+      href={href}
       className={`flex items-center justify-center hover:opacity-80 transition-opacity ${className}`}
     >
       <Image
