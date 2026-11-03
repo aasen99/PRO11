@@ -123,7 +123,7 @@ export default function Header({ backButton = false, backHref = '/', title }: He
               <span>{isEnglish ? 'Back' : 'Tilbake'}</span>
             </Link>
           )}
-          <Logo className="w-16 sm:w-20 lg:w-[4.5rem] h-auto shrink-0" />
+          <Logo href={isEnglish ? '/en' : '/'} className="w-16 sm:w-20 lg:w-[4.5rem] h-auto shrink-0" />
           {showSubtitle && (
             <div className="hidden md:block min-w-0 border-l border-slate-700/60 pl-3">
               <p className="text-slate-400 text-sm truncate">{title}</p>
