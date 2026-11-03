@@ -1,6 +1,7 @@
 'use client'
 
 import React, { createContext, useContext, useEffect, useMemo, useState } from 'react'
+import { usePathname } from 'next/navigation'
 
 export type Language = 'no' | 'en'
 
@@ -11,16 +12,21 @@ interface LanguageContextValue {
 
 const LanguageContext = createContext<LanguageContextValue | undefined>(undefined)
 
+function routeLanguage(pathname: string | null): Language | null {
+  if (pathname === '/en' || pathname?.startsWith('/en/')) return 'en'
+  if (pathname === '/') return 'no'
+  return null
+}
+
 function readLangFromLocation(): Language | null {
   if (typeof window === 'undefined') return null
   try {
-    const params = new URLSearchParams(window.location.search)
-    const lang = params.get('lang')
+    const lang = new URLSearchParams(window.location.search).get('lang')
     if (lang === 'en' || lang === 'no' || lang === 'nb') {
       return lang === 'nb' ? 'no' : lang
     }
   } catch {
-    // Ignore
+    // Ignore malformed query strings
   }
   return null
 }
@@ -41,27 +47,37 @@ function syncLangToUrl(language: Language) {
 }
 
 export function LanguageProvider({ children }: { children: React.ReactNode }) {
-  const [language, setLanguageState] = useState<Language>('no')
+  const pathname = usePathname()
+  // The /en route must render English on the server, before hydration.
+  const [language, setLanguageState] = useState<Language>(() => routeLanguage(pathname) ?? 'no')
 
   useEffect(() => {
+    const fromRoute = routeLanguage(pathname)
     const fromUrl = readLangFromLocation()
-    if (fromUrl) {
-      setLanguageState(fromUrl)
-      return
-    }
-    const stored = localStorage.getItem('language')
-    if (stored === 'no' || stored === 'en') {
-      setLanguageState(stored)
-    }
-  }, [])
-
-  useEffect(() => {
-    localStorage.setItem('language', language)
-    document.documentElement.lang = language === 'en' ? 'en' : 'nb'
-  }, [language])
+    const stored = window.localStorage.getItem('language')
+    const resolved = fromRoute ?? fromUrl ?? (stored === 'no' || stored === 'en' ? stored : 'no')
+    setLanguageState(resolved)
+    window.localStorage.setItem('language', resolved)
+    document.documentElement.lang = resolved === 'en' ? 'en' : 'nb'
+  }, [pathname])
 
   const setLanguage = (nextLanguage: Language) => {
+    if (typeof window === 'undefined') return
+
+    // Homepage languages are separate, indexable routes.
+    if (pathname === '/' || pathname === '/en') {
+      const destination = nextLanguage === 'en' ? '/en' : '/'
+      if (window.location.pathname !== destination) {
+        window.localStorage.setItem('language', nextLanguage)
+        window.location.assign(destination)
+      }
+      return
+    }
+
+    // Other pages still use the existing language selection until migrated.
     setLanguageState(nextLanguage)
+    window.localStorage.setItem('language', nextLanguage)
+    document.documentElement.lang = nextLanguage === 'en' ? 'en' : 'nb'
     syncLangToUrl(nextLanguage)
   }
 
