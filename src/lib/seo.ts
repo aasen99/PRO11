@@ -56,7 +56,9 @@ export const SEO_COPY = {
 export function languageAlternates(path: string): Metadata['alternates'] {
   const cleanPath = path.startsWith('/') ? path : `/${path}`
   const noUrl = absoluteUrl(cleanPath)
-  const enUrl = `${noUrl}${cleanPath.includes('?') ? '&' : '?'}lang=en`
+  const enUrl = cleanPath === '/'
+    ? absoluteUrl('/en')
+    : `${noUrl}${cleanPath.includes('?') ? '&' : '?'}lang=en`
 
   return {
     canonical: noUrl,
