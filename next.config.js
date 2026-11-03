@@ -4,6 +4,16 @@ const nextConfig = {
     domains: [],
   },
   serverExternalPackages: ['pdfkit'],
+  async redirects() {
+    return [
+      {
+        source: '/',
+        has: [{ type: 'query', key: 'lang', value: 'en' }],
+        destination: '/en',
+        permanent: true,
+      },
+    ]
+  },
 }
 
-module.exports = nextConfig 
+module.exports = nextConfig
