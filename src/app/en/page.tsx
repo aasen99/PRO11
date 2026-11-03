@@ -29,6 +29,7 @@ export const metadata: Metadata = {
     type: 'website',
     images: [{ url: absoluteUrl('/icon.png'), alt: 'PRO11' }]
   },
+  other: { 'content-language': 'en' },
   twitter: {
     card: 'summary_large_image',
     title: SEO_COPY.en.defaultTitle,
@@ -40,5 +41,5 @@ export const metadata: Metadata = {
 // Share the existing homepage design and tournament data with the Norwegian route.
 // LanguageProvider renders English content immediately for /en, including SSR HTML.
 export default function EnglishHomePage() {
-  return <HomePage />
+  return <div lang="en"><HomePage /></div>
 }
